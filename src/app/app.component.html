@@ -1,0 +1,135 @@
+<div uk-grid class="app uk-offcanvas-content" uk-height-viewport (mousemove)="updateIdleTime()" (keypress)="updateIdleTime()">
+
+  <!-- Mobile Offcanvas Nav -->
+  <div id="mobile-nav" uk-offcanvas="mode: reveal; overlay: false;">
+    <div class="uk-offcanvas-bar" style="padding: 0; background: #2C3E50;">
+      <div class="title-block">
+        <div class="uk-margin-left" style="padding-bottom: 15px; color: #666;">
+          <div uk-grid>
+            <div class="uk-width-expand"><a routerLink="" class="title">Your Raicoin</a></div>
+          </div>
+
+          <div *ngIf="configured()">
+            <span class="uk-text-bold">Wallet ID: {{ walletIndex() }}</span>
+          </div>
+          <div *ngIf="configured()">
+            <div uk-grid>
+              <div class="uk-width-expand uk-text-truncate uk-text-bold uk-padding-remove-right">
+                Account: <a [routerLink]="'/account/' + selectedAccountAddress()" style="color:#666">{{ selectedAccountAddress() }}</a>
+              </div>
+              <div class="uk-width-auto uk-padding-remove-left">
+                <span ngxClipboard [cbContent]="selectedAccountAddress()" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="Copy Account Address" uk-tooltip></span>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="configured()">
+            <span class="uk-text-bold">Balance: {{ balance() | balance: 2 }}</span>
+          </div>
+          <div *ngIf="configured() && pending().value.gt(0)">
+            <span class="uk-text-bold">Pending: {{ pending() | balance: 2 }}</span>
+          </div>
+          <div *ngIf="configured() && receivable().value.gt(0)">
+            <span class="uk-text-bold">Receivable: {{ receivable() | balance: 2 }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <app-wallet-widget></app-wallet-widget>
+
+      <ul class="uk-nav uk-nav-default uk-nav-parent-icon left-nav" uk-nav>
+        <li><a routerLink="/send" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">Send</a></li>
+        <li><a routerLink="/receive" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">Receive</a></li>
+        <li routerLink="/accounts" routerLinkActive="uk-active"><a routerLink="/accounts" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">Accounts</a></li>
+        <li routerLink="/wallets" routerLinkActive="uk-active"><a routerLink="/wallets" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">Wallets</a></li>
+        <li class="uk-parent">
+          <a href="#" class="uk-margin-left">Settings</a>
+          <ul class="uk-nav-sub">
+            <li><a routerLink="/account-settings" routerLinkActive="active" class="uk-margin-left" uk-toggle="target: #mobile-nav">Account Settings</a></li>
+            <li><a routerLink="/wallet-settings" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">Wallet Settings</a></li>
+            <li><a routerLink="/global-settings" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">Global Settings</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+  <!-- End Mobile OffCanvas Nav -->
+
+  <div class="uk-width-1-1">
+
+    <!-- Mobile top bar -->
+    <div uk-grid class=" uk-hidden@s" style="color: #FFF; background-color: #2C3E50 ;">
+      <div class="uk-width-1-2">
+        <div class="uk-margin-small-top uk-margin-small-bottom uk-margin-small-left uk-text-middle" uk-toggle="target: #mobile-nav;" style="cursor: pointer;">
+          <span uk-icon="icon: menu;" style=" margin-right: 10px; vertical-align: text-bottom;"></span>
+          <span style="font-size: 22px;" >RaiWallet</span>
+        </div>
+      </div>
+      <div class="uk-width-1-2 " style="text-align: right;">
+      </div>
+    </div>
+
+    <!-- Main content container-->
+    <div uk-grid uk-height-viewport="expand: false" style="margin-top: 0;">
+      <div class="uk-width-1-4 uk-visible@s" style="background: #2C3E50">
+        <div class="title-block">
+          <div class="uk-margin-left" style="padding-bottom: 15px; color: #666;">
+            <div uk-grid>
+              <div class="uk-width-expand"><a routerLink="" class="title">Your Raicoin</a></div>
+            </div>
+  
+            <div *ngIf="configured()">
+              <span class="uk-text-bold">Wallet ID: {{ walletIndex() }}</span>
+            </div>
+            <div *ngIf="configured()">
+              <div uk-grid>
+                <div class="uk-width-expand uk-text-truncate uk-text-bold uk-padding-remove-right">
+                  Account: <a [routerLink]="'/account/' + selectedAccountAddress()" style="color:#666">{{ selectedAccountAddress() }}</a>
+                </div>
+                <div class="uk-width-auto uk-padding-remove-left">
+                  <span ngxClipboard [cbContent]="selectedAccountAddress()" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="Copy Account Address" uk-tooltip></span>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="configured()">
+              <span class="uk-text-bold">Balance: {{ balance() | balance: 2 }}</span>
+            </div>
+            <div *ngIf="configured() && pending().value.gt(0)">
+              <span class="uk-text-bold">Pending: {{ pending() | balance: 2 }}</span>
+            </div>  
+            <div *ngIf="configured() && receivable().value.gt(0)">
+              <span class="uk-text-bold">Receivable: {{ receivable() | balance: 2 }}</span>
+            </div>
+          </div>
+        </div>
+        <app-wallet-widget></app-wallet-widget>
+        <ul class="uk-nav uk-nav-default uk-nav-parent-icon left-nav" uk-nav>
+          <li><a routerLink="/send" routerLinkActive="active" class="uk-margin-left">Send</a></li>
+          <li><a routerLink="/receive" routerLinkActive="active" class="uk-margin-left">Receive</a></li>
+          <li><a routerLink="/accounts" routerLinkActive="active" class="uk-margin-left">Accounts</a></li>
+          <li><a routerLink="/wallets" routerLinkActive="active" class="uk-margin-left">Wallets</a></li>
+          <li class="uk-parent">
+            <a href="#" class="uk-margin-left">Settings</a>
+            <ul class="uk-nav-sub">
+              <li><a routerLink="/account-settings" routerLinkActive="active" class="uk-margin-left">Account Settings</a></li>
+              <li><a routerLink="/wallet-settings" routerLinkActive="active" class="uk-margin-left ">Wallet Settings</a></li>
+              <li><a routerLink="/global-settings" routerLinkActive="active" class="uk-margin-left" >Global Settings</a></li>
+            </ul>
+          </li>
+          </ul>
+
+
+      </div>
+
+
+      <div class="uk-width-expand uk-width-1-1 content-container" style="background: #f0f1f1;" [style.height]="windowHeight + 'px'">
+        <div class="uk-panel uk-panel-scrollable uk-height-1-1" style="border: 0;">
+          <router-outlet></router-outlet>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<app-notification></app-notification>
