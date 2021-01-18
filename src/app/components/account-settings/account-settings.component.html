@@ -1,0 +1,137 @@
+<div class="uk-animation-slide-left-small" uk-grid>
+  <div class="uk-width-1-1">
+    <h2>Account Settings</h2>
+
+    <div uk-grid>
+      <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+        Your account: <a [routerLink]="'/account/'+selectedAccountAddress()" class="uk-text-bold uk-link-text">{{ selectedAccountAddress() }}</a>
+      </div>
+      <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+        <ul class="uk-hidden-hover uk-iconnav">
+          <li><a uk-icon="icon: pencil;" title="Change Account" uk-tooltip routerLink="/accounts"></a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="uk-card uk-card-default uk-margin">
+      <div class="uk-card-header">
+        <h3 class="uk-card-title">Account Representative</h3>
+      </div>
+      <div class="uk-card-body">
+        <div uk-grid>
+
+          <div class="uk-width-1-1" *ngIf="changable()">
+            <div class="uk-form-horizontal">
+              <div class="uk-margin">
+                <label class="uk-form-label" for="form-horizontal-text1">Current Representative </label>
+                <div class="uk-form-controls">
+                  <div class="uk-inline uk-width-1-1">
+                    <input [value]="currentRep()" class="uk-input" disabled id="form-horizontal-text1" type="text">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1" *ngIf="changable()">
+            <div class="uk-form-horizontal">
+              <div class="uk-margin">
+                <label class="uk-form-label" for="form-horizontal-text2">New Representative </label>
+                <div class="uk-form-controls">
+                  <div *ngIf="!locked()" class="uk-inline uk-width-1-1">
+                    <input [(ngModel)]="newRep" class="uk-input" id="form-horizontal-text2" type="text">
+                  </div>
+                  <div *ngIf="locked()" class="uk-inline uk-width-1-1">
+                    <input class="uk-input" disabled type="text" id="form-horizontal-text2" placeholder="Unlock wallet first">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1" *ngIf="!changable() && synced()">
+            <div class="uk-form-horizontal">
+              <div class="uk-margin">
+                The account must receive a transaction before changing representative! 
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="uk-card-footer uk-text-right" *ngIf="changable()">
+        <button (click)="changeRep()" class="uk-button uk-button-secondary">Change Representative</button>
+      </div>
+    </div>
+
+
+    <div class="uk-card uk-card-default uk-margin">
+      <div class="uk-card-header">
+        <h3 class="uk-card-title">Account Daily Transactions</h3>
+      </div>
+      <div class="uk-card-body">
+        <div uk-grid>
+
+          <div class="uk-width-1-1" *ngIf="changable()">
+            <div class="uk-form-horizontal">
+              <div class="uk-margin">
+                <label class="uk-form-label" for="form-horizontal-text3">Current Daily Transactions Limit </label>
+                <div class="uk-form-controls">
+                  <div class="uk-inline uk-width-1-1">
+                    <input [value]="currentDailyTxns()" class="uk-input" disabled id="form-horizontal-text3" type="text">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1" *ngIf="changable()">
+            <div class="uk-form-horizontal">
+              <div class="uk-margin">
+                <label class="uk-form-label" for="form-horizontal-text4">Increase By </label>
+                <div class="uk-form-controls">
+                  <div *ngIf="!locked()" class="uk-inline uk-width-1-1">
+                    <input [(ngModel)]="increaseTxns" class="uk-input" id="form-horizontal-text4" type="text" placeholder="Must be multiples of 20" (keyup)="checkTxns()" (change)="checkTxns()" [ngClass]="{ 'uk-form-success': txnsStatus === 1, 'uk-form-danger': txnsStatus === 2 }">
+                  </div>
+                  <div *ngIf="locked()" class="uk-inline uk-width-1-1">
+                    <input class="uk-input" disabled id="form-horizontal-text4" type="text" placeholder="Unlock wallet first">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1" *ngIf="changable()">
+            <div class="uk-form-horizontal">
+              <div class="uk-margin">
+                <label class="uk-form-label" for="form-horizontal-text5">Cost </label>
+                <div class="uk-form-controls">
+                  <div class="uk-inline uk-width-1-1">
+                    <input [value]="cost()" class="uk-input" disabled id="form-horizontal-text5" type="text">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1" *ngIf="!changable() && synced()">
+            <div class="uk-form-horizontal">
+              <div class="uk-margin">
+                The account must receive a transaction before increasing daily transactions limit! 
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="uk-card-footer uk-text-right" *ngIf="changable()">
+        <button (click)="changeCredit()" class="uk-button uk-button-secondary">Increase Limit</button>
+      </div>
+    </div>
+
+
+
+
+  </div>
+</div>
+

@@ -1,0 +1,133 @@
+<h2>Configure Wallet</h2>
+<p>Use the options below to create a new wallet or import an existing one.</p>
+
+<div uk-grid *ngIf="activePanel == 0 || activePanel == 1">
+  <div class="uk-width-1-1">
+    <div class="uk-button-group uk-width-1-1">
+      <button (click)="setPanel(0)" class="uk-button uk-width-1-2" [ngClass]="{ 'uk-button-primary': activePanel == 0, 'uk-button-secondary': activePanel != 0 }">Create Wallet</button>
+      <button (click)="setPanel(1)" class="uk-button uk-width-1-2" [ngClass]="{ 'uk-button-primary': activePanel == 1, 'uk-button-secondary': activePanel != 1 }">Import Wallet</button>
+    </div>
+  </div>
+</div>
+
+<div class="uk-card uk-card-default" *ngIf="activePanel == 0">
+  <div class="uk-card-body">
+    <p>
+      When you create a wallet, a new Raicoin seed will be generated which is the master key to all of your accounts inside of the wallet!
+    </p>
+    <div class="uk-alert-primary" uk-alert>
+      <p>Make sure you back up your seed, write it down, and keep it incredibly safe!  There is NO way to recover it after creation, and all funds inside WILL be lost without it!  You have been warned!</p>
+    </div>
+  </div>
+  <div class="uk-card-footer uk-text-right">
+    <button class="uk-button uk-button-primary" (click)="createWallet()">Create Wallet</button>
+  </div>
+</div>
+
+<div class="uk-card uk-card-default" *ngIf="activePanel == 1">
+  <div class="uk-card-body">
+    <p>
+      If you already have a Raicoin wallet, you can import it below. When you import a wallet, none of your existing wallets or accounts are affected, and your seed is not stored anywhere besides in your local client.
+    </p>
+    <div uk-grid>
+      <div class="uk-width-1-1">
+        <div class="uk-form-horizontal">
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-horizontal-select">Select Import Type</label>
+            <div class="uk-form-controls">
+              <select class="uk-select" [(ngModel)]="selectedImportOption" id="form-horizontal-select">
+                <option *ngFor="let option of importOptions" [value]="option.value">{{ option.name }}</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="uk-divider-icon" style="margin-top: 10px;">
+
+    <div uk-grid *ngIf="selectedImportOption === 'seed'" class="uk-margin-top">
+      <div class="uk-width-1-1">
+        <p>
+          Enter your 64 character seed from any Raicoin wallet to import it below.
+        </p>
+        <input type="text" class="uk-input" (keyup.enter)="importWallet()" [(ngModel)]="importSeedModel" placeholder="Your Raicoin Backup Seed">
+      </div>
+    </div>
+
+  </div>
+  <div class="uk-card-footer uk-text-right">
+    <button *ngIf="selectedImportOption === 'seed'" class="uk-button uk-button-primary" (click)="importWallet()">Import From Seed</button>
+  </div>
+</div>
+
+<div class="uk-card uk-card-default" *ngIf="activePanel == 3">
+  <div class="uk-card-header">
+    <h3 class="uk-card-title">Wallet Created!</h3>
+  </div>
+  <div class="uk-card-body">
+    <p>
+      Your new Raicoin wallet has been created!
+    </p>
+    <div class="uk-alert uk-alert-primary">
+      Make sure to write down your seed or save it somewhere safe, and <strong>never share it with anyone!</strong><br>
+      It is the master key to all of your accounts, and the only way to recover your funds in an emergency.
+    </div>
+
+    <div uk-grid>
+      <div class="uk-width-1-4">Raicoin Seed</div>
+      <div class="uk-width-3-4 uk-text-break">
+        {{ newSeed }}<br>
+        <a title="Copy Seed To Clipboard" ngxClipboard [cbContent]="newSeed" (cbOnSuccess)="copied()" uk-tooltip>Copy seed to clipboard</a>
+      </div>
+    </div>
+  </div>
+  <div class="uk-card-footer">
+    <button class="uk-button uk-button-danger" (click)="confirmNewSeed()">I've Saved My Seed</button>
+  </div>
+</div>
+
+<div class="uk-card uk-card-default" *ngIf="activePanel == 4">
+  <div class="uk-card-header">
+    <h3 class="uk-card-title">Set Wallet Password</h3>
+  </div>
+  <div class="uk-card-body">
+    <p>
+      The password is used to encrypt the sensitive parts of your wallet before storing them into the local database of browser. You will need it to unlock the wallet.
+    </p>
+
+    <p>
+      Set your wallet password below:
+    </p>
+    <div uk-grid>
+      <div class="uk-width-1-2@m">
+        <input type="password" class="uk-input" [(ngModel)]="walletPasswordModel" placeholder="New Wallet Password">
+      </div>
+      <div class="uk-width-1-2@m">
+        <input type="password" class="uk-input" (keyup.enter)="saveWalletPassword()" [(ngModel)]="walletPasswordConfirmModel" placeholder="Confirm Wallet Password">
+      </div>
+    </div>
+  </div>
+  <div class="uk-card-footer uk-text-right">
+    <button class="uk-button uk-button-primary" (click)="saveWalletPassword()">Set Wallet Password</button>
+  </div>
+</div>
+
+<div class="uk-card uk-card-default" *ngIf="activePanel == 5">
+  <div class="uk-card-header">
+    <h3 class="uk-card-title">Wallet Configured!</h3>
+  </div>
+  <div class="uk-card-body">
+    <p>
+      Your new wallet has been configured, the wallet ID is <b>{{ newWalletIndex }}</b>. Now you are ready to send and receive Raicoin!
+    </p>
+  </div>
+  <div class="uk-card-footer uk-text-right">
+    <button routerLink="/wallets" class="uk-button uk-button-primary">View Wallets</button>
+  </div>
+</div>
+
+<div *ngIf="(activePanel == 4 || activePanel == 5)" class="uk-alert-primary" uk-alert>
+  <p><b>ProTip:</b> If you lose your password, you can always restore your wallet using your seed.</p>
+</div>
+

@@ -1,0 +1,163 @@
+<div class="uk-animation-slide-left-small" uk-grid>
+  <div class="uk-width-1-1">
+
+    <h2>Account Details</h2>
+
+    <div class="uk-card uk-card-default uk-margin">
+      <div class="uk-card-header uk-visible-toggle">
+
+        <div uk-grid>
+          <div class="uk-width-expand">
+            <div uk-grid>
+              <div class="uk-width-1-1">
+                  <h3 class="uk-card-title uk-text-truncate" style="margin-bottom: 0;">{{ address }}</h3>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-auto">
+            <ul class="uk-iconnav">
+              <li><a ngxClipboard [cbContent]="address" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="Copy Account Address" uk-tooltip></a></li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+      <div class="uk-card-body uk-padding-remove uk-form-horizontal">
+        <div class="uk-padding-small" uk-grid>
+          <div class="uk-width-1-1">
+            <div uk-grid>
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    Balance
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ balance() | balance: 9 }}
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="pending().value.gt(0)" class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    Pending
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ pending() | balance: 9 }}
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="receivable().value.gt(0)" class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    Receivable
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    <div uk-grid>
+                      <div class="uk-width-expand uk-text-truncate ">
+                        {{ receivable() | balance: 9 }}
+                      </div>
+                      <div class="uk-width-auto" style="padding-left: 10px;">
+                        <ul class="uk-hidden-hover uk-iconnav">
+                          <li><a uk-icon="icon: pull;" title="Receive" uk-tooltip routerLink="/receive"></a></li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1" *ngIf="credit()">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    Credit
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ credit() }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1" *ngIf="dailyTxns()">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    Daily Txns
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ dailyTxns() }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1" *ngIf="representative()">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left uk-text-break">
+                    Representative
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    <div uk-grid>
+                      <div class="uk-width-expand uk-text-truncate ">
+                        {{ representative() }}
+                      </div>
+                      <div class="uk-width-auto" style="padding-left: 10px;">
+                        <ul class="uk-hidden-hover uk-iconnav">
+                          <li><a uk-icon="icon: pencil;" title="Change Representative" uk-tooltip routerLink="/account-settings"></a></li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div uk-grid style="margin-top: 25px;">
+          <div class="uk-width-1-1">
+            <h3 class="uk-heading-divider uk-text-center" style="margin-bottom: 0;">Recent Transactions</h3>
+            <table class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
+              <thead>
+              <tr>
+                <th class="uk-width-1-4@m uk-width-1-6 uk-text-center">ID</th>
+                <th class="uk-width-1-4@m uk-width-1-6 uk-text-center">Type</th>
+                <th class="uk-width-1-4@m uk-width-expand uk-text-right">Amount</th>
+                <th class="uk-width-1-4@m uk-width-1-6 uk-text-center">Status</th>
+              </tr>
+              </thead>
+              <tbody>
+
+              <tr *ngFor="let info of blocks()">
+                <td class="uk-text-center">{{ info.block.height().toNumber() }}</td>
+                <td class="uk-text-center">{{ info.block.opcode().toBlockOpcodeStr() }}</td>
+
+                <td class="uk-text-right">
+                  <span *ngIf="info.amount.value.eq(0)">0 RAI</span>
+                  <span *ngIf="!info.amount.value.eq(0) && info.amount.negative" class="uk-text-danger">{{ info.amount | balance }}</span>
+                  <span *ngIf="!info.amount.value.eq(0) && !info.amount.negative" class="uk-text-success">+{{ info.amount | balance }}</span>
+                </td>
+                <td class="uk-text-center">
+                  <span *ngIf="status(info.block) === 'confirmed'" uk-icon="icon: check;" class="uk-text-success"  [title]="status(info.block)" uk-tooltip ></span>
+                  <span *ngIf="status(info.block) !== 'confirmed'" uk-spinner="ratio: 0.6;" [title]="status(info.block)" uk-tooltip ></span>
+                </td>
+              </tr>
+              <tr *ngIf="empty">
+                <td colspan="4" style="text-align: center;">No account history</td>
+              </tr>
+              <tr *ngIf="!finished">
+                <td colspan="4" style="text-align: center;">
+                  <a (click)="loadMore()" class="uk-link-text">Load More Results</a>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
