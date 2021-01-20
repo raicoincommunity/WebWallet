@@ -41,7 +41,7 @@ export class GlobalSettingsComponent implements OnInit {
     }
 
     try {
-      let minimum = new BigNumber(this.autoReceiveMinimum).mul(U128.RAI.toBigNumber());
+      let minimum = new BigNumber(this.autoReceiveMinimum).mul(U128.RAI().toBigNumber());
       this.autoReceiveMinimumAmount = new U128(minimum);
       return false;
     }
@@ -78,7 +78,7 @@ export class GlobalSettingsComponent implements OnInit {
   load() {
     this.autoReceiveEnable = this.settings.getAutoReceive().enable;
     this.autoReceiveMinimumAmount = this.settings.getAutoReceive().minimum;
-    this.autoReceiveMinimum = this.autoReceiveMinimumAmount.toBalanceStr(U128.RAI);
+    this.autoReceiveMinimum = this.autoReceiveMinimumAmount.toBalanceStr(U128.RAI());
     this.inactivityMinutes = this.settings.getLockMinutes();
   }
 }

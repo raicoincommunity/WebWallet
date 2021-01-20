@@ -1,6 +1,6 @@
 export const environment = {
   production: true,
-  default_servers: ['server2.raicoin.org'],
+  default_servers: ['server.raiwallet.org'],
   default_representatives: [
     'rai_3h5s5bgaf1jp1rofe5umxan84kiwxj3ppeuyids7zzaxahsohzchcyxqzwp6',
     'rai_1os5ozxsjajpnkdj6zghzdy5fjncpa6egkjisgggutxkbmqicc8mjjfy87ja',

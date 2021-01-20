@@ -83,7 +83,7 @@ export class SendComponent implements OnInit {
   setMaxAmount() {
     let amount = this.wallets.balance();
     this.amount = amount.value;
-    this.amountInRai = this.amount.toBalanceStr(U128.RAI);
+    this.amountInRai = this.amount.toBalanceStr(U128.RAI());
   }
 
   syncAmount() {
@@ -92,7 +92,7 @@ export class SendComponent implements OnInit {
         this.amountStatus = 2;
         return;
       }
-      let amount = new BigNumber(this.amountInRai).mul(U128.RAI.toBigNumber());
+      let amount = new BigNumber(this.amountInRai).mul(U128.RAI().toBigNumber());
       this.amount = new U128(amount);
       if (this.amount.eq(0)) {
         this.amountStatus = 2;

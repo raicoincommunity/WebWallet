@@ -239,7 +239,7 @@ export type Uall = U8 | U16 | U32 | U64 | U128 | U256 | U512;
 export type UintFrom = number | string | BigNumber | Uall;
 
 class UintHelper {
-  static new(size: number, value: UintFrom, base?: number): Uall {
+  static create(size: number, value: UintFrom, base?: number): Uall {
     switch (size) {
       case 1 : return new U8(value, base, false);
       case 2 : return new U16(value, base, false);
@@ -257,7 +257,7 @@ class UintHelper {
   }
 
   static max(size: number): Uall {
-    return UintHelper.new(size, UintHelper.borrow(size).minus(1));
+    return UintHelper.create(size, UintHelper.borrow(size).minus(1));
   }
 }
 
@@ -326,60 +326,60 @@ class Uint {
   }
 
   plus(other: UintFrom, base?: number): Uall {
-    other = UintHelper.new(this.size, other, base).toBigNumber();
+    other = UintHelper.create(this.size, other, base).toBigNumber();
     let sum = this.toBigNumber().plus(other);
-    return UintHelper.new(this.size, sum);
+    return UintHelper.create(this.size, sum);
   }
 
   minus(other: UintFrom, base?: number): Uall {
-    other = UintHelper.new(this.size, other, base).toBigNumber();
+    other = UintHelper.create(this.size, other, base).toBigNumber();
     let left = this.toBigNumber();
     if (left.lessThan(other)) {
       left = left.plus(UintHelper.borrow(this.size));
     }
-    return UintHelper.new(this.size, left.minus(other));
+    return UintHelper.create(this.size, left.minus(other));
   }
 
   mod(other: UintFrom, base?: number): Uall {
-    other = UintHelper.new(this.size, other, base).toBigNumber();
-    return UintHelper.new(this.size, this.toBigNumber().mod(other));
+    other = UintHelper.create(this.size, other, base).toBigNumber();
+    return UintHelper.create(this.size, this.toBigNumber().mod(other));
   }
 
   eq(other: UintFrom, base?: number) {
-    other = UintHelper.new(this.size, other, base).toBigNumber();
+    other = UintHelper.create(this.size, other, base).toBigNumber();
     return this.toBigNumber().eq(other);
   }
 
   gt(other: UintFrom, base?: number) {
-    other = UintHelper.new(this.size, other, base).toBigNumber();
+    other = UintHelper.create(this.size, other, base).toBigNumber();
     return this.toBigNumber().gt(other);
   }
 
   gte(other: UintFrom, base?: number) {
-    other = UintHelper.new(this.size, other, base).toBigNumber();
+    other = UintHelper.create(this.size, other, base).toBigNumber();
     return this.toBigNumber().gte(other);
   }
 
   lt(other: UintFrom, base?: number) {
-    other = UintHelper.new(this.size, other, base).toBigNumber();
+    other = UintHelper.create(this.size, other, base).toBigNumber();
     return this.toBigNumber().lt(other);
   }
 
   lte(other: UintFrom, base?: number) {
-    other = UintHelper.new(this.size, other, base).toBigNumber();
+    other = UintHelper.create(this.size, other, base).toBigNumber();
     return this.toBigNumber().lte(other);
   }
 
   mul(other: UintFrom, base?: number) {
-    other = UintHelper.new(this.size, other, base).toBigNumber();
+    other = UintHelper.create(this.size, other, base).toBigNumber();
     let sum = this.toBigNumber().mul(other);
-    return UintHelper.new(this.size, sum);
+    return UintHelper.create(this.size, sum);
   }
 
   idiv(other: UintFrom, base?: number) {
-    other = UintHelper.new(this.size, other, base).toBigNumber();
+    other = UintHelper.create(this.size, other, base).toBigNumber();
     let quotient = this.toBigNumber().dividedToIntegerBy(other);
-    return UintHelper.new(this.size, quotient);
+    return UintHelper.create(this.size, quotient);
   }
 }
 
@@ -436,7 +436,13 @@ const blockOpcodeMaps: BlockOpcodeMap[] = [
 
 export class U8 extends Uint {
   static readonly SIZE = 1;
-  static readonly MAX = UintHelper.max(U8.SIZE) as U8;
+  static _MAX: U8 | undefined;
+  static max(): U8 {
+    if (!U8._MAX) {
+      U8._MAX = UintHelper.max(U8.SIZE) as U8;
+    }
+    return U8._MAX;
+  }
   
   readonly size = U8.SIZE;
   constructor(from: UintFrom = 0, base?: number, check: boolean = true) {
@@ -484,7 +490,13 @@ export class U8 extends Uint {
 
 export class U16 extends Uint {
   static readonly SIZE = 2;
-  static readonly MAX = UintHelper.max(U16.SIZE) as U16;
+  static _MAX: U16 | undefined;
+  static max(): U16 {
+    if (!U16._MAX) {
+      U16._MAX = UintHelper.max(U16.SIZE) as U16;
+    }
+    return U16._MAX;
+  }
 
   readonly size = U16.SIZE;
   constructor(from: UintFrom = 0, base?: number, check: boolean = true) {
@@ -525,7 +537,14 @@ export class U16 extends Uint {
 
 export class U32 extends Uint {
   static readonly SIZE = 4;
-  static readonly MAX = UintHelper.max(U32.SIZE) as U32;
+  static _MAX: U32 | undefined;
+  static max(): U32 {
+    if (!U32._MAX) {
+      U32._MAX = UintHelper.max(U32.SIZE) as U32;
+    }
+    return U32._MAX;
+  }
+
   readonly size = U32.SIZE;
 
   constructor(from: UintFrom = 0, base?: number, check: boolean = true) {
@@ -540,7 +559,13 @@ export class U32 extends Uint {
 
 export class U64 extends Uint {
   static readonly SIZE = 8;
-  static readonly MAX = UintHelper.max(U64.SIZE) as U64;
+  static _MAX: U64 | undefined;
+  static max(): U64 {
+    if (!U64._MAX) {
+      U64._MAX = UintHelper.max(U64.SIZE) as U64;
+    }
+    return U64._MAX;
+  }
   
   readonly size = U64.SIZE;
   constructor(from: UintFrom = 0, base?: number, check: boolean = true) {
@@ -567,8 +592,13 @@ export class U64 extends Uint {
 
 export class U128 extends Uint {
   static readonly SIZE = 16;
-  static readonly MAX = UintHelper.max(U128.SIZE) as U128;
-  static readonly RAI = new U128('1000000000');
+  static _RAI: U128 | undefined;
+  static RAI(): U128 {
+    if (!U128._RAI) {
+      U128._RAI = new U128('1000000000');
+    }
+    return U128._RAI;
+  }
   
   readonly size = U128.SIZE;
   constructor(from: UintFrom = 0, base?: number, check: boolean = true) {
@@ -612,7 +642,6 @@ export class U128 extends Uint {
 
 export class U256 extends Uint {
   static readonly SIZE = 32;
-  static readonly MAX = UintHelper.max(U256.SIZE) as U256;
   
   readonly size = U256.SIZE;
   constructor(from: UintFrom = 0, base?: number, check: boolean = true) {
@@ -647,7 +676,6 @@ export class U256 extends Uint {
 
 export class U512 extends Uint {
   static readonly SIZE = 64;
-  static readonly MAX = UintHelper.max(U512.SIZE) as U512;
   
   readonly size = U512.SIZE;
   constructor(from: UintFrom = 0, base?: number, check: boolean = true) {

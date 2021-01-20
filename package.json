@@ -8,7 +8,7 @@
     "test": "ng test",
     "lint": "ng lint",
     "e2e": "ng e2e",
-    "wallet:dev": "ng serve --open --base-href=/wallet/",
+    "wallet:dev": "ng serve --open",
     "wallet:build": "ng build --prod"
   },
   "private": true,
