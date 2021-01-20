@@ -68,7 +68,7 @@ export class AccountSettingsComponent implements OnInit {
   convertTxns(): boolean {
     try {
       let txns = new U32(this.increaseTxns);
-      if (txns.eq(0) || txns.mod(20).gt(0) || txns.idiv(20).gt(U16.MAX)) {
+      if (txns.eq(0) || txns.mod(20).gt(0) || txns.idiv(20).gt(U16.max())) {
         this.increaseCredit = new U16(0);
         return true;
       }
@@ -84,7 +84,7 @@ export class AccountSettingsComponent implements OnInit {
 
   cost(): string {
     if (this.increaseCredit.eq(0)) return '';
-    return this.wallets.creditCost(this.increaseCredit).toBalanceStr(U128.RAI) + ' RAI';
+    return this.wallets.creditCost(this.increaseCredit).toBalanceStr(U128.RAI()) + ' RAI';
   }
 
   changeCredit() {

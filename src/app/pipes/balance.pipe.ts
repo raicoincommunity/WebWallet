@@ -23,7 +23,7 @@ export class BalancePipe implements PipeTransform {
       return '<' + result;
     }
 
-    let result = value.value.toBalanceStr(U128.RAI);
+    let result = value.value.toBalanceStr(U128.RAI());
     if (value.negative) {
       result = '-' + result;
     }

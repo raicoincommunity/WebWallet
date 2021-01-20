@@ -47,7 +47,6 @@ import { GlobalSettingsComponent } from './components/global-settings/global-set
     ClipboardModule
   ],
   providers: [
-    {provide: LocationStrategy, useClass: HashLocationStrategy}
   ],
   bootstrap: [AppComponent]
 })

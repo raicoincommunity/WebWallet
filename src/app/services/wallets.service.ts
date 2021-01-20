@@ -1683,7 +1683,7 @@ export class WalletsService {
 }
 
 export class Account {
-  static readonly INVALID_HEIGHT = U64.MAX;
+  static readonly INVALID_HEIGHT = U64.max();
   static readonly INVALID_HASH = new U256(0);
 
   storage: AccountStorage;

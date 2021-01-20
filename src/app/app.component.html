@@ -7,6 +7,10 @@
         <div class="uk-margin-left" style="padding-bottom: 15px; color: #666;">
           <div uk-grid>
             <div class="uk-width-expand"><a routerLink="" class="title">Your Raicoin</a></div>
+            <div class="uk-width-1-6 uk-padding-remove-left" style="padding-top: 15px;">
+              <span class="uk-text-danger" uk-icon="icon: warning;" *ngIf="disconnected()" uk-tooltip title="Unable to connect to wallet server. Your balances may be wrong!"></span>
+              <div uk-spinner="ratio: 0.6;" *ngIf="connecting()" uk-tooltip title="Attempting to connect to wallet server"></div>
+            </div>
           </div>
 
           <div *ngIf="configured()">
@@ -75,6 +79,10 @@
           <div class="uk-margin-left" style="padding-bottom: 15px; color: #666;">
             <div uk-grid>
               <div class="uk-width-expand"><a routerLink="" class="title">Your Raicoin</a></div>
+              <div class="uk-width-1-6 uk-padding-remove-left" style="padding-top: 15px;">
+                <span class="uk-text-danger" uk-icon="icon: warning;" *ngIf="disconnected()" uk-tooltip title="Unable to connect to wallet server. Your balances may be wrong!"></span>
+                <div uk-spinner="ratio: 0.6;" *ngIf="connecting()" uk-tooltip title="Attempting to connect to wallet server"></div>
+              </div>
             </div>
   
             <div *ngIf="configured()">

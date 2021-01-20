@@ -73,5 +73,5 @@ export class SettingsService {
 
 export class AutoReceiveSetting {
   enable: boolean = true;
-  minimum: U128 = U128.RAI.idiv(10);
+  minimum: U128 = U128.RAI().idiv(10);
 }

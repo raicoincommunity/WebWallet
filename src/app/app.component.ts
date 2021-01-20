@@ -3,6 +3,7 @@ import { WalletsService, Amount, WalletErrorCode } from './services/wallets.serv
 import { NotificationService } from './services/notification.service';
 import { U128 } from './services/util.service';
 import { SettingsService } from './services/settings.service';
+import { ServerState, ServerService } from './services/server.service';
 
 @Component({
   selector: 'app-root',
@@ -13,6 +14,7 @@ export class AppComponent implements OnInit {
 
   inactiveSeconds: number = 0;
   windowHeight:number = 1000;
+  state: ServerState = ServerState.DISCONNECTED;
 
   @HostListener('window:resize', ['$event']) onResize (e: any) {
     this.windowHeight = e.target.innerHeight;
@@ -21,12 +23,16 @@ export class AppComponent implements OnInit {
   constructor(
     private wallets: WalletsService, 
     private settings: SettingsService,
+    private server: ServerService,
     private notification: NotificationService){
 
   }
 
   ngOnInit() {
     this.windowHeight = window.innerHeight;
+    this.state = this.server.getState();
+
+    this.server.state$.subscribe(s => this.state = s);
 
     setInterval(() => {
       this.inactiveSeconds += 5;
@@ -81,4 +87,17 @@ export class AppComponent implements OnInit {
     if (!account) return { negative: false, value: new U128(0) };
     return account.receivable();
   }
+
+  connected(): boolean {
+    return this.state === ServerState.CONNECTED;
+  }
+
+  connecting(): boolean {
+    return this.state === ServerState.CONNECTING;
+  }
+
+  disconnected(): boolean {
+    return this.state === ServerState.DISCONNECTED;
+  }
+
 }
