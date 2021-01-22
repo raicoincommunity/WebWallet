@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../environments/environment';
-import { Subject, BehaviorSubject, never } from 'rxjs';
+import { Subject, BehaviorSubject } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -61,7 +61,7 @@ export class ServerService {
     if (this.ws && this.getState() === ServerState.CONNECTED)
     {
       this.ws.send(JSON.stringify(message));
-      console.log('[debug]send message:', message);
+      //console.log('[debug]send message:', message);
     }
   }
 
@@ -188,7 +188,7 @@ export class ServerService {
         if (ws === this.ws) {
           let message = JSON.parse(event.data);
           this.messageSubject.next(message);
-          console.log('[debug] receive message:', message);
+          //console.log('[debug] receive message:', message);
         }
       } catch (err) {
         console.log('Error: Failed to parse message, error=', err);
