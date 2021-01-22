@@ -1,14 +1,15 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit, Renderer2 } from '@angular/core';
 import { WalletsService, WalletErrorCode } from '../../services/wallets.service';
 import { NotificationService } from '../../services/notification.service';
 import { BlockTypeStr, U128, U16, U32 } from 'src/app/services/util.service';
+import { ActivatedRoute } from "@angular/router";
 
 @Component({
   selector: 'app-account-settings',
   templateUrl: './account-settings.component.html',
   styleUrls: ['./account-settings.component.css']
 })
-export class AccountSettingsComponent implements OnInit {
+export class AccountSettingsComponent implements OnInit, AfterViewInit {
   newRep = '';
   increaseTxns = '';
   txnsStatus = 0;
@@ -16,9 +17,18 @@ export class AccountSettingsComponent implements OnInit {
 
   constructor(
     private wallets: WalletsService,
+    private route: ActivatedRoute,
+    private renderer: Renderer2,
     private notification: NotificationService) { }
 
   ngOnInit(): void {
+  }
+
+  ngAfterViewInit(): void {
+    this.route.fragment.subscribe(f => {
+      const element = this.renderer.selectRootElement("#" + f, true);
+      if (element) element.scrollIntoView({ behavior: 'smooth' });
+    });
   }
 
   changeRep() {

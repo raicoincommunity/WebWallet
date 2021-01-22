@@ -65,7 +65,7 @@
     </div>
 
 
-    <div class="uk-card uk-card-default uk-margin">
+    <div class="uk-card uk-card-default uk-margin" id="set-daily-limit">
       <div class="uk-card-header">
         <h3 class="uk-card-title">Account Daily Transactions</h3>
       </div>
@@ -124,7 +124,7 @@
 
         </div>
       </div>
-      <div class="uk-card-footer uk-text-right" *ngIf="changable()">
+      <div class="uk-card-footer uk-text-right" *ngIf="changable()" >
         <button (click)="changeCredit()" class="uk-button uk-button-secondary">Increase Limit</button>
       </div>
     </div>
