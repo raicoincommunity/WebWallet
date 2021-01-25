@@ -2,7 +2,7 @@
 ___
 
 # Live version
-You can access the wallet from any device at [https://raicoin.org/wallet](https://raiwallet.org/)
+You can access the wallet from any device at [https://raiwallet.org/](https://raiwallet.org/)
 
 
 # Bugs/Feedback
