@@ -883,12 +883,12 @@ export class WalletsService {
     }
   }
 
-  private ongoingSync() {
+  private ongoingSync(force?: boolean) {
     if (this.server.getState() !== ServerState.CONNECTED) return;
 
     this.forEachAccount((a, w) => {
       let now = window.performance.now();
-      if (a.nextSyncAt > now) return;
+      if (a.nextSyncAt > now && !force) return;
 
       this.syncAccount(a, w);
 
@@ -904,10 +904,7 @@ export class WalletsService {
 
   private processServerState(state: ServerState) {
     if (state === ServerState.CONNECTED) {
-      this.ongoingSync();
-    }
-    else if (state === ServerState.DISCONNECTED) {
-      this.forEachAccount(a => a.nextSyncAt = 0);
+      this.ongoingSync(true);
     }
     else {
     }
@@ -1245,18 +1242,19 @@ export class WalletsService {
     accounts.forEach (a => {
       if (!a.synced) return;
       this.prependBlock(a, block, amount);
+      this.appendBlock(a, block, amount, local);
       if (confirmed) {
-        this.confirmBlock(a, block, amount);
-      }
-      else {
-        this.appendBlock(a, block, amount, local);
+        this.confirmBlock(a, block);
       }
     });
   }
 
   private appendBlock(account: Account, block: Block, amount: Amount, local: boolean = false) {
     if (account.headHeight.eq(Account.INVALID_HEIGHT)) {
-      if (!block.height().eq(0)) return;
+      if (!block.height().eq(0)) {
+        this.syncHeadBlock(account);
+        return;
+      }
       account.tailHeight = account.headHeight = block.height();
       account.tail = account.head = block.hash();
       account.balanceHead = block.balance();
@@ -1265,7 +1263,7 @@ export class WalletsService {
     else {
       let expected_height = account.headHeight.plus(1);
       if (block.height().gt(expected_height)) {
-        this.blockQueryByPrevious(account.storage.address, expected_height, account.head);
+        this.syncHeadBlock(account);
         return;
       }
       else if (block.height().eq(expected_height)) {
@@ -1288,7 +1286,7 @@ export class WalletsService {
         account.balanceReceivable = account.balanceReceivable.minus(receivable[0].amount);
       }
     }
-    this.blockQueryByPrevious(account.storage.address, account.headHeight.plus(1), account.head);
+    this.syncHeadBlock(account);
 
     if (!local) {
       let wallets = this.findWalletsByAccount(account);
@@ -1296,41 +1294,42 @@ export class WalletsService {
     }
   }
 
-  private confirmBlock(account: Account, block: Block, amount: Amount) {
-    this.appendBlock(account, block, amount);
-
-    let expected_height = new U64(0);
-    if (!account.confirmedHeight.eq(Account.INVALID_HEIGHT)) {
-      expected_height = account.confirmedHeight.plus(1);
-    }
-
-    if (block.height().gt(expected_height)) {
-      this.blockQueryByPrevious(account.storage.address, expected_height, account.confirmed);
-      return;
-    }
-
-    if (block.height().lt(expected_height)) return;
-
-    if (!block.previous().eq(account.confirmed)) {
-      console.log('confirmBlock: unexpected previous, block=', block);
-      return;
-    }
-
+  private confirmBlock(account: Account, block: Block) {
     let existing = this.blocks.getBlock(block.hash());
     if (!existing) {
       this.accountRollback(account);
-      this.appendBlock(account, block, amount);
+      this.syncHeadBlock(account);
+      return;
     }
+
+    if (!account.confirmedHeight.eq(Account.INVALID_HEIGHT)
+      && block.height().lte(account.confirmedHeight))
+    {
+      return;
+    }
+
+    let block_l = block;
+    while (true) {
+      if (block_l.opcode().toBlockOpcodeStr() === BlockOpcodeStr.RECEIVE) {
+        this.blocks.delReceiving(block_l.link());
+      }
+
+      if (block_l.height().eq(account.tailHeight)
+        || block_l.height().eq(0)
+        || block_l.height().eq(account.confirmedHeight.plus(1))) {
+          break;
+      }
+
+      const blockInfo = this.blocks.getBlock(block_l.previous());
+      if (!blockInfo) break;
+      block_l = blockInfo.block;
+    }
+
     account.confirmed = block.hash();
     account.confirmedHeight = block.height();
     account.balanceConfirmed = block.balance();
-    if (block.opcode().toBlockOpcodeStr() === BlockOpcodeStr.RECEIVE) {
-      this.blocks.delReceiving(block.link());
-    }
 
-    if (account.confirmedHeight.lt(account.headHeight)) {
-      this.blockQueryByPrevious(account.storage.address, account.confirmedHeight.plus(1), account.confirmed);
-    }
+    this.syncConfirmedBlock(account);
   }
 
   private prependBlock(account: Account, block: Block, amount: Amount) {
@@ -1358,6 +1357,9 @@ export class WalletsService {
       if (!head_info) {
         console.log('accountRollback: failed to get head block, hash', account.head);
         return;
+      }
+      if (head_info.block.opcode().toBlockOpcodeStr() === BlockOpcodeStr.RECEIVE) {
+        this.blocks.delReceiving(head_info.block.link());
       }
       this.blocks.delBlock(account.head);
 
@@ -1430,7 +1432,6 @@ export class WalletsService {
       json.extensions_length = '0';
       json.extensions = '';
       json.signature = new U512().toHex();
-
     }
     else {
       let now = this.server.getTimestamp();
