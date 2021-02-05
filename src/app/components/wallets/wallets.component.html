@@ -17,7 +17,10 @@
       </div>
     </div>
 
-    <p class="uk-text-center uk-text-large">The wallet in using: <b>{{ selectedWalletIndex() }}</b></p>
+    <p class="uk-text-center uk-text-large">The wallet in using: <a routerLink="/accounts" class="uk-link-text" title="View Accounts" uk-tooltip>
+       <b>{{ selectedWalletIndex() }}</b>
+      </a>
+    </p>
 
     <div class="uk-card uk-card-default uk-margin-top">
       <table class="uk-table uk-table-striped uk-table-small">

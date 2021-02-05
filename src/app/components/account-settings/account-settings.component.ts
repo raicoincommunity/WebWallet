@@ -26,6 +26,7 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     this.route.fragment.subscribe(f => {
+      if (!f) return;
       const element = this.renderer.selectRootElement("#" + f, true);
       if (element) element.scrollIntoView({ behavior: 'smooth' });
     });
