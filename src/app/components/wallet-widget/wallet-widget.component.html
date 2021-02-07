@@ -5,19 +5,19 @@
         <div *ngIf="configured()">
           <div *ngIf="locked()" class="uk-text-bottom">
             <span style="cursor: pointer;" (click)="modal.show()">
-              <span uk-icon="icon: lock" class="uk-text-top"></span> <span class="uk-text-bottom">Wallet Locked</span>
+              <span uk-icon="icon: lock" class="uk-text-top"></span> <span class="uk-text-bottom">{{ 'Wallet Locked' | translate }}</span>
             </span>
           </div>
           <div *ngIf="!locked()">
             <span style="cursor:pointer" (click)="lockWallet()">
-              <span uk-icon="icon: unlock" class="uk-text-top"></span> <span class="uk-text-bottom">Wallet Unlocked</span>
+              <span uk-icon="icon: unlock" class="uk-text-top"></span> <span class="uk-text-bottom">{{ 'Wallet Unlocked' | translate }}</span>
             </span>
           </div>
         </div>
 
         <div *ngIf="!configured()">
           <a routerLink="/configure-wallet" class="uk-text-warning">
-            <span uk-icon="icon: warning" class="uk-text-top"></span> <span class="uk-text-bottom">Configure Wallet</span>
+            <span uk-icon="icon: warning" class="uk-text-top"></span> <span class="uk-text-bottom">{{ 'Configure Wallet' | translate }}</span>
           </a>
         </div>
       </div>
@@ -29,14 +29,14 @@
   <div class="uk-modal-dialog">
     <button class="uk-modal-close-default" type="button" uk-close></button>
     <div class="uk-modal-header">
-      <h2 class="uk-modal-title">Unlock Wallet</h2>
+      <h2 class="uk-modal-title">{{ 'Unlock Wallet' | translate }}</h2>
     </div>
     <div class="uk-modal-body">
-      <input autofocus type="password" [(ngModel)]="unlockPassword" (keyup.enter)="unlockWallet()" class="uk-input" placeholder="Enter wallet password">
+      <input autofocus type="password" [(ngModel)]="unlockPassword" (keyup.enter)="unlockWallet()" class="uk-input" placeholder="{{ 'Enter wallet password' | translate }}">
     </div>
     <div class="uk-modal-footer uk-text-right">
-      <button class="uk-button uk-button-default uk-modal-close" type="button">Cancel</button>
-      <button class="uk-button uk-button-primary" type="button" (click)="unlockWallet()">Unlock</button>
+      <button class="uk-button uk-button-default uk-modal-close" type="button">{{ 'Cancel' | translate }}</button>
+      <button class="uk-button uk-button-primary" type="button" (click)="unlockWallet()">{{ 'Unlock' | translate }}</button>
     </div>
   </div>
 </div>

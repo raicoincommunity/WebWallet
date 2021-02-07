@@ -4,6 +4,8 @@ import { NotificationService } from '../../services/notification.service';
 import { U256, U128 } from '../../services/util.service';
 import { BigNumber } from 'bignumber.js';
 import { Router } from '@angular/router';
+import { TranslateService } from '@ngx-translate/core';
+import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 
 @Component({
   selector: 'app-send',
@@ -20,6 +22,7 @@ export class SendComponent implements OnInit {
   note = '';
 
   constructor(
+    private translate: TranslateService,
     private wallets: WalletsService,
     private notification: NotificationService,
     private router: Router) { }
@@ -34,10 +37,16 @@ export class SendComponent implements OnInit {
   confirm() {
     let result = this.wallets.send(this.destination, this.amount, this.note);
     if (result.errorCode !== WalletErrorCode.SUCCESS) {
-      this.notification.sendError(result.errorCode);
+      let msg = result.errorCode;
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
       return;
     }
-    this.notification.sendSuccess(`Successfully sent ${this.amountInRai} RAI!`);
+    let msg = marker(`Successfully sent { amount } RAI!`);
+    const param = { 'amount': this.amountInRai };
+    this.translate.get(msg, param).subscribe(res => msg = res);    
+    this.notification.sendSuccess(msg);
+
     this.activePanel = 'send';
     this.destinationStatus = 0;
     this.amountStatus = 0;
@@ -62,14 +71,18 @@ export class SendComponent implements OnInit {
     }
 
     if (this.balance().value.lt(this.amount)) {
-      this.notification.sendError('Not enough balance');
+      let msg = marker('Not enough balance');
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
       return;
     }
 
     let errorCode = this.wallets.accountActionCheck(this.wallets.selectedAccount(),
                                                     this.wallets.selectedWallet());
     if (errorCode !== WalletErrorCode.SUCCESS) {
-      this.notification.sendError(errorCode);
+      let msg = errorCode;
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
       return;
     }
 

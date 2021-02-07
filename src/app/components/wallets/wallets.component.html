@@ -3,21 +3,21 @@
     <div uk-grid>
       <div class="uk-width-1-2">
         <h2>
-          Wallets
+          {{ 'Wallets' | translate }}
         </h2>
       </div>
       <div class="uk-width-1-2 uk-text-right">
         <div uk-grid>
           <div class="uk-width-1-1">
             <button class="uk-button uk-button-secondary" (click)="addNewWallet()">
-              Add New Wallet
+              {{ 'Add New Wallet' | translate }}
             </button>
           </div>
         </div>
       </div>
     </div>
 
-    <p class="uk-text-center uk-text-large">The wallet in using: <a routerLink="/accounts" class="uk-link-text" title="View Accounts" uk-tooltip>
+    <p class="uk-text-center uk-text-large">{{ 'The wallet in using' | translate }}: <a routerLink="/accounts" class="uk-link-text" title="{{ 'View Accounts' | translate }}" uk-tooltip>
        <b>{{ selectedWalletIndex() }}</b>
       </a>
     </p>
@@ -27,12 +27,12 @@
         <thead>
         <tr>
           <th class="uk-width-1-6">
-            <a uk-icon="icon: hashtag;" title="Wallet ID"  uk-tooltip>
+            <a uk-icon="icon: hashtag;" title="{{ 'Wallet ID' | translate }}"  uk-tooltip>
             </a>
           </th>
-          <th class="uk-width-1-6 uk-text-center">Accounts</th>
-          <th class="uk-width-1-3 uk-text-right">Balance</th>
-          <th class="uk-width-1-3 uk-text-right">Receivable</th>
+          <th class="uk-width-1-6 uk-text-center">{{ 'Accounts' | translate }}</th>
+          <th class="uk-width-1-3 uk-text-right">{{ 'Balance' | translate }}</th>
+          <th class="uk-width-1-3 uk-text-right">{{ 'Receivable' | translate }}</th>
         </tr>
         </thead>
         <tbody>

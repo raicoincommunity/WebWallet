@@ -3,6 +3,8 @@ import { WalletsService, WalletErrorCode } from '../../services/wallets.service'
 import { NotificationService } from '../../services/notification.service';
 import { BlockTypeStr, U128, U16, U32 } from 'src/app/services/util.service';
 import { ActivatedRoute } from "@angular/router";
+import { TranslateService } from '@ngx-translate/core';
+import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 
 @Component({
   selector: 'app-account-settings',
@@ -16,6 +18,7 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
   increaseCredit = new U16(0);
 
   constructor(
+    private translate: TranslateService,
     private wallets: WalletsService,
     private route: ActivatedRoute,
     private renderer: Renderer2,
@@ -34,32 +37,45 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
 
   changeRep() {
     if (this.locked()) {
-      this.notification.sendWarning(`Wallet must be unlocked`);
+      let msg = marker(`Wallet must be unlocked`);
+      this.translate.get(msg).subscribe(res => msg = res);      
+      this.notification.sendWarning(msg);
       return;
     }
 
     if (this.newRep.length == 0) {
-      this.notification.sendError(`New representative cannot be empty`);
+      let msg = marker(`New representative cannot be empty`);
+      this.translate.get(msg).subscribe(res => msg = res);      
+      this.notification.sendError(msg);
       return;
     }
 
     if (this.wallets.validateAddress(this.newRep)) {
-      this.notification.sendError(`Invalid account address`);
+      let msg = marker(`Invalid account address`);
+      this.translate.get(msg).subscribe(res => msg = res);      
+      this.notification.sendError(msg);
       return;
     }
 
     let accounts = this.wallets.findAccounts(this.newRep);
     if (accounts.length && accounts[0].type.toBlockTypeStr() !== BlockTypeStr.REP_BLOCK) {
-      this.notification.sendError(`Invalid account type`);
+      let msg = marker(`Invalid account type`);
+      this.translate.get(msg).subscribe(res => msg = res);      
+      this.notification.sendError(msg);
       return;
     }
 
     let result = this.wallets.change(this.newRep);
     if (result.errorCode !== WalletErrorCode.SUCCESS) {
-      this.notification.sendError(result.errorCode);
+      let msg = result.errorCode;
+      this.translate.get(msg).subscribe(res => msg = res);      
+      this.notification.sendError(msg);
       return;
     }
-    this.notification.sendSuccess(`Successfully change representative!`);
+
+    let msg = marker(`Successfully change representative!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
     this.newRep = '';
   }
 
@@ -100,21 +116,30 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
 
   changeCredit() {
     if (this.locked()) {
-      this.notification.sendWarning(`Wallet must be unlocked`);
+      let msg = marker(`Wallet must be unlocked`);
+      this.translate.get(msg).subscribe(res => msg = res);      
+      this.notification.sendWarning(msg);
       return;
     }
 
     if (this.convertTxns()) {
-      this.notification.sendError('Invalid transactions');
+      let msg = marker('Invalid increasing number');
+      this.translate.get(msg).subscribe(res => msg = res);            
+      this.notification.sendError(msg);
       return;
     }
 
     let result = this.wallets.increaseCredit(this.increaseCredit);
     if (result.errorCode !== WalletErrorCode.SUCCESS) {
-      this.notification.sendError(result.errorCode);
+      let msg = result.errorCode;
+      this.translate.get(msg).subscribe(res => msg = res);                  
+      this.notification.sendError(msg);
       return;
     }
-    this.notification.sendSuccess(`Successfully increased daily transactions limit!`);
+
+    let msg = marker(`Successfully increased daily transactions limit!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
     this.increaseTxns = '';
     this.txnsStatus = 0;
     this.increaseCredit = new U16(0);

@@ -1,21 +1,21 @@
 <div uk-grid>
   <div class="uk-width-1-1">
-    <h2>Send Raicoin</h2>
+    <h2>{{ 'Send Raicoin' | translate }}</h2>
 
     <div uk-grid>
       <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
-        Your account: <a [routerLink]="'/account/'+selectedAccountAddress()" class="uk-text-bold uk-link-text">{{ selectedAccountAddress() }}</a>
+        {{ 'Your account' | translate }}: <a [routerLink]="'/account/'+selectedAccountAddress()" class="uk-text-bold uk-link-text">{{ selectedAccountAddress() }}</a>
       </div>
       <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
         <ul class="uk-hidden-hover uk-iconnav">
-          <li><a uk-icon="icon: pencil;" title="Change Account" uk-tooltip routerLink="/accounts"></a></li>
+          <li><a uk-icon="icon: pencil;" title="{{ 'Change Account' | translate }}" uk-tooltip routerLink="/accounts"></a></li>
         </ul>
       </div>
     </div>
 
     <div uk-grid class="uk-margin-remove-top">
       <div class="uk-width-expand uk-width-auto@m">
-        Balance: {{ balance() | balance }}
+        {{ 'Balance' | translate }}: {{ balance() | balance }}
       </div>
     </div>
 
@@ -28,23 +28,23 @@
             <div class="uk-form-horizontal">
 
               <div class="uk-margin">
-                <label class="uk-form-label" for="form-horizontal-text1">Destination Account *</label>
+                <label class="uk-form-label" for="form-horizontal-text1">{{ 'Destination Account' | translate }} *</label>
                 <div class="uk-form-controls">
                   <div class="uk-inline uk-width-1-1">
-                    <input (blur)="validateDestination()" [(ngModel)]="destination" [ngClass]="{ 'uk-form-success': destinationStatus === 1, 'uk-form-danger': destinationStatus === 2 }" class="uk-input" id="form-horizontal-text1" type="text" placeholder="Account to send to" autocomplete="off">
+                    <input (blur)="validateDestination()" [(ngModel)]="destination" [ngClass]="{ 'uk-form-success': destinationStatus === 1, 'uk-form-danger': destinationStatus === 2 }" class="uk-input" id="form-horizontal-text1" type="text" placeholder="{{'Account to send to' | translate}}" autocomplete="off">
                   </div>
                 </div>
               </div>
 
               <div uk-grid>
                 <div class="uk-width-1-1">
-                  <label class="uk-form-label" for="form-horizontal-text2">Amount *</label>
+                  <label class="uk-form-label" for="form-horizontal-text2">{{ 'Amount' | translate }} *</label>
                   <div class="uk-form-controls">
                     <div uk-grid>
                       <div class="uk-width-1-1">
                         <div class="uk-inline uk-width-1-1">
-                          <a class="uk-form-icon uk-form-icon-flip" (click)="setMaxAmount()" style="padding-right: 7px;" uk-tooltip title="Set Maximum Amount">Max</a>
-                          <input [(ngModel)]="amountInRai" class="uk-input" id="form-horizontal-text2" (keyup)="syncAmount()" (change)="syncAmount()" type="text" placeholder="Amount of RAI to send" [ngClass]="{ 'uk-form-success': amountStatus === 1, 'uk-form-danger': amountStatus === 2 }">
+                          <a class="uk-form-icon uk-form-icon-flip" (click)="setMaxAmount()" style="padding-right: 7px;" uk-tooltip title="{{ 'Set Maximum Amount' | translate }}">{{ 'Max' | translate }}</a>
+                          <input [(ngModel)]="amountInRai" class="uk-input" id="form-horizontal-text2" (keyup)="syncAmount()" (change)="syncAmount()" type="text" placeholder="{{'Amount of RAI to send' | translate}}" [ngClass]="{ 'uk-form-success': amountStatus === 1, 'uk-form-danger': amountStatus === 2 }">
                         </div>
                       </div>
                     </div>
@@ -54,10 +54,10 @@
 
               <div uk-grid>
                 <div class="uk-width-1-1">
-                  <label class="uk-form-label" for="form-horizontal-text3">Note/Memo</label>
+                  <label class="uk-form-label" for="form-horizontal-text3">{{ 'Note/Memo' | translate }}</label>
                   <div class="uk-form-controls">
                     <div class="uk-inline uk-width-1-1">
-                      <input [(ngModel)]="note" class="uk-input" id="form-horizontal-text3" type="text" placeholder="extra info, such as exchange's user id">
+                      <input [(ngModel)]="note" class="uk-input" id="form-horizontal-text3" type="text" placeholder="{{'extra info, such as exchange\'s user id' | translate}}">
                     </div>
                   </div>
                 </div>
@@ -66,7 +66,7 @@
             </div>
           </div>
           <div class="uk-card-footer">
-            <button class="uk-button uk-button-primary uk-width-1-1" type="button" (click)="send()">Send</button>
+            <button class="uk-button uk-button-primary uk-width-1-1" type="button" (click)="send()">{{ 'Send' | translate }}</button>
           </div>
         </div>
       </div>
@@ -77,7 +77,7 @@
     <div uk-grid *ngIf="activePanel === 'confirm'" class="uk-animation-slide-left">
       <div class="uk-width-1-1">
         <div class="uk-card uk-card-default uk-width-1-1 uk-text-center">
-          <span style="display: block; padding-top: 8px;">You are about to send</span>
+          <span style="display: block; padding-top: 8px;">{{ 'You are about to send' | translate }}</span>
           <span style="display:block; font-size: 32px;">{{ amount | balance }}</span>
         </div>
         <br>
@@ -89,7 +89,7 @@
                 <span class="confirm-title uk-text-truncate">
                   <div>
                     <span class="confirm-title uk-text-truncate">{{ selectedAccountAddress() | shortAccount }}</span>
-                    <span class="confirm-subtitle">From Account</span>
+                    <span class="confirm-subtitle">{{ 'From Account' | translate }}</span>
                     <br class="br-spacer" />
                   </div>
                 </span>
@@ -98,7 +98,7 @@
                 <div uk-grid>
                   <div class="uk-width-1-2 uk-text-muted">
                     <span class="confirm-currency">{{ balance() | balance: 9 }}</span>
-                    <span class="confirm-subtitle">Current Balance</span>
+                    <span class="confirm-subtitle">{{ 'Current Balance' | translate }}</span>
                   </div>
                   <div class="uk-width-1-2 uk-text-right">
                     <span class="confirm-currency uk-text-danger">-{{ amount | balance: 9 }}</span>
@@ -114,7 +114,7 @@
                 <span class="confirm-title uk-text-truncate">
                   <div>
                     <span class="confirm-title uk-text-truncate">{{ destination | shortAccount }}</span>
-                    <span class="confirm-subtitle">To Account</span>
+                    <span class="confirm-subtitle">{{ 'To Account' | translate }}</span>
                     <br class="br-spacer" />
                   </div>
                 </span>
@@ -128,7 +128,7 @@
                 <span class="confirm-title uk-text-truncate">
                   <div>
                     <span class="confirm-title uk-text-truncate">{{ note }}</span>
-                    <span class="confirm-subtitle">Note/Memo</span>
+                    <span class="confirm-subtitle">{{ 'Note/Memo' | translate }}</span>
                     <br class="br-spacer" />
                   </div>
                 </span>
@@ -140,10 +140,10 @@
 
         <div uk-grid>
           <div class="uk-width-1-2@s">
-            <button (click)="activePanel = 'send'" class="uk-button uk-button-danger uk-width-1-1">Cancel</button>
+            <button (click)="activePanel = 'send'" class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate }}</button>
           </div>
           <div class="uk-width-1-2@s">
-            <button class="uk-button uk-button-primary uk-width-1-1" (click)="confirm()">Confirm & Send</button>
+            <button class="uk-button uk-button-primary uk-width-1-1" (click)="confirm()">{{ 'Confirm & Send' | translate }}</button>
           </div>
         </div>
       </div>

@@ -2,20 +2,20 @@
   <div class="uk-width-1-1 uk-animation-slide-left-small">
     <div uk-grid class="uk-text-center" style="margin-bottom: 90px;">
       <div class="uk-width-1-1" style="margin-top: 45px;">
-        <h2>Welcome to RaiWallet!</h2>
-        <span class="uk-text-lead">It's the official web wallet for <a href="https://raicoin.org" class="uk-link-text" target="_blank">Raicoin</a></span><br>
+        <h2>{{ 'Welcome to RaiWallet!' | translate }}</h2>
+        <span class="uk-text-lead">{{ "It's the official web wallet for Raicoin" | translate }}</span><br>
       </div>
 
       <div class="uk-width-1-1" *ngIf="!configured()">
         <div uk-grid>
           <div class="uk-width-1-1" style="margin-top: 60px;">
-            <span class="uk-text-small">To get started, choose an option below to configure your wallet</span>
+            <span class="uk-text-small">{{ 'To get started, choose an option below to configure your wallet' | translate }}</span>
           </div>
           <div class="uk-width-1-2@m">
-            <button routerLink="/configure-wallet" class="uk-button uk-button-primary uk-button-large">Create A New Wallet</button>
+            <button routerLink="/configure-wallet" class="uk-button uk-button-primary uk-button-large">{{ 'Create A New Wallet' | translate }}</button>
           </div>
           <div class="uk-width-1-2@m">
-            <button routerLink="/configure-wallet" [queryParams]="{ import: 1}" class="uk-button uk-button-primary uk-button-large">Import An Existing Wallet</button>
+            <button routerLink="/configure-wallet" [queryParams]="{ import: 1}" class="uk-button uk-button-primary uk-button-large">{{ 'Import An Existing Wallet' | translate }}</button>
           </div>
         </div>
       </div>
@@ -23,10 +23,10 @@
       <div class="uk-width-1-1" *ngIf="configured()">
         <div uk-grid>
           <div class="uk-width-1-1" style="margin-top: 60px;">
-            <span class="uk-text-small">Welcome back!  It looks like your wallet is already configured.</span>
+            <span class="uk-text-small">{{ 'Welcome back!  It looks like your wallet is already configured.' | translate }}</span>
           </div>
           <div class="uk-width-1-1@m">
-            <button routerLink="/accounts" class="uk-button uk-button-primary uk-button-large">View My Accounts</button>
+            <button routerLink="/accounts" class="uk-button uk-button-primary uk-button-large">{{ 'View My Accounts' | translate }}</button>
           </div>
         </div>
       </div>
@@ -40,18 +40,18 @@
 
             <ul uk-accordion="">
               <li class="uk-open">
-                <a class="uk-accordion-title uk-link-text" href="#">About the wallet</a>
+                <a class="uk-accordion-title uk-link-text" href="#">{{ 'About the wallet' | translate }}</a>
                 <div class="uk-accordion-content">
                   <dl class="uk-description-list">
-                    <dt>Fully Open Source</dt>
-                    <dd>It's open source and all code is available at <a href="https://github.com/raicoincommunity" target="_blank">https://github.com/raicoincommunity</a>.<br>
-                      Please submit any feedback or bug reports on our GitHub page.</dd>
-                    <dt>Security Focused</dt>
-                    <dd>All sensitive operations happen in your browser only - your seed and private keys are never sent across the network, or stored on any server in any format. (So there is no need for server-based authentication measures such as 2FA)</dd>
-                    <dt>"No Strings Attached" Wallet</dt>
-                    <dd>Because no information is ever stored on a server, there is no account to login to or email address required. Create as many wallets as you want and switch between them easily.</dd>
-                    <dt>Any Device, Anywhere</dt>
-                    <dd>Send and receive Raicoin from any device using the web wallet, or <a href="https://raicoin.org/#software" target="_blank">download the desktop wallet</a> available for Windows/Mac.</dd>
+                    <dt>{{ 'Fully Open Source' | translate }}</dt>
+                    <dd>{{ "It's open source and all codes is available at github" | translate }}: <a href="https://github.com/raicoincommunity" target="_blank">https://github.com/raicoincommunity</a>.<br>
+                      {{ 'Please submit any feedback or bug reports on our GitHub page.' | translate }}</dd>
+                    <dt>{{ 'Security Focused' | translate }}</dt>
+                    <dd>{{ 'All sensitive operations happen in your browser only' | translate }} - {{ 'your seed and private keys are never sent across the network, or stored on any server in any format.' | translate }} ({{ 'So there is no need for server-based authentication measures such as 2FA' | translate }})</dd>
+                    <dt>{{ '"No Strings Attached" Wallet' | translate }}</dt>
+                    <dd>{{ 'Because no information is ever stored on a server, there is no account to login to or email address required.' | translate }} {{ 'Create as many wallets as you want and switch between them easily.' | translate }}</dd>
+                    <dt>{{ 'Any Device, Anywhere' | translate }}</dt>
+                    <dd>{{ 'Send and receive Raicoin from any device using the web wallet, or' | translate }} <a href="https://raicoin.org/#software" target="_blank">{{ 'download' | translate }}</a> {{ 'the desktop wallet available for Windows/Mac.' | translate }}</dd>
                   </dl>
                 </div>
               </li>

@@ -4,6 +4,8 @@ import { NotificationService } from '../../services/notification.service';
 import { WalletsService, Amount } from '../../services/wallets.service';
 import { Block, BlockInfo } from '../../services/blocks.service';
 import { ServerService } from '../../services/server.service';
+import { TranslateService } from '@ngx-translate/core';
+import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 
 @Component({
   selector: 'app-account-details',
@@ -19,6 +21,7 @@ export class AccountDetailsComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
+    private translate: TranslateService,
     private wallets: WalletsService,
     private server: ServerService,
     private notification: NotificationService) {
@@ -33,7 +36,9 @@ export class AccountDetailsComponent implements OnInit {
   }
 
   copied() {
-    this.notification.sendSuccess(`Account address copied to clipboard!`);
+    let msg = marker(`Account address copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
   }
 
   balance(): Amount {

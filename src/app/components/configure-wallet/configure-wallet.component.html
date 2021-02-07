@@ -1,11 +1,11 @@
-<h2>Configure Wallet</h2>
-<p>Use the options below to create a new wallet or import an existing one.</p>
+<h2>{{ 'Configure Wallet' | translate }}</h2>
+<p>{{ 'Use the options below to create a new wallet or import an existing one.' | translate }}</p>
 
 <div uk-grid *ngIf="activePanel == 0 || activePanel == 1">
   <div class="uk-width-1-1">
     <div class="uk-button-group uk-width-1-1">
-      <button (click)="setPanel(0)" class="uk-button uk-width-1-2" [ngClass]="{ 'uk-button-primary': activePanel == 0, 'uk-button-secondary': activePanel != 0 }">Create Wallet</button>
-      <button (click)="setPanel(1)" class="uk-button uk-width-1-2" [ngClass]="{ 'uk-button-primary': activePanel == 1, 'uk-button-secondary': activePanel != 1 }">Import Wallet</button>
+      <button (click)="setPanel(0)" class="uk-button uk-width-1-2" [ngClass]="{ 'uk-button-primary': activePanel == 0, 'uk-button-secondary': activePanel != 0 }">{{ 'Create Wallet' | translate }}</button>
+      <button (click)="setPanel(1)" class="uk-button uk-width-1-2" [ngClass]="{ 'uk-button-primary': activePanel == 1, 'uk-button-secondary': activePanel != 1 }">{{ 'Import Wallet' | translate }}</button>
     </div>
   </div>
 </div>
@@ -13,27 +13,28 @@
 <div class="uk-card uk-card-default" *ngIf="activePanel == 0">
   <div class="uk-card-body">
     <p>
-      When you create a wallet, a new Raicoin seed will be generated which is the master key to all of your accounts inside of the wallet!
+      {{ 'When you create a wallet, a new Raicoin seed will be generated which is the master key to all of your accounts inside of the wallet!' | translate }}
     </p>
     <div class="uk-alert-primary" uk-alert>
-      <p>Make sure you back up your seed, write it down, and keep it incredibly safe!  There is NO way to recover it after creation, and all funds inside WILL be lost without it!  You have been warned!</p>
+      <p>{{ 'Make sure you back up your seed, write it down, and keep it incredibly safe!' | translate }} {{ 'There is NO way to recover it after creation, and all funds inside WILL be lost without it!' | translate }} {{ 'You have been warned!' | translate }}</p>
     </div>
   </div>
   <div class="uk-card-footer uk-text-right">
-    <button class="uk-button uk-button-primary" (click)="createWallet()">Create Wallet</button>
+    <button class="uk-button uk-button-primary" (click)="createWallet()">{{ 'Create Wallet' | translate }}</button>
   </div>
 </div>
 
 <div class="uk-card uk-card-default" *ngIf="activePanel == 1">
   <div class="uk-card-body">
     <p>
-      If you already have a Raicoin wallet, you can import it below. When you import a wallet, none of your existing wallets or accounts are affected, and your seed is not stored anywhere besides in your local client.
+      {{ 'If you already have a Raicoin wallet, you can import it below.' | translate }} 
+      {{ 'When you import a wallet, none of your existing wallets or accounts are affected, and your seed is not stored anywhere besides in your local client.' | translate }}
     </p>
     <div uk-grid>
       <div class="uk-width-1-1">
         <div class="uk-form-horizontal">
           <div class="uk-margin">
-            <label class="uk-form-label" for="form-horizontal-select">Select Import Type</label>
+            <label class="uk-form-label" for="form-horizontal-select">{{ 'Select Import Type' | translate }}</label>
             <div class="uk-form-controls">
               <select class="uk-select" [(ngModel)]="selectedImportOption" id="form-horizontal-select">
                 <option *ngFor="let option of importOptions" [value]="option.value">{{ option.name }}</option>
@@ -49,85 +50,88 @@
     <div uk-grid *ngIf="selectedImportOption === 'seed'" class="uk-margin-top">
       <div class="uk-width-1-1">
         <p>
-          Enter your 64 character seed from any Raicoin wallet to import it below.
+          {{ 'Enter your 64 character seed from any Raicoin wallet to import it below.' | translate }}
         </p>
-        <input type="text" class="uk-input" (keyup.enter)="importWallet()" [(ngModel)]="importSeedModel" placeholder="Your Raicoin Backup Seed">
+        <input type="text" class="uk-input" (keyup.enter)="importWallet()" [(ngModel)]="importSeedModel" placeholder="{{ 'Your Raicoin Backup Seed' | translate }}">
       </div>
     </div>
 
   </div>
   <div class="uk-card-footer uk-text-right">
-    <button *ngIf="selectedImportOption === 'seed'" class="uk-button uk-button-primary" (click)="importWallet()">Import From Seed</button>
+    <button *ngIf="selectedImportOption === 'seed'" class="uk-button uk-button-primary" (click)="importWallet()">{{ 'Import From Seed' | translate }}</button>
   </div>
 </div>
 
 <div class="uk-card uk-card-default" *ngIf="activePanel == 3">
   <div class="uk-card-header">
-    <h3 class="uk-card-title">Wallet Created!</h3>
+    <h3 class="uk-card-title">{{ 'Wallet Created!' | translate }}</h3>
   </div>
   <div class="uk-card-body">
     <p>
-      Your new Raicoin wallet has been created!
+      {{ 'Your new Raicoin wallet has been created!' | translate }}
     </p>
     <div class="uk-alert uk-alert-primary">
-      Make sure to write down your seed or save it somewhere safe, and <strong>never share it with anyone!</strong><br>
-      It is the master key to all of your accounts, and the only way to recover your funds in an emergency.
+      {{ 'Make sure to write down your seed or save it somewhere safe, and <strong>never share it with anyone!</strong>' | translate }}
+      <br>
+      {{ 'It is the master key to all of your accounts, and the only way to recover your funds in an emergency.' | translate }}
     </div>
 
     <div uk-grid>
-      <div class="uk-width-1-4">Raicoin Seed</div>
+      <div class="uk-width-1-4">{{ 'Raicoin Seed' | translate }}</div>
       <div class="uk-width-3-4 uk-text-break">
         {{ newSeed }}<br>
-        <a title="Copy Seed To Clipboard" ngxClipboard [cbContent]="newSeed" (cbOnSuccess)="copied()" uk-tooltip>Copy seed to clipboard</a>
+        <a title="{{ 'Copy Seed To Clipboard' | translate }}" ngxClipboard [cbContent]="newSeed" (cbOnSuccess)="copied()" uk-tooltip>{{ 'Copy seed to clipboard' | translate }}</a>
       </div>
     </div>
   </div>
   <div class="uk-card-footer">
-    <button class="uk-button uk-button-danger" (click)="confirmNewSeed()">I've Saved My Seed</button>
+    <button class="uk-button uk-button-danger" (click)="confirmNewSeed()">{{ "I've Saved My Seed" | translate }}</button>
   </div>
 </div>
 
 <div class="uk-card uk-card-default" *ngIf="activePanel == 4">
   <div class="uk-card-header">
-    <h3 class="uk-card-title">Set Wallet Password</h3>
+    <h3 class="uk-card-title">{{ 'Set Wallet Password' | translate }}</h3>
   </div>
   <div class="uk-card-body">
     <p>
-      The password is used to encrypt the sensitive parts of your wallet before storing them into the local database of browser. You will need it to unlock the wallet.
+      {{ 'The password is used to encrypt the sensitive parts of your wallet before storing them into the local database of browser.' | translate }} {{ 'You will need it to unlock the wallet.' | translate }}
     </p>
 
     <p>
-      Set your wallet password below:
+      
+      {{ 'Set your wallet password below:' | translate }}
     </p>
     <div uk-grid>
       <div class="uk-width-1-2@m">
-        <input type="password" class="uk-input" [(ngModel)]="walletPasswordModel" placeholder="New Wallet Password">
+        <input type="password" class="uk-input" [(ngModel)]="walletPasswordModel" placeholder="{{ 'New Wallet Password' | translate }}">
       </div>
       <div class="uk-width-1-2@m">
-        <input type="password" class="uk-input" (keyup.enter)="saveWalletPassword()" [(ngModel)]="walletPasswordConfirmModel" placeholder="Confirm Wallet Password">
+        <input type="password" class="uk-input" (keyup.enter)="saveWalletPassword()" [(ngModel)]="walletPasswordConfirmModel" placeholder="{{ 'Confirm Wallet Password' | translate }}">
       </div>
     </div>
   </div>
   <div class="uk-card-footer uk-text-right">
-    <button class="uk-button uk-button-primary" (click)="saveWalletPassword()">Set Wallet Password</button>
+    <button class="uk-button uk-button-primary" (click)="saveWalletPassword()">{{ 'Set Wallet Password' | translate }}</button>
   </div>
 </div>
 
 <div class="uk-card uk-card-default" *ngIf="activePanel == 5">
   <div class="uk-card-header">
-    <h3 class="uk-card-title">Wallet Configured!</h3>
+    <h3 class="uk-card-title">{{ 'Wallet Configured!' | translate }}</h3>
   </div>
   <div class="uk-card-body">
     <p>
-      Your new wallet has been configured, the wallet ID is <b>{{ newWalletIndex }}</b>. Now you are ready to send and receive Raicoin!
+      {{ 'Your new wallet has been configured, the wallet ID is { id }.' | translate:{'id': newWalletIndex} }}
+      {{ 'Now you are ready to send and receive Raicoin!' | translate }}
     </p>
   </div>
   <div class="uk-card-footer uk-text-right">
-    <button routerLink="/wallets" class="uk-button uk-button-primary">View Wallets</button>
+    <button routerLink="/wallets" class="uk-button uk-button-primary">{{ 'View Wallets' | translate }}</button>
   </div>
 </div>
 
 <div *ngIf="(activePanel == 4 || activePanel == 5)" class="uk-alert-primary" uk-alert>
-  <p><b>ProTip:</b> If you lose your password, you can always restore your wallet using your seed.</p>
+  <p><b>{{ 'ProTip' | translate }}:</b> {{ 'If you lose your password, you can always restore your wallet using your seed.' | translate }}</p>
 </div>
 

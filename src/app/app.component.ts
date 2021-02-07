@@ -4,6 +4,8 @@ import { NotificationService } from './services/notification.service';
 import { U128 } from './services/util.service';
 import { SettingsService } from './services/settings.service';
 import { ServerState, ServerService } from './services/server.service';
+import { TranslateService } from '@ngx-translate/core';
+import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 
 @Component({
   selector: 'app-root',
@@ -21,6 +23,7 @@ export class AppComponent implements OnInit {
   };
 
   constructor(
+    private translate: TranslateService,
     private wallets: WalletsService, 
     private settings: SettingsService,
     private server: ServerService,
@@ -43,7 +46,11 @@ export class AppComponent implements OnInit {
       if (this.inactiveSeconds >= seconds) {
         let errorCode = this.wallets.lockAll();
         if (errorCode === WalletErrorCode.SUCCESS) {
-          this.notification.sendSuccess(`Wallets locked after ${this.settings.getLockMinutes()} minutes of inactivity`);
+
+          let msg = marker('Wallets locked after { lockMinutes } minutes of inactivity');
+          const param = { 'lockMinutes': this.settings.getLockMinutes() };
+          this.translate.get(msg, param).subscribe(res => msg = res);
+          this.notification.sendInfo(msg);
         }
         this.inactiveSeconds = 0;
       }
@@ -59,7 +66,9 @@ export class AppComponent implements OnInit {
   }
 
   copied() {
-    this.notification.sendSuccess(`Account address copied to clipboard!`);
+    let msg = marker('Account address copied to clipboard!');
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
   }
 
   walletIndex(): number {
@@ -100,4 +109,12 @@ export class AppComponent implements OnInit {
     return this.state === ServerState.DISCONNECTED;
   }
 
+  lang(): string {
+    console.log(this.translate.currentLang);
+    return this.translate.currentLang;
+  }
+
+  changeLang(lang: string) {
+    this.settings.setLang(lang);
+  }
 }

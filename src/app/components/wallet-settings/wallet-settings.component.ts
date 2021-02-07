@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { WalletsService } from '../../services/wallets.service';
 import { NotificationService } from '../../services/notification.service';
+import { TranslateService } from '@ngx-translate/core';
+import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 
 @Component({
   selector: 'app-wallet-settings',
@@ -12,8 +14,9 @@ export class WalletSettingsComponent implements OnInit {
   confirmPassword = '';
 
   constructor(
+    private translate: TranslateService,
     private wallets: WalletsService,
-   private notification: NotificationService) { 
+    private notification: NotificationService) { 
    }
 
   ngOnInit(): void {
@@ -21,22 +24,30 @@ export class WalletSettingsComponent implements OnInit {
 
   changePassword() {
     if (this.locked()) {
-      this.notification.sendWarning(`Wallet must be unlocked`);
+      let msg = marker(`Wallet must be unlocked`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendWarning(msg);
       return;
     }
     
     if (this.newPassword !== this.confirmPassword) {
-      this.notification.sendError(`Passwords do not match`);
+      let msg = marker(`Passwords do not match`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
       return;
     }
 
     if (this.newPassword.length === 0) {
-      this.notification.sendError(`Password cannot be empty`);
+      let msg = marker(`Password cannot be empty`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
       return;
     }
 
     if (!this.wallets.wallet) {
-      this.notification.sendError(`Cann't find the wallet`);
+      let msg = marker(`Cann't find the wallet`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
       return;
     }
 
@@ -44,7 +55,9 @@ export class WalletSettingsComponent implements OnInit {
 
     this.newPassword = '';
     this.confirmPassword = '';
-    this.notification.sendSuccess(`Wallet password successfully updated`);
+    let msg = marker(`Wallet password successfully updated`);
+    this.translate.get(msg).subscribe(res => msg = res);    
+    this.notification.sendSuccess(msg);
   }
 
   locked(): boolean {
@@ -57,7 +70,9 @@ export class WalletSettingsComponent implements OnInit {
   }
 
   seedCopied() {
-    this.notification.sendSuccess('Wallet seed copied to clipboard!');
+    let msg = marker('Wallet seed copied to clipboard!');
+    this.translate.get(msg).subscribe(res => msg = res);    
+    this.notification.sendSuccess(msg);
   }
 
   walletIndex(): number {

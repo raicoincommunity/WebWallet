@@ -1,58 +1,59 @@
 <div class="uk-animation-slide-left-small" uk-grid>
   <div class="uk-width-1-1">
-    <h2>Wallet Settings</h2>
+    <h2>{{ 'Wallet Settings' | translate }}</h2>
 
     <div uk-grid>
       <div class="uk-width-expand uk-width-auto uk-text-center uk-text-large">
-        Your wallet ID: <span class="uk-text-bold">{{ walletIndex() }}</span>&nbsp; &nbsp;<a uk-icon="icon: pencil;" title="Change Wallet" uk-tooltip routerLink="/wallets"></a>
+        {{ 'Your wallet ID' | translate }}: <span class="uk-text-bold">{{ walletIndex() }}</span>&nbsp; &nbsp;<a uk-icon="icon: pencil;" title="{{ 'Change Wallet' | translate }}" uk-tooltip routerLink="/wallets"></a>
       </div>
     </div>
 
     <div class="uk-card uk-card-default uk-margin">
       <div class="uk-card-header">
-        <h3 class="uk-card-title">Change Wallet Password</h3>
+        <h3 class="uk-card-title">{{ 'Change Wallet Password' | translate }}</h3>
       </div>
       <div class="uk-card-body">
         <div uk-grid>
           <div *ngIf="locked()" class="uk-width-1-1">
             <div class="uk-width-1-2@s">
-              <input class="uk-input" disabled placeholder="Unlock wallet first" type="password">
+              <input class="uk-input" disabled placeholder="{{ 'Unlock wallet first' | translate }}" type="password">
             </div>
             <div class="uk-width-1-2@s uk-margin-top">
-              <input class="uk-input" disabled placeholder="Unlock wallet first" type="password">
+              <input class="uk-input" disabled placeholder="{{ 'Unlock wallet first' | translate }}" type="password">
             </div>
           </div>
 
           <div *ngIf="!locked()" class="uk-width-1-1">
             <div class="uk-width-1-2@s">
-              <input class="uk-input" [(ngModel)]="newPassword" placeholder="New Password" type="password">
+              <input class="uk-input" [(ngModel)]="newPassword" placeholder="{{ 'New Password' | translate }}" type="password">
             </div>
             <div class="uk-width-1-2@s uk-margin-top">
-              <input class="uk-input" [(ngModel)]="confirmPassword" placeholder="Confirm New Password" type="password">
+              <input class="uk-input" [(ngModel)]="confirmPassword" placeholder="{{ 'Confirm New Password' | translate }}" type="password">
             </div>
           </div>
         </div>
       </div>
       <div class="uk-card-footer uk-text-right">
-        <button (click)="changePassword()" class="uk-button uk-button-secondary">Update Password</button>
+        <button (click)="changePassword()" class="uk-button uk-button-secondary">{{ 'Update Password' | translate }}</button>
       </div>
     </div>
 
     <div class="uk-card uk-card-default uk-margin">
       <div class="uk-card-header">
-        <h3 class="uk-card-title">Backup Wallet</h3>
+        <h3 class="uk-card-title">{{ 'Backup Wallet' | translate }}</h3>
       </div>
       <div class="uk-card-body">
         <p *ngIf="locked()">
-          To access backup options, unlock your wallet.
+          {{ 'To access backup options, unlock your wallet.' | translate }}
         </p>
         <p *ngIf="!locked()">
-          Make sure to save your seed somewhere safe, and <strong>never share it with anyone!</strong><br>
-          It is the master key to all of your accounts, and the only way to recover your funds in an emergency.
+          {{ 'Make sure to save your seed somewhere safe, and <strong>never share it with anyone!</strong>' | translate }}
+          <br>
+          {{ 'It is the master key to all of your accounts, and the only way to recover your funds in an emergency.' | translate }}
         </p>
       </div>
       <div *ngIf="!locked()" class="uk-card-footer uk-text-right">
-        <button ngxClipboard [cbContent]="seed()" (cbOnSuccess)="seedCopied()" class="uk-button uk-button-secondary">Copy Wallet Seed</button>
+        <button ngxClipboard [cbContent]="seed()" (cbOnSuccess)="seedCopied()" class="uk-button uk-button-secondary">{{ 'Copy Wallet Seed' | translate }}</button>
       </div>
     </div>
 
