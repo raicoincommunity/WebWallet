@@ -3,6 +3,8 @@ import { WalletsService, WalletErrorCode } from '../../services/wallets.service'
 import { Receivable } from '../../services/blocks.service';
 import { U256 } from '../../services/util.service';
 import { NotificationService } from '../../services/notification.service';
+import { TranslateService } from '@ngx-translate/core';
+import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 
 @Component({
   selector: 'app-receive',
@@ -14,7 +16,10 @@ export class ReceiveComponent implements OnInit {
   checkedAll: boolean = false;
   empty: boolean = false;
 
-  constructor(private wallets: WalletsService, private notification: NotificationService) { }
+  constructor(
+    private translate: TranslateService,
+    private wallets: WalletsService, 
+    private notification: NotificationService) { }
 
   ngOnInit(): void {
   }
@@ -27,14 +32,18 @@ export class ReceiveComponent implements OnInit {
 
   receive() {
     if (this.checkedHashs.length === 0) {
-      this.notification.sendWarning('Please select some items first');
+      let msg = marker('Please select some items first');
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendWarning(msg);
       return;
     }
 
     for (let i = 0; i < this.checkedHashs.length; ++i) {
       let result = this.wallets.receive(this.checkedHashs[i]);
       if (result.errorCode !== WalletErrorCode.SUCCESS && result.errorCode !== WalletErrorCode.IGNORED) {
-        this.notification.sendError(result.errorCode);
+        let msg = result.errorCode;
+        this.translate.get(msg).subscribe(res => msg = res);
+        this.notification.sendError(msg);
         return;
       }
     }
@@ -72,6 +81,8 @@ export class ReceiveComponent implements OnInit {
   }
 
   copied() {
-    this.notification.sendSuccess(`Account address copied to clipboard!`);
+    let msg = marker(`Account address copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);        
+    this.notification.sendSuccess(msg);
   }
 }

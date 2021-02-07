@@ -1,7 +1,7 @@
 <div class="uk-animation-slide-left-small" uk-grid>
   <div class="uk-width-1-1">
 
-    <h2>Account Details</h2>
+    <h2>{{ 'Account Details' | translate }}</h2>
 
     <div class="uk-card uk-card-default uk-margin">
       <div class="uk-card-header uk-visible-toggle">
@@ -17,7 +17,7 @@
 
           <div class="uk-width-auto">
             <ul class="uk-iconnav">
-              <li><a ngxClipboard [cbContent]="address" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="Copy Account Address" uk-tooltip></a></li>
+              <li><a ngxClipboard [cbContent]="address" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="{{ 'Copy Account Address' | translate }}" uk-tooltip></a></li>
             </ul>
           </div>
         </div>
@@ -30,7 +30,7 @@
               <div class="uk-width-1-1">
                 <div uk-grid>
                   <div class="uk-width-2-5 uk-text-left">
-                    Balance
+                    {{ 'Balance' | translate }}
                   </div>
                   <div class="uk-width-3-5 uk-text-left">
                     {{ balance() | balance: 9 }}
@@ -41,7 +41,7 @@
               <div *ngIf="pending().value.gt(0)" class="uk-width-1-1">
                 <div uk-grid>
                   <div class="uk-width-2-5 uk-text-left">
-                    Pending
+                    {{ 'Pending' | translate }}
                   </div>
                   <div class="uk-width-3-5 uk-text-left">
                     {{ pending() | balance: 9 }}
@@ -52,7 +52,7 @@
               <div *ngIf="receivable().value.gt(0)" class="uk-width-1-1">
                 <div uk-grid>
                   <div class="uk-width-2-5 uk-text-left">
-                    Receivable
+                    {{ 'Receivable' | translate }}
                   </div>
                   <div class="uk-width-3-5 uk-text-left">
                     <div uk-grid>
@@ -61,7 +61,7 @@
                       </div>
                       <div class="uk-width-auto" style="padding-left: 10px;">
                         <ul class="uk-hidden-hover uk-iconnav">
-                          <li><a uk-icon="icon: pull;" title="Receive" uk-tooltip routerLink="/receive"></a></li>
+                          <li><a uk-icon="icon: pull;" title="{{ 'Receive' | translate }}" uk-tooltip routerLink="/receive"></a></li>
                         </ul>
                       </div>
                     </div>
@@ -72,7 +72,7 @@
               <div class="uk-width-1-1" *ngIf="credit()">
                 <div uk-grid>
                   <div class="uk-width-2-5 uk-text-left">
-                    Credit
+                    {{ 'Credit' | translate }}
                   </div>
                   <div class="uk-width-3-5 uk-text-left">
                     {{ credit() }}
@@ -83,7 +83,7 @@
               <div class="uk-width-1-1" *ngIf="dailyTxns()">
                 <div uk-grid>
                   <div class="uk-width-2-5 uk-text-left">
-                    Daily Txns
+                    {{ 'Daily Txns' | translate }}
                   </div>
                   <div class="uk-width-3-5 uk-text-left">
                     <div uk-grid>
@@ -92,7 +92,7 @@
                       </div>
                       <div class="uk-width-auto" style="padding-left: 10px;">
                         <ul class="uk-hidden-hover uk-iconnav">
-                          <li><a uk-icon="icon: pencil;" title="Increase Limit" uk-tooltip routerLink="/account-settings" fragment="set-daily-limit"></a></li>
+                          <li><a uk-icon="icon: pencil;" title="{{ 'Increase Limit' | translate }}" uk-tooltip routerLink="/account-settings" fragment="set-daily-limit"></a></li>
                         </ul>
                       </div>
                     </div>
@@ -103,7 +103,7 @@
               <div class="uk-width-1-1" *ngIf="representative()">
                 <div uk-grid>
                   <div class="uk-width-2-5 uk-text-left uk-text-break">
-                    Representative
+                    {{ 'Representative' | translate }}
                   </div>
                   <div class="uk-width-3-5 uk-text-left">
                     <div uk-grid>
@@ -112,7 +112,7 @@
                       </div>
                       <div class="uk-width-auto" style="padding-left: 10px;">
                         <ul class="uk-hidden-hover uk-iconnav">
-                          <li><a uk-icon="icon: pencil;" title="Change Representative" uk-tooltip routerLink="/account-settings"></a></li>
+                          <li><a uk-icon="icon: pencil;" title="{{ 'Change Representative' | translate }}" uk-tooltip routerLink="/account-settings"></a></li>
                         </ul>
                       </div>
                     </div>
@@ -126,14 +126,14 @@
 
         <div uk-grid style="margin-top: 25px;">
           <div class="uk-width-1-1">
-            <h3 class="uk-heading-divider uk-text-center" style="margin-bottom: 0;">Recent Transactions</h3>
+            <h3 class="uk-heading-divider uk-text-center" style="margin-bottom: 0;">{{ 'Recent Transactions' | translate }}</h3>
             <table class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
               <thead>
               <tr>
-                <th class="uk-width-1-4@m uk-width-1-6 uk-text-center">ID</th>
-                <th class="uk-width-1-4@m uk-width-1-6 uk-text-center">Type</th>
-                <th class="uk-width-1-4@m uk-width-expand uk-text-right">Amount</th>
-                <th class="uk-width-1-4@m uk-width-1-6 uk-text-center">Status</th>
+                <th class="uk-width-1-4@m uk-width-1-6 uk-text-center">{{ 'ID' | translate }}</th>
+                <th class="uk-width-1-4@m uk-width-1-6 uk-text-center">{{ 'Type' | translate }}</th>
+                <th class="uk-width-1-4@m uk-width-expand uk-text-right">{{ 'Amount' | translate }}</th>
+                <th class="uk-width-1-4@m uk-width-1-6 uk-text-center">{{ 'Status' | translate }}</th>
               </tr>
               </thead>
               <tbody>
@@ -148,16 +148,16 @@
                   <span *ngIf="!info.amount.value.eq(0) && !info.amount.negative" class="uk-text-success">+{{ info.amount | balance }}</span>
                 </td>
                 <td class="uk-text-center">
-                  <span *ngIf="status(info.block) === 'confirmed'" uk-icon="icon: check;" class="uk-text-success"  [title]="status(info.block)" uk-tooltip ></span>
-                  <span *ngIf="status(info.block) !== 'confirmed'" uk-spinner="ratio: 0.6;" [title]="status(info.block)" uk-tooltip ></span>
+                  <span *ngIf="status(info.block) === 'confirmed'" uk-icon="icon: check;" class="uk-text-success"  title="{{ status(info.block) | translate }}" uk-tooltip ></span>
+                  <span *ngIf="status(info.block) !== 'confirmed'" uk-spinner="ratio: 0.6;" title="{{ status(info.block) | translate }}" uk-tooltip ></span>
                 </td>
               </tr>
               <tr *ngIf="empty">
-                <td colspan="4" style="text-align: center;">No account history</td>
+                <td colspan="4" style="text-align: center;">{{ 'No account history' | translate }}</td>
               </tr>
               <tr *ngIf="!finished">
                 <td colspan="4" style="text-align: center;">
-                  <a (click)="loadMore()" class="uk-link-text">Load More Results</a>
+                  <a (click)="loadMore()" class="uk-link-text">{{ 'Load More Results' | translate }}</a>
                 </td>
               </tr>
               </tbody>

@@ -3,6 +3,8 @@ import { SettingsService } from '../../services/settings.service';
 import { U128 } from '../../services/util.service'
 import { NotificationService } from '../../services/notification.service';
 import { BigNumber } from 'bignumber.js';
+import { TranslateService } from '@ngx-translate/core';
+import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 
 @Component({
   selector: 'app-global-settings',
@@ -26,7 +28,10 @@ export class GlobalSettingsComponent implements OnInit {
   ];
   inactivityMinutes: number = 30;
 
-  constructor(private settings: SettingsService, private notification: NotificationService) { 
+  constructor(
+    private translate: TranslateService,
+    private settings: SettingsService,
+    private notification: NotificationService) { 
     this.load();
     this.settings.globalSettingChange$.subscribe(() => this.load());
   }
@@ -58,17 +63,23 @@ export class GlobalSettingsComponent implements OnInit {
 
   saveAutoReceive() {
     if (this.convertMinimum()) {
-      this.notification.sendError('Invalid minimum amount');
+      let msg = marker('Invalid minimum amount');
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
       return;
     }
 
     this.settings.setAutoReceive({ enable: this.autoReceiveEnable, minimum: this.autoReceiveMinimumAmount });
-    this.notification.sendSuccess(`Successfully updated auto receive setting!`);
+    let msg = marker(`Successfully updated auto receive setting!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
   }
 
   saveLockMinutes() {
     this.settings.setLockMinutes(this.inactivityMinutes);
-    this.notification.sendSuccess(`Successfully updated auto lock setting!`);
+    let msg = marker(`Successfully updated auto lock setting!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);    
   }
 
   toggleAutoReceive() {

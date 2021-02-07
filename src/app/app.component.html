@@ -6,34 +6,34 @@
       <div class="title-block">
         <div class="uk-margin-left" style="padding-bottom: 15px; color: #666;">
           <div uk-grid>
-            <div class="uk-width-expand"><a routerLink="" class="title">Your Raicoin</a></div>
+            <div class="uk-width-expand"><a routerLink="" class="title">{{ 'Your Raicoin' | translate }}</a></div>
             <div class="uk-width-1-6 uk-padding-remove-left" style="padding-top: 15px;">
-              <span class="uk-text-danger" uk-icon="icon: warning;" *ngIf="disconnected()" uk-tooltip title="Unable to connect to wallet server. Your balances may be wrong!"></span>
-              <div uk-spinner="ratio: 0.6;" *ngIf="connecting()" uk-tooltip title="Attempting to connect to wallet server"></div>
+              <span class="uk-text-danger" uk-icon="icon: warning;" *ngIf="disconnected()" uk-tooltip title="{{ 'Unable to connect to wallet server.' | translate }} {{ 'Your balances may be wrong!' | translate }}"></span>
+              <div uk-spinner="ratio: 0.6;" *ngIf="connecting()" uk-tooltip title="{{ 'Attempting to connect to wallet server' | translate }}"></div>
             </div>
           </div>
 
           <div *ngIf="configured()">
-            <span class="uk-text-bold">Wallet ID: {{ walletIndex() }}</span>
+            <span class="uk-text-bold">{{ 'Wallet ID' | translate }}: {{ walletIndex() }}</span>
           </div>
           <div *ngIf="configured()">
             <div uk-grid>
               <div class="uk-width-expand uk-text-truncate uk-text-bold uk-padding-remove-right">
-                Account: <a [routerLink]="'/account/' + selectedAccountAddress()" style="color:#666">{{ selectedAccountAddress() }}</a>
+                {{ 'Account' | translate }}: <a [routerLink]="'/account/' + selectedAccountAddress()" style="color:#666">{{ selectedAccountAddress() }}</a>
               </div>
               <div class="uk-width-auto uk-padding-remove-left">
-                <span ngxClipboard [cbContent]="selectedAccountAddress()" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="Copy Account Address" uk-tooltip></span>
+                <span ngxClipboard [cbContent]="selectedAccountAddress()" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="{{ 'Copy Account Address' | translate }}" uk-tooltip></span>
               </div>
             </div>
           </div>
           <div *ngIf="configured()">
-            <span class="uk-text-bold">Balance: {{ balance() | balance: 2 }}</span>
+            <span class="uk-text-bold">{{ 'Balance' | translate }}: {{ balance() | balance: 2 }}</span>
           </div>
           <div *ngIf="configured() && pending().value.gt(0)">
-            <span class="uk-text-bold">Pending: {{ pending() | balance: 2 }}</span>
+            <span class="uk-text-bold">{{ 'Pending' | translate }}: {{ pending() | balance: 2 }}</span>
           </div>
           <div *ngIf="configured() && receivable().value.gt(0)">
-            <span class="uk-text-bold">Receivable: {{ receivable() | balance: 2 }}</span>
+            <span class="uk-text-bold">{{ 'Receivable' | translate }}: {{ receivable() | balance: 2 }}</span>
           </div>
         </div>
       </div>
@@ -41,18 +41,32 @@
       <app-wallet-widget></app-wallet-widget>
 
       <ul class="uk-nav uk-nav-default uk-nav-parent-icon left-nav" uk-nav>
-        <li><a routerLink="/send" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">Send</a></li>
-        <li><a routerLink="/receive" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">Receive</a></li>
-        <li routerLink="/accounts" routerLinkActive="uk-active"><a routerLink="/accounts" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">Accounts</a></li>
-        <li routerLink="/wallets" routerLinkActive="uk-active"><a routerLink="/wallets" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">Wallets</a></li>
+        <li><a routerLink="/send" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Send' | translate }}</a></li>
+        <li><a routerLink="/receive" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Receive' | translate }}</a></li>
+        <li routerLink="/accounts" routerLinkActive="uk-active"><a routerLink="/accounts" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Accounts' | translate }}</a></li>
+        <li routerLink="/wallets" routerLinkActive="uk-active"><a routerLink="/wallets" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Wallets' | translate }}</a></li>
         <li class="uk-parent">
-          <a href="#" class="uk-margin-left">Settings</a>
+          <a href="#" class="uk-margin-left">{{ 'Settings' | translate }}</a>
           <ul class="uk-nav-sub">
-            <li><a routerLink="/account-settings" routerLinkActive="active" class="uk-margin-left" uk-toggle="target: #mobile-nav">Account Settings</a></li>
-            <li><a routerLink="/wallet-settings" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">Wallet Settings</a></li>
-            <li><a routerLink="/global-settings" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">Global Settings</a></li>
+            <li><a routerLink="/account-settings" routerLinkActive="active" class="uk-margin-left" uk-toggle="target: #mobile-nav">{{ 'Account Settings' | translate }}</a></li>
+            <li><a routerLink="/wallet-settings" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Wallet Settings' | translate }}</a></li>
+            <li><a routerLink="/global-settings" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Global Settings' | translate }}</a></li>
           </ul>
         </li>
+
+        <li class="uk-parent">
+          <a href="#" class="uk-margin-left">{{ 'Languages' | translate }}</a>
+          <ul class="uk-nav-sub">
+            <li><a (click)="changeLang('id')" class="uk-margin-left" [ngClass]="{'active': lang() === 'id'}" uk-toggle="target: #mobile-nav">Bahasa Indonesia</a></li>
+            <li><a (click)="changeLang('en')" class="uk-margin-left" [ngClass]="{'active': lang() === 'en'}" uk-toggle="target: #mobile-nav">English</a></li>
+            <li><a (click)="changeLang('es')" class="uk-margin-left" [ngClass]="{'active': lang() === 'es'}" uk-toggle="target: #mobile-nav">Español</a></li>
+            <li><a (click)="changeLang('fr')" class="uk-margin-left" [ngClass]="{'active': lang() === 'fr'}" uk-toggle="target: #mobile-nav">Français</a></li>
+            <li><a (click)="changeLang('ru')" class="uk-margin-left" [ngClass]="{'active': lang() === 'ru'}" uk-toggle="target: #mobile-nav">Русский</a></li>
+            <li><a (click)="changeLang('vi')" class="uk-margin-left" [ngClass]="{'active': lang() === 'vi'}"  uk-toggle="target: #mobile-nav">Tiếng Việt</a></li>
+            <li><a (click)="changeLang('zh')" class="uk-margin-left" [ngClass]="{'active': lang() === 'zh'}"  uk-toggle="target: #mobile-nav">简体中文</a></li>
+          </ul>
+        </li>
+
       </ul>
     </div>
   </div>
@@ -78,54 +92,66 @@
         <div class="title-block">
           <div class="uk-margin-left" style="padding-bottom: 15px; color: #666;">
             <div uk-grid>
-              <div class="uk-width-expand"><a routerLink="" class="title">Your Raicoin</a></div>
+              <div class="uk-width-expand"><a routerLink="" class="title">{{ 'Your Raicoin' | translate }}</a></div>
               <div class="uk-width-1-6 uk-padding-remove-left" style="padding-top: 15px;">
-                <span class="uk-text-danger" uk-icon="icon: warning;" *ngIf="disconnected()" uk-tooltip title="Unable to connect to wallet server. Your balances may be wrong!"></span>
-                <div uk-spinner="ratio: 0.6;" *ngIf="connecting()" uk-tooltip title="Attempting to connect to wallet server"></div>
+                <span class="uk-text-danger" uk-icon="icon: warning;" *ngIf="disconnected()" uk-tooltip title="{{ 'Unable to connect to wallet server.' | translate }} {{ 'Your balances may be wrong!' | translate }}"></span>
+                <div uk-spinner="ratio: 0.6;" *ngIf="connecting()" uk-tooltip title="{{ 'Attempting to connect to wallet server' | translate }}"></div>
               </div>
             </div>
   
             <div *ngIf="configured()">
-              <span class="uk-text-bold">Wallet ID: {{ walletIndex() }}</span>
+              <span class="uk-text-bold">{{ 'Wallet ID' | translate }}: {{ walletIndex() }}</span>
             </div>
             <div *ngIf="configured()">
               <div uk-grid>
                 <div class="uk-width-expand uk-text-truncate uk-text-bold uk-padding-remove-right">
-                  Account: <a [routerLink]="'/account/' + selectedAccountAddress()" style="color:#666">{{ selectedAccountAddress() }}</a>
+                  {{ 'Account' | translate }}: <a [routerLink]="'/account/' + selectedAccountAddress()" style="color:#666">{{ selectedAccountAddress() }}</a>
                 </div>
                 <div class="uk-width-auto uk-padding-remove-left">
-                  <span ngxClipboard [cbContent]="selectedAccountAddress()" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="Copy Account Address" uk-tooltip></span>
+                  <span ngxClipboard [cbContent]="selectedAccountAddress()" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="{{ 'Copy Account Address' | translate }}" uk-tooltip></span>
                 </div>
               </div>
             </div>
             <div *ngIf="configured()">
-              <span class="uk-text-bold">Balance: {{ balance() | balance: 2 }}</span>
+              <span class="uk-text-bold">{{ 'Balance' | translate }}: {{ balance() | balance: 2 }}</span>
             </div>
             <div *ngIf="configured() && pending().value.gt(0)">
-              <span class="uk-text-bold">Pending: {{ pending() | balance: 2 }}</span>
+              <span class="uk-text-bold">{{ 'Pending' | translate }}: {{ pending() | balance: 2 }}</span>
             </div>  
             <div *ngIf="configured() && receivable().value.gt(0)">
-              <span class="uk-text-bold">Receivable: {{ receivable() | balance: 2 }}</span>
+              <span class="uk-text-bold">{{ 'Receivable' | translate }}: {{ receivable() | balance: 2 }}</span>
             </div>
           </div>
         </div>
         <app-wallet-widget></app-wallet-widget>
         <ul class="uk-nav uk-nav-default uk-nav-parent-icon left-nav" uk-nav>
-          <li><a routerLink="/send" routerLinkActive="active" class="uk-margin-left">Send</a></li>
-          <li><a routerLink="/receive" routerLinkActive="active" class="uk-margin-left">Receive</a></li>
-          <li><a routerLink="/accounts" routerLinkActive="active" class="uk-margin-left">Accounts</a></li>
-          <li><a routerLink="/wallets" routerLinkActive="active" class="uk-margin-left">Wallets</a></li>
+          <li><a routerLink="/send" routerLinkActive="active" class="uk-margin-left">{{ 'Send' | translate }}</a></li>
+          <li><a routerLink="/receive" routerLinkActive="active" class="uk-margin-left">{{ 'Receive' | translate }}</a></li>
+          <li><a routerLink="/accounts" routerLinkActive="active" class="uk-margin-left">{{ 'Accounts' | translate }}</a></li>
+          <li><a routerLink="/wallets" routerLinkActive="active" class="uk-margin-left">{{ 'Wallets' | translate }}</a></li>
           <li class="uk-parent">
-            <a href="#" class="uk-margin-left">Settings</a>
+            <a href="#" class="uk-margin-left">{{ 'Settings' | translate }}</a>
             <ul class="uk-nav-sub">
-              <li><a routerLink="/account-settings" routerLinkActive="active" class="uk-margin-left">Account Settings</a></li>
-              <li><a routerLink="/wallet-settings" routerLinkActive="active" class="uk-margin-left ">Wallet Settings</a></li>
-              <li><a routerLink="/global-settings" routerLinkActive="active" class="uk-margin-left" >Global Settings</a></li>
+              <li><a routerLink="/account-settings" routerLinkActive="active" class="uk-margin-left">{{ 'Account Settings' | translate }}</a></li>
+              <li><a routerLink="/wallet-settings" routerLinkActive="active" class="uk-margin-left ">{{ 'Wallet Settings' | translate }}</a></li>
+              <li><a routerLink="/global-settings" routerLinkActive="active" class="uk-margin-left" >{{ 'Global Settings' | translate }}</a></li>
             </ul>
           </li>
-          </ul>
 
+          <li class="uk-parent">
+            <a href="#" class="uk-margin-left">{{ 'Languages' | translate }}</a>
+            <ul class="uk-nav-sub">
+              <li><a (click)="changeLang('id')" class="uk-margin-left" [ngClass]="{'active': lang() === 'id'}">Bahasa Indonesia</a></li>
+              <li><a (click)="changeLang('en')" class="uk-margin-left" [ngClass]="{'active': lang() === 'en'}">English</a></li>
+              <li><a (click)="changeLang('es')" class="uk-margin-left" [ngClass]="{'active': lang() === 'es'}">Español</a></li>
+              <li><a (click)="changeLang('fr')" class="uk-margin-left" [ngClass]="{'active': lang() === 'fr'}">Français</a></li>
+              <li><a (click)="changeLang('ru')" class="uk-margin-left" [ngClass]="{'active': lang() === 'ru'}">Русский</a></li>
+              <li><a (click)="changeLang('vi')" class="uk-margin-left" [ngClass]="{'active': lang() === 'vi'}">Tiếng Việt</a></li>
+              <li><a (click)="changeLang('zh')" class="uk-margin-left" [ngClass]="{'active': lang() === 'zh'}">简体中文</a></li>
+            </ul>
+          </li>
 
+        </ul>
       </div>
 
 

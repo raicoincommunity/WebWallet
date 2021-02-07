@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { WalletsService, Account, WalletErrorCode } from '../../services/wallets.service';
 import { NotificationService } from '../../services/notification.service';
+import { TranslateService } from '@ngx-translate/core';
+import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 
 @Component({
   selector: 'app-accounts',
@@ -10,6 +12,7 @@ import { NotificationService } from '../../services/notification.service';
 export class AccountsComponent implements OnInit {
 
   constructor(
+    private translate: TranslateService,
     private wallets: WalletsService,
     private notification: NotificationService) {
 
@@ -26,12 +29,18 @@ export class AccountsComponent implements OnInit {
   addNewAccount() {
     let result = this.wallets.createAccount();
     if (result.errorCode === WalletErrorCode.SUCCESS) {
-      console.log(result);
-      this.notification.sendSuccess(`Successfully created new account ${result.accountAddress}`);
+      let msg = marker(`Successfully created new account { address }`);
+      const param = { 'address': result.accountAddress };
+      this.translate.get(msg, param).subscribe(res => msg = res);
+      this.notification.sendSuccess(msg);
     } else if (result.errorCode === WalletErrorCode.MISS) {
-      this.notification.sendError(`Wallet is not configured`);
+      let msg = marker(`Wallet is not configured`);
+      this.translate.get(msg).subscribe(res => msg = res);      
+      this.notification.sendError(msg);
     } else if (result.errorCode === WalletErrorCode.LOCKED) {
-      this.notification.sendError(`Wallet is locked.`);
+      let msg = marker(`Wallet is locked.`);
+      this.translate.get(msg).subscribe(res => msg = res);            
+      this.notification.sendError(msg);
     } else {
     }
   }
@@ -41,7 +50,9 @@ export class AccountsComponent implements OnInit {
   }
 
   copied() {
-    this.notification.sendSuccess(`Account address copied to clipboard!`);
+    let msg = marker(`Account address copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
   }
 
   selectedWalletIndex(): number {

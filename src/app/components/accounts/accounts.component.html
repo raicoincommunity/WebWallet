@@ -3,14 +3,15 @@
     <div uk-grid>
       <div class="uk-width-1-2">
         <h2>
-          Accounts in wallet {{ selectedWalletIndex() }}
+          
+          {{ 'Accounts in wallet { id }' | translate: {'id': selectedWalletIndex()} }}
         </h2>
       </div>
       <div class="uk-width-1-2 uk-text-right">
         <div uk-grid>
           <div class="uk-width-1-1">
             <button class="uk-button uk-button-secondary" (click)="addNewAccount()">
-              Add New Account
+              {{ 'Add New Account' | translate }}
             </button>
           </div>
         </div>
@@ -19,10 +20,10 @@
 
     <div uk-grid>
       <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
-        The account in using: <a [routerLink]="'/account/'+selectedAccount()" class="uk-text-bold uk-link-text">{{ selectedAccount() }}</a>
+        {{ 'The account in using' | translate }}: <a [routerLink]="'/account/'+selectedAccount()" class="uk-text-bold uk-link-text">{{ selectedAccount() }}</a>
       </div>
       <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
-        <span ngxClipboard [cbContent]="selectedAccount()" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="Copy Account Address" uk-tooltip></span>
+        <span ngxClipboard [cbContent]="selectedAccount()" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="{{ 'Copy Account Address' | translate }}" uk-tooltip></span>
       </div>
     </div>
   
@@ -33,12 +34,12 @@
         <thead>
         <tr>
           <th class="uk-width-1-6">
-            <a uk-icon="icon: hashtag;" title="Account ID"  uk-tooltip>
+            <a uk-icon="icon: hashtag;" title="{{ 'Account ID' | translate }}"  uk-tooltip>
             </a>
           </th>
-          <th class="uk-width-1-3 uk-width-1-2@m uk-text-left">Account</th>
-          <th class="uk-width-1-4 uk-width-1-6@m uk-text-right">Balance</th>
-          <th class="uk-width-1-4 uk-width-1-6@m uk-text-right">Receivable</th>
+          <th class="uk-width-1-3 uk-width-1-2@m uk-text-left">{{ 'Account' | translate }}</th>
+          <th class="uk-width-1-4 uk-width-1-6@m uk-text-right">{{ 'Balance' | translate }}</th>
+          <th class="uk-width-1-4 uk-width-1-6@m uk-text-right">{{ 'Receivable' | translate }}</th>
         </tr>
         </thead>
         <tbody>
@@ -47,7 +48,7 @@
             <input class="uk-radio" type="radio" [checked]="account.address() === selectedAccount()" (click)="changeAccount(account.address())"> {{ account.index() }}
           </td>
           <td class="uk-text-left uk-text-truncate">
-            <a [routerLink]="'/account/' + account.address()" class="uk-link-text" title="View Account Details" uk-tooltip>
+            <a [routerLink]="'/account/' + account.address()" class="uk-link-text" title="{{ 'View Account Details' | translate }}" uk-tooltip>
               {{ account.address() }}
             </a>
           </td>

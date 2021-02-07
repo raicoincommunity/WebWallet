@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { WalletsService, WalletErrorCode } from '../../services/wallets.service';
 import { NotificationService } from '../../services/notification.service';
+import { TranslateService } from '@ngx-translate/core';
+import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 
 @Component({
   selector: 'app-wallet-widget',
@@ -12,6 +14,7 @@ export class WalletWidgetComponent implements OnInit {
   unlockPassword = '';
 
   constructor(
+    private translate: TranslateService,
     private wallets: WalletsService,
     private notification: NotificationService
   ) { }
@@ -34,13 +37,19 @@ export class WalletWidgetComponent implements OnInit {
   lockWallet() {
     let result = this.wallets.lock();
     if (result.errorCode === WalletErrorCode.SUCCESS) {
-      this.notification.sendSuccess(`Wallet locked`);
+      let msg = marker(`Wallet locked`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendSuccess(msg);
     }
     else if (result.errorCode === WalletErrorCode.MISS) {
-      this.notification.sendError('The wallet has been deleted, please refresh the page.');
+      let msg = marker('The wallet has been deleted, please refresh the page.');
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
     }
     else if (result.errorCode === WalletErrorCode.VULNERABLE) {
-      this.notification.sendWarning(`You must set a password on your wallet - it is currently empty!`);
+      let msg = marker(`You must set a password on your wallet - it is currently empty!`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendWarning(msg);
     }
     else {
     }
@@ -49,14 +58,20 @@ export class WalletWidgetComponent implements OnInit {
   unlockWallet() {
     let result = this.wallets.unlock(this.unlockPassword);
     if (result.errorCode === WalletErrorCode.SUCCESS) {
-      this.notification.sendSuccess(`Wallet unlocked`);
+      let msg = marker(`Wallet unlocked`);
+      this.translate.get(msg).subscribe(res => msg = res);      
+      this.notification.sendSuccess(msg);
       this.modal.hide();
     }
     else if (result.errorCode === WalletErrorCode.MISS) {
-      this.notification.sendError('The wallet has been deleted, please refresh the page.');
+      let msg = marker('The wallet has been deleted, please refresh the page.');
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
     }
     else if (result.errorCode === WalletErrorCode.INVALID_PASSWORD) {
-      this.notification.sendError(`Invalid password, please try again!`);;
+      let msg = marker(`Invalid password, please try again!`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);;
     }
     else {
     }

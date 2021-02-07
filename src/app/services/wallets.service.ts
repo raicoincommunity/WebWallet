@@ -7,6 +7,7 @@ import { ServerService, ServerState } from './server.service';
 import { BlocksService, Receivable, Block, Amount, BlockInfo, TxBlock } from './blocks.service';
 import { environment } from '../../environments/environment';
 import { SettingsService } from './settings.service';
+import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 
 export { Amount } from './blocks.service';
 
@@ -1851,6 +1852,23 @@ export enum WalletErrorCode {
   BALANCE = 'Not enough balance',
   CREDIT_MAX = 'Account\'s max allowed daily transactions limit is 1310700',
 }
+marker('Success');
+marker('Invalid seed');
+marker('The wallet is locked');
+marker('The wallet or account doesn\'t exist');
+marker('The wallet password is empty');
+marker('Invalid password');
+marker('The account is synchronizing, please try later');
+marker('The operation is ignored');
+marker('Invalid timestamp');
+marker('Account daily transactions limit exceeded');
+marker('The account is restricted');
+marker('Unsupported account type');
+marker('Unexpected error');
+marker('Receivable amount less than credit price');
+marker('Not connected to server yet');
+marker('Not enough balance');
+marker('Account\'s max allowed daily transactions limit is 1310700');
 
 export enum BlockStatus {
   PENDING = 'pending',
@@ -1858,6 +1876,10 @@ export enum BlockStatus {
   CONFIRMED = 'confirmed',
   UNKNOWN = 'unknown'
 }
+marker('pending');
+marker('fork');
+marker('confirmed');
+marker('unknown');
 
 export interface WalletOpResult {
   errorCode: WalletErrorCode;

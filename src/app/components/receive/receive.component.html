@@ -3,14 +3,14 @@
     <div uk-grid>
       <div class="uk-width-1-2">
         <h2>
-          Receivable Transactions
+          {{ 'Receivable Transactions' | translate }}
         </h2>
       </div>
       <div class="uk-width-1-2 uk-text-right">
         <div uk-grid>
           <div class="uk-width-1-1">
             <button class="uk-button uk-button-secondary" (click)="receive()">
-              Receive
+              {{ 'Receive' | translate }}
             </button>
           </div>
         </div>
@@ -19,11 +19,11 @@
 
     <div uk-grid>
       <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
-        Your account: <a [routerLink]="'/account/'+selectedAccountAddress()" class="uk-text-bold uk-link-text">{{ selectedAccountAddress() }}</a>
+        {{ 'Your account' | translate }}: <a [routerLink]="'/account/'+selectedAccountAddress()" class="uk-text-bold uk-link-text">{{ selectedAccountAddress() }}</a>
       </div>
       <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
         <ul class="uk-hidden-hover uk-iconnav">
-          <li><a uk-icon="icon: pencil;" title="Change Account" uk-tooltip routerLink="/accounts"></a></li>
+          <li><a uk-icon="icon: pencil;" title="{{ 'Change Account' | translate }}" uk-tooltip routerLink="/accounts"></a></li>
         </ul>
       </div>
     </div>
@@ -35,9 +35,9 @@
           <th class="uk-width-1-6">
             <input class="uk-checkbox" type="checkbox" [checked]="checkedAll" (click)="checkedAll ? uncheckAll() : checkAll()"> 
           </th>
-          <th class="uk-width-1-3 uk-width-1-3@m uk-text-left">From</th>
-          <th class="uk-width-1-6 uk-width-1-6@m uk-text-right">Amount</th>
-          <th class="uk-width-1-3 uk-width-1-3@m uk-text-right">Hash</th>
+          <th class="uk-width-1-3 uk-width-1-3@m uk-text-left">{{ 'From' | translate }}</th>
+          <th class="uk-width-1-6 uk-width-1-6@m uk-text-right">{{ 'Amount' | translate }}</th>
+          <th class="uk-width-1-3 uk-width-1-3@m uk-text-right">{{ 'Hash' | translate }}</th>
         </tr>
         </thead>
         <tbody>
@@ -57,7 +57,7 @@
           </td>
         </tr>
         <tr *ngIf="empty">
-          <td colspan="4" style="text-align: center;">No receivable transactions</td>
+          <td colspan="4" style="text-align: center;">{{ 'No receivable transactions' | translate }}</td>
         </tr>
         </tbody>
       </table>

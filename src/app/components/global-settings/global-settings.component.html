@@ -1,10 +1,10 @@
 <div class="uk-animation-slide-left-small" uk-grid>
   <div class="uk-width-1-1">
-    <h2>Global Settings</h2>
+    <h2>{{ 'Global Settings' | translate }}</h2>
 
     <div class="uk-card uk-card-default uk-margin">
       <div class="uk-card-header">
-        <h3 class="uk-card-title">Auto Receive Setting</h3>
+        <h3 class="uk-card-title">{{ 'Auto Receive Setting' | translate }}</h3>
       </div>
       <div class="uk-card-body">
         <div uk-grid>
@@ -12,7 +12,7 @@
           <div class="uk-width-1-1">
             <div class="uk-form-horizontal">
               <div class="uk-margin">
-                <label class="uk-form-label" for="form-horizontal-text1">Enable </label>
+                <label class="uk-form-label" for="form-horizontal-text1">{{ 'Enable' | translate }} </label>
                 <div class="uk-form-controls">
                   <div class="uk-inline uk-width-1-1">
                     <input class="uk-checkbox" type="checkbox" [checked]="autoReceiveEnable" (click)="toggleAutoReceive()">
@@ -25,7 +25,7 @@
           <div class="uk-width-1-1">
             <div class="uk-form-horizontal">
               <div class="uk-margin">
-                <label class="uk-form-label" for="form-horizontal-text2">Minimum Receive Amount <span uk-icon="icon: info;" uk-tooltip title="Transactions below this amount will not be automatically received. Set to blank or 0 to receive all transactions."></span></label>
+                <label class="uk-form-label" for="form-horizontal-text2">{{ 'Minimum Receive Amount' | translate }} <span uk-icon="icon: info;" uk-tooltip title="{{ 'Transactions below this amount will not be automatically received. Set to blank or 0 to receive all transactions.' | translate }}"></span></label>
                 <div class="uk-form-controls">
                   <div class="uk-inline uk-width-1-1">
                     <input [(ngModel)]="autoReceiveMinimum" class="uk-input" (keyup)="syncMinimum()" (change)="syncMinimum()" id="form-horizontal-text2" type="text" [ngClass]="{ 'uk-form-success': minimumStatus === 1, 'uk-form-danger': minimumStatus === 2 }">
@@ -39,13 +39,13 @@
         </div>
       </div>
       <div class="uk-card-footer uk-text-right">
-        <button (click)="saveAutoReceive()" class="uk-button uk-button-secondary">Save</button>
+        <button (click)="saveAutoReceive()" class="uk-button uk-button-secondary">{{ 'Save' | translate }}</button>
       </div>
     </div>
 
     <div class="uk-card uk-card-default uk-margin">
       <div class="uk-card-header">
-        <h3 class="uk-card-title">Auto Lock Setting</h3>
+        <h3 class="uk-card-title">{{ 'Auto Lock Setting' | translate }}</h3>
       </div>
       <div class="uk-card-body">
         <div uk-grid>
@@ -53,7 +53,7 @@
           <div class="uk-width-1-1">
             <div class="uk-form-horizontal">
               <div class="uk-margin">
-                <label class="uk-form-label">Lock After Inactivity <span uk-icon="icon: info;" uk-tooltip title="Change if your wallet should be locked automatically after you have not interacted with it for a certain period of time"></span></label>
+                <label class="uk-form-label">{{ 'Lock After Inactivity' | translate }} <span uk-icon="icon: info;" uk-tooltip title="{{'Change if your wallet should be locked automatically after you have not interacted with it for a certain period of time' | translate}}"></span></label>
                 <div class="uk-form-controls">
 
                   <div class="uk-inline uk-width-1-1">
@@ -69,7 +69,7 @@
         </div>
       </div>
       <div class="uk-card-footer uk-text-right">
-        <button (click)="saveLockMinutes()" class="uk-button uk-button-secondary">Save</button>
+        <button (click)="saveLockMinutes()" class="uk-button uk-button-secondary">{{ 'Save' | translate }}</button>
       </div>
     </div>
 
