@@ -24,6 +24,7 @@ import { SendComponent } from './components/send/send.component';
 import { AccountSettingsComponent } from './components/account-settings/account-settings.component';
 import { WalletSettingsComponent } from './components/wallet-settings/wallet-settings.component';
 import { GlobalSettingsComponent } from './components/global-settings/global-settings.component';
+import { TransactionDetailsComponent } from './components/transaction-details/transaction-details.component';
 
 @NgModule({
   declarations: [
@@ -41,7 +42,8 @@ import { GlobalSettingsComponent } from './components/global-settings/global-set
     SendComponent,
     AccountSettingsComponent,
     WalletSettingsComponent,
-    GlobalSettingsComponent
+    GlobalSettingsComponent,
+    TransactionDetailsComponent
   ],
   imports: [
     BrowserModule,

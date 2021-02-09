@@ -130,15 +130,17 @@
             <table class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
               <thead>
               <tr>
-                <th class="uk-width-1-4@m uk-width-1-6 uk-text-center">{{ 'ID' | translate }}</th>
-                <th class="uk-width-1-4@m uk-width-1-6 uk-text-center">{{ 'Type' | translate }}</th>
-                <th class="uk-width-1-4@m uk-width-expand uk-text-right">{{ 'Amount' | translate }}</th>
-                <th class="uk-width-1-4@m uk-width-1-6 uk-text-center">{{ 'Status' | translate }}</th>
+                <th class="uk-width-1-5@m uk-visible@m  uk-text-left">{{ 'Date' | translate }}</th>
+                <th class="uk-width-1-5@m uk-width-1-6 uk-text-center">{{ 'ID' | translate }}</th>
+                <th class="uk-width-1-5@m uk-width-1-6 uk-text-center">{{ 'Type' | translate }}</th>
+                <th class="uk-width-1-5@m uk-width-expand uk-text-right">{{ 'Amount' | translate }}</th>
+                <th class="uk-width-1-5@m uk-width-1-6 uk-text-center">{{ 'Status' | translate }}</th>
               </tr>
               </thead>
               <tbody>
 
-              <tr *ngFor="let info of blocks()">
+              <tr *ngFor="let info of blocks()" [routerLink]="'/transaction/' + info.block.hash().toHex()">
+                <td class="uk-text-left uk-visible@m">{{ info.block.timestamp().toNumber() * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}</td>
                 <td class="uk-text-center">{{ info.block.height().toNumber() }}</td>
                 <td class="uk-text-center">{{ info.block.opcode().toBlockOpcodeStr() }}</td>
 
