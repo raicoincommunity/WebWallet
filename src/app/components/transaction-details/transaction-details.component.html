@@ -1,0 +1,97 @@
+<div class="uk-animation-slide-left-small" uk-grid>
+    <div class="uk-width-1-1">
+      <h2>{{ 'Transaction Details' | translate }}</h2>
+  
+      <div class="uk-alert uk-alert-primary" *ngIf="!blockInfo">
+        {{ 'Unable to load the transaction!' | translate }}
+      </div>
+  
+      <div class="uk-card uk-card-default uk-margin" *ngIf="blockInfo">
+        <div class="uk-card-body uk-padding-small uk-form-horizontal">
+  
+          <div class="uk-margin">
+            <label class="uk-form-label">{{ 'Hash' | translate }}</label>
+            <div class="uk-form-controls uk-text-break">
+              {{ blockInfo.block.hash().toHex() }}
+            </div>
+          </div>
+          <div class="uk-margin">
+            <label class="uk-form-label">{{ 'Account' | translate }}</label>
+            <div class="uk-form-controls uk-text-break">
+              {{ blockInfo.block.account().toAccountAddress() }}
+            </div>
+          </div>
+          <div class="uk-margin">
+            <label class="uk-form-label">{{ 'Height' | translate }}</label>
+            <div class="uk-form-controls uk-text-break">
+              {{ blockInfo.block.height().toDec() }}
+            </div>
+          </div>
+          <div class="uk-margin">
+            <label class="uk-form-label">{{ 'Opcode' | translate }}</label>
+            <div class="uk-form-controls uk-text-break">
+              {{ blockInfo.block.opcode().toBlockOpcodeStr() }}
+            </div>
+          </div>
+          <div class="uk-margin">
+            <label class="uk-form-label">{{ 'Amount' | translate }}</label>
+            <div class="uk-form-controls uk-text-break">
+              {{ blockInfo.amount | balance }}
+            </div>
+          </div>
+          <div class="uk-margin">
+            <label class="uk-form-label">{{ 'Credit' | translate }}</label>
+            <div class="uk-form-controls uk-text-break">
+              {{ blockInfo.block.credit().toDec() }}
+            </div>
+          </div>
+          <div class="uk-margin">
+            <label class="uk-form-label">{{ 'Counter' | translate }}</label>
+            <div class="uk-form-controls uk-text-break">
+              {{ blockInfo.block.counter().toDec() }}
+            </div>
+          </div>
+          <div class="uk-margin">
+            <label class="uk-form-label">{{ 'Balance' | translate }}</label>
+            <div class="uk-form-controls uk-text-break">
+              {{ blockInfo.block.balance() | balance }}
+            </div>
+          </div>
+          <div class="uk-margin">
+            <label class="uk-form-label">{{ 'Timestamp' | translate }}</label>
+            <div class="uk-form-controls uk-text-break">
+              {{ blockInfo.block.timestamp().toNumber() * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}
+            </div>
+          </div>
+          <div class="uk-margin" *ngIf="blockInfo.block.hasRepresentative()">
+            <label class="uk-form-label"> {{ 'Representative' | translate }} </label>
+            <div class="uk-form-controls uk-text-break">
+              {{ blockInfo.block.representative().toAccountAddress() }}
+            </div>
+          </div>
+          <div class="uk-margin">
+            <label class="uk-form-label">{{ 'Link' | translate }}</label>
+            <div class="uk-form-controls uk-text-break">
+              {{ blockInfo.block.linkStr() }}
+            </div>
+          </div>
+          <div class="uk-margin">
+            <label class="uk-form-label">{{ 'Previous' | translate }}</label>
+            <div class="uk-form-controls uk-text-break">
+              {{ blockInfo.block.previous().toHex() }}
+            </div>
+          </div>
+          <div class="uk-margin">
+            <label class="uk-form-label">{{ 'Signature' | translate }}</label>
+            <div class="uk-form-controls uk-text-break">
+              {{ blockInfo.block.signature().toHex() }}
+            </div>
+          </div>
+  
+        </div>
+      </div>
+  
+    
+    </div>
+  </div>
+  
