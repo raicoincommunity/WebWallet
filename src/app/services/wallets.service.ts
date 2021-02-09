@@ -216,21 +216,26 @@ export class WalletsService {
       w.accounts.forEach (a => {
         let check = this.accountActionCheck(a, w);
         if (check !== WalletErrorCode.SUCCESS) return;
+        let received = false;
         while (true) {
           let receivables = this.receivables(a);
-          if (receivables.length === 0) return;
+          if (receivables.length === 0) break;
 
-          if (this.limited(a)) return;
-          if (this.restricted(a)) return;
+          if (this.limited(a)) break;
+          if (this.restricted(a)) break;
 
           let r = receivables[0];
-          if (r.amount.lt(setting.minimum)) return;
+          if (r.amount.lt(setting.minimum)) break;
           if (!a.created()) {
             let timestamp = this.server.getTimestamp();
-            if (r.amount.lt(this.creditPrice(new U64(timestamp)))) return;
+            if (r.amount.lt(this.creditPrice(new U64(timestamp)))) break;
           }
           let result = this.receive(r.hash.toHex(), a, w);
-          if (result.errorCode !== WalletErrorCode.SUCCESS) return;
+          if (result.errorCode !== WalletErrorCode.SUCCESS) break;
+          received = true;
+        }
+        if (received) {
+          this.receivablesQuery(a);
         }
       });
     })
@@ -829,12 +834,12 @@ export class WalletsService {
     this.server.send(message);
   }
 
-  private receivablesQuery(account: Account) {
+  public receivablesQuery(account: Account) {
     let message: any = {
       action: 'receivables',
       account: account.storage.address,
       type: 'confirmed',
-      count: new U64(1000).toDec()
+      count: new U64(100).toDec()
     }
 
     this.server.send(message);
