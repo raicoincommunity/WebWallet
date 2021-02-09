@@ -110,7 +110,6 @@ export class AppComponent implements OnInit {
   }
 
   lang(): string {
-    console.log(this.translate.currentLang);
     return this.translate.currentLang;
   }
 
