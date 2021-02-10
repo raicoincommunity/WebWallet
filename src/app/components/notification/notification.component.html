@@ -1,6 +1,6 @@
 <div class="notification-container">
   <div *ngFor="let notification of notifications" [ngClass]="getCssClass(notification.type)" class="uk-animation-slide-bottom-small wallet-notification" uk-alert>
     <a class="uk-alert-close close-notification" (click)="removeNotification(notification)" uk-close></a>
-    <p [innerHTML]="notification.message"></p>
+    <p [innerHTML]="notification.message" class="uk-text-break"></p>
   </div>
 </div>
