@@ -45,7 +45,7 @@
         <tbody>
         <tr *ngFor="let account of accounts()">
           <td class="uk-text-left">
-            <input class="uk-radio" type="radio" [checked]="account.address() === selectedAccount()" (click)="changeAccount(account.address())"> {{ account.index() }}
+            <input class="uk-radio" type="radio" [checked]="account.address() === selectedAccount()" (click)="changeAccount(account.address())"> {{ account.index() + 1 }}
           </td>
           <td class="uk-text-left uk-text-truncate">
             <a [routerLink]="'/account/' + account.address()" class="uk-link-text" title="{{ 'View Account Details' | translate }}" uk-tooltip>

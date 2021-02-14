@@ -38,13 +38,22 @@ export class ReceiveComponent implements OnInit {
       return;
     }
 
+    let received = false;
     for (let i = 0; i < this.checkedHashs.length; ++i) {
       let result = this.wallets.receive(this.checkedHashs[i]);
       if (result.errorCode !== WalletErrorCode.SUCCESS && result.errorCode !== WalletErrorCode.IGNORED) {
         let msg = result.errorCode;
         this.translate.get(msg).subscribe(res => msg = res);
         this.notification.sendError(msg);
-        return;
+        break;
+      }
+      received = true;
+    }
+
+    if (received) {
+      const account = this.wallets.selectedAccount();
+      if (account) {
+        this.wallets.receivablesQuery(account);
       }
     }
   }
