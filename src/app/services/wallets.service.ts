@@ -829,6 +829,7 @@ export class WalletsService {
   private blockPublish(block: Block) {
     let message: any = {
       action: 'block_publish',
+      account: block.account().toAccountAddress(),
       block: block.json()
     };
     this.server.send(message);
@@ -945,6 +946,9 @@ export class WalletsService {
           break;
         case 'receivable_info':
           this.processReceivableInfoNotify(message);
+          break;
+        case 'account_unsubscribe':
+          this.processAccountUnsubscribeNotify(message);
           break;
         default:
           break;
@@ -1240,6 +1244,18 @@ export class WalletsService {
     accounts.forEach(a => {
       if (!a.synced) return;
       a.balanceReceivable = a.balanceReceivable.plus(receivable.amount);
+    });
+  }
+
+  private processAccountUnsubscribeNotify(message: any) {
+    if (!message.account) {
+      console.log(`processAccountUnsubscribeNotify: account is missing, message=`, message);
+      return;
+    }
+
+    let accounts = this.findAccounts(message.account);
+    accounts.forEach (a => {
+      a.nextSyncAt = 0;
     });
   }
 
