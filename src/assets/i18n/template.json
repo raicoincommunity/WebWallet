@@ -169,7 +169,7 @@
 	"Successfully created new account { address }": "Successfully created new account { address }",
 	"Wallet is not configured": "Wallet is not configured",
 	"Wallet is locked.": "Wallet is locked.",
-	"Faild to create new wallet": "Faild to create new wallet",
+	"Failed to create new wallet": "Failed to create new wallet",
 	"Successfully created new wallet! Make sure to write down your seed!": "Successfully created new wallet! Make sure to write down your seed!",
 	"Seed is invalid, double check it!": "Seed is invalid, double check it!",
 	"Unexpected error while importing wallet!": "Unexpected error while importing wallet!",

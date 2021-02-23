@@ -879,6 +879,8 @@ export class WalletsService {
 
   private syncAccount(account: Account, wallet: Wallet) {
     this.accountSubscribe(account, wallet);
+    if (!account.subscribed) return;
+
     this.accountInfoQuery(account);
 
     if (account.synced) {
@@ -899,7 +901,7 @@ export class WalletsService {
 
       this.syncAccount(a, w);
 
-      if (a.synced) {
+      if (a.synced && a.subscribed) {
         a.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
       } 
       else {
@@ -959,9 +961,17 @@ export class WalletsService {
   }
 
   private processAccountSubscribeAck(message: any) {
-    if (message.error || !message.account) return;
+    if (!message.account) return;
     let accounts = this.findAccounts(message.account);
-    accounts.forEach(a => a.subscribed = true);
+    accounts.forEach(a => {
+      if (message.error) {
+        a.subscribed = false;
+        a.nextSyncAt = 0;
+      }
+      else {
+        a.subscribed = true
+      }
+    });
   }
 
   private processAccountInfoAck(message: any) {
@@ -1255,6 +1265,7 @@ export class WalletsService {
 
     let accounts = this.findAccounts(message.account);
     accounts.forEach (a => {
+      a.subscribed = false;
       a.nextSyncAt = 0;
     });
   }

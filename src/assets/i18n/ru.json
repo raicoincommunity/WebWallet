@@ -169,7 +169,7 @@
   "Successfully created new account { address }": "Успешно создан новый аккаунт { address }",
   "Wallet is not configured": "Кошелек не настроен",
   "Wallet is locked.": "Кошелек заблокирован.",
-  "Faild to create new wallet": "Не удалось создать новый кошелек",
+  "Failed to create new wallet": "Не удалось создать новый кошелек",
   "Successfully created new wallet! Make sure to write down your seed!": "Успешно создан новый кошелек! Обязательно запишите свое семя!",
   "Seed is invalid, double check it!": "Seed недействителен, проверьте еще раз!",
   "Unexpected error while importing wallet!": "Неожиданная ошибка при импорте кошелька!",

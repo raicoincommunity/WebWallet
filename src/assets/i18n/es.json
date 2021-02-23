@@ -169,7 +169,7 @@
   "Successfully created new account { address }": "Nueva cuenta creada correctamente { address }",
   "Wallet is not configured": "Wallet no está configurado",
   "Wallet is locked.": "La billetera está bloqueada.",
-  "Faild to create new wallet": "No se pudo crear una nueva billetera",
+  "Failed to create new wallet": "No se pudo crear una nueva billetera",
   "Successfully created new wallet! Make sure to write down your seed!": "¡Nueva billetera creada con éxito! ¡Asegúrate de anotar tu semilla!",
   "Seed is invalid, double check it!": "La semilla no es válida, ¡compruébalo dos veces!",
   "Unexpected error while importing wallet!": "Error inesperado al importar el monedero.",

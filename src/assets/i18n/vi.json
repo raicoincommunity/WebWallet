@@ -144,7 +144,7 @@
   "View My Accounts": "Xem tài khoản của tôi",
   "About the wallet": "Giới thiệu về ví",
   "Fully Open Source": "Mã nguồn mở hoàn toàn",
-  "It's open source and all codes is available at github": "Nó là mã nguồn mở và tất cả các mã đều có sẵn tại GitHub",
+  "It's open source and all codes is available at GitHub": "Nó là mã nguồn mở và tất cả các mã đều có sẵn tại GitHub",
   "Please submit any feedback or bug reports on our GitHub page.": "Vui lòng gửi bất kỳ phản hồi hoặc báo cáo lỗi nào trên trang GitHub của chúng tôi.",
   "Security Focused": "Tập trung vào Bảo mật",
   "All sensitive operations happen in your browser only": "Tất cả các thao tác nhạy cảm chỉ diễn ra trong trình duyệt của bạn",
@@ -169,7 +169,7 @@
   "Successfully created new account { address }": "Đã tạo thành công tài khoản mới { address }",
   "Wallet is not configured": "Ví không được được cấu hình",
   "Wallet is locked.": "Ví bị khóa.",
-  "Faild to create new wallet": "Không tạo được ví mới",
+  "Failed to create new wallet": "Không tạo được ví mới",
   "Successfully created new wallet! Make sure to write down your seed!": "Đã tạo thành công ví mới! Hãy lưu lại hạt giống của bạn!",
   "Seed is invalid, double check it!": "Hạt giống không hợp lệ, hãy kiểm tra lại!",
   "Unexpected error while importing wallet!": "Lỗi không mong muốn khi nhập ví!",
@@ -214,5 +214,6 @@
   "pending": "đang chờ xử lý",
   "fork": "nhánh",
   "confirmed": "đã xác nhận",
-  "unknown": "không xác định"
+  "unknown": "không xác định",
+  "It's open source and all codes is available at github": "Nó là mã nguồn mở và tất cả các mã đều có sẵn tại GitHub"
 }
