@@ -26,9 +26,8 @@ export class SettingsService {
     }
     else {
       const browserLang = translate.getBrowserLang();
-      translate.use(browserLang.match(/en|es|fr|id|ru|vi|zh/) ? browserLang : 'en');
-      console.log(browserLang);
-      console.log(translate.currentLang);
+      // only set checked translations by default
+      translate.use(browserLang.match(/en|id|vi|zh/) ? browserLang : 'en');
     }
     this.storage.changes$.subscribe(event => this.processStorageEvent(event));
   }

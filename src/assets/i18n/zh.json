@@ -169,7 +169,7 @@
   "Successfully created new account { address }": "成功创建新帐户{ address }",
   "Wallet is not configured": "钱包未配置",
   "Wallet is locked.": "钱包已锁定。",
-  "Faild to create new wallet": "创建新钱包失败",
+  "Failed to create new wallet": "创建新钱包失败",
   "Successfully created new wallet! Make sure to write down your seed!": "成功创建新钱包！确保写下您的种子！",
   "Seed is invalid, double check it!": "种子无效，请仔细检查！",
   "Unexpected error while importing wallet!": "导入钱包时发生意外错误！",

@@ -49,7 +49,7 @@ export class ConfigureWalletComponent implements OnInit {
   createWallet() {
     let result = this.wallets.createWallet();
     if (result.errorCode !== WalletErrorCode.SUCCESS || !result.seed || !result.walletId || !result.walletIndex) {
-      let msg = marker('Faild to create new wallet');
+      let msg = marker('Failed to create new wallet');
       this.translate.get(msg).subscribe(res => msg = res);
       this.notification.sendError(msg);
       return;

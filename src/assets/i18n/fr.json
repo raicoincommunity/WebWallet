@@ -169,7 +169,7 @@
   "Successfully created new account { address }": "Le nouveau compte a bien été créé { address }",
   "Wallet is not configured": "Le portefeuille n'est pas configuré",
   "Wallet is locked.": "Le portefeuille est verrouillé.",
-  "Faild to create new wallet": "Échec de la création d'un nouveau portefeuille",
+  "Failed to create new wallet": "Échec de la création d'un nouveau portefeuille",
   "Successfully created new wallet! Make sure to write down your seed!": "Nouveau portefeuille créé avec succès! Assurez-vous de noter votre graine!",
   "Seed is invalid, double check it!": "La graine n'est pas valide, vérifiez-la!",
   "Unexpected error while importing wallet!": "Erreur inattendue lors de l'importation du portefeuille!",

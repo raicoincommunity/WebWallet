@@ -169,7 +169,7 @@
   "Successfully created new account { address }": "Berhasil membuat akun baru { address }",
   "Wallet is not configured": "Dompet tidak/belum dikonfigurasi",
   "Wallet is locked.": "Dompet terkunci.",
-  "Faild to create new wallet": "Gagal membuat dompet baru",
+  "Failed to create new wallet": "Gagal membuat dompet baru",
   "Successfully created new wallet! Make sure to write down your seed!": "Berhasil membuat dompet baru! Pastikan untuk menuliskan benih Anda!",
   "Seed is invalid, double check it!": "Benih tidak valid, periksa kembali!",
   "Unexpected error while importing wallet!": "Kesalahan tak terduga saat mengimpor dompet!",
