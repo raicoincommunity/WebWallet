@@ -81,6 +81,12 @@
               {{ blockInfo.block.previous().toHex() }}
             </div>
           </div>
+          <div class="uk-margin" *ngIf="blockInfo.block.hasExtensions()">
+            <label class="uk-form-label">{{ 'Extensions' | translate }}</label>
+            <div class="uk-form-controls uk-text-break">
+              {{ blockInfo.block.extensionsStr() }}
+            </div>
+          </div>
           <div class="uk-margin">
             <label class="uk-form-label">{{ 'Signature' | translate }}</label>
             <div class="uk-form-controls uk-text-break">

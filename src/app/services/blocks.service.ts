@@ -144,10 +144,12 @@ export interface Block {
   linkStr(): string;
   extensionLength(): U32;
   extensions(): Uint8Array;
+  extensionsStr(): string;
   signature(): U512;
   setSignature(signature: string): void;
 
   hasRepresentative(): boolean;
+  hasExtensions(): boolean;
   hash(): U256;
   json(): any;
   fromJson(json: any): boolean;
@@ -237,6 +239,11 @@ export class TxBlock implements Block {
     return this._extensions;
   }
 
+  extensionsStr(): string {
+    if (!this.hasExtensions()) return '';
+    return JSON.stringify(this.extensionsToJson());
+  }
+
   signature(): U512 {
     return this._signature;
   }
@@ -247,6 +254,10 @@ export class TxBlock implements Block {
 
   hasRepresentative(): boolean {
     return true;
+  }
+
+  hasExtensions(): boolean {
+    return this.extensionLength().gt(0);
   }
 
   hash(): U256 {
