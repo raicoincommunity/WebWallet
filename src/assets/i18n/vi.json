@@ -116,6 +116,7 @@
   "Timestamp": "Dấu thời gian",
   "Link": "Liên kết",
   "Previous": "Trước",
+  "Extensions": "Phần mở rộng",
   "Signature": "Chữ ký",
   "Your wallet ID": "ID ví của bạn",
   "Change Wallet": "Thay đổi ví",
@@ -214,6 +215,5 @@
   "pending": "đang chờ xử lý",
   "fork": "nhánh",
   "confirmed": "đã xác nhận",
-  "unknown": "không xác định",
-  "It's open source and all codes is available at github": "Nó là mã nguồn mở và tất cả các mã đều có sẵn tại GitHub"
+  "unknown": "không xác định"
 }
