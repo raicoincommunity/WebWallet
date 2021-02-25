@@ -3,6 +3,7 @@
   "Unable to connect to wallet server.": "Tidak dapat terhubung ke server dompet.",
   "Your balances may be wrong!": "Saldo Anda mungkin salah!",
   "Attempting to connect to wallet server": "Mencoba menyambungkan ke server dompet",
+  "Synchronizing data with wallet server": "Sinkronisasi data dengan server dompet",
   "Wallet ID": "ID Dompet",
   "Account": "Akun",
   "Copy Account Address": "Salin Alamat Akun",

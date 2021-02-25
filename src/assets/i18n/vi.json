@@ -3,6 +3,7 @@
   "Unable to connect to wallet server.": "Không thể kết nối với máy chủ ví.",
   "Your balances may be wrong!": "Số dư của bạn có thể bị sai!",
   "Attempting to connect to wallet server": "Cố gắng kết nối với máy chủ ví",
+  "Synchronizing data with wallet server": "Đồng bộ hóa dữ liệu với máy chủ ví",
   "Wallet ID": "ID ví",
   "Account": "Tài khoản",
   "Copy Account Address": "Sao chép địa chỉ tài khoản",

@@ -3,6 +3,7 @@
   "Unable to connect to wallet server.": "无法连接到钱包服务器。",
   "Your balances may be wrong!": "您的余额可能不正确！",
   "Attempting to connect to wallet server": "尝试连接到钱包服务器",
+  "Synchronizing data with wallet server": "与钱包服务器同步数据",
   "Wallet ID": "钱包ID",
   "Account": "帐户",
   "Copy Account Address": "复制帐户地址",

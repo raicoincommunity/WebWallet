@@ -116,4 +116,8 @@ export class AppComponent implements OnInit {
   changeLang(lang: string) {
     this.settings.setLang(lang);
   }
+
+  synchronizing(): boolean {
+    return this.wallets.synchronizing();
+  }
 }

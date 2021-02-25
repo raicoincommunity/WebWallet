@@ -10,6 +10,7 @@
             <div class="uk-width-1-6 uk-padding-remove-left" style="padding-top: 15px;">
               <span class="uk-text-danger" uk-icon="icon: warning;" *ngIf="disconnected()" uk-tooltip title="{{ 'Unable to connect to wallet server.' | translate }} {{ 'Your balances may be wrong!' | translate }}"></span>
               <div uk-spinner="ratio: 0.6;" *ngIf="connecting()" uk-tooltip title="{{ 'Attempting to connect to wallet server' | translate }}"></div>
+              <div uk-spinner="ratio: 0.6;" *ngIf="connected() && synchronizing()" uk-tooltip title="{{ 'Synchronizing data with wallet server' | translate }}"></div>
             </div>
           </div>
 
@@ -96,6 +97,7 @@
               <div class="uk-width-1-6 uk-padding-remove-left" style="padding-top: 15px;">
                 <span class="uk-text-danger" uk-icon="icon: warning;" *ngIf="disconnected()" uk-tooltip title="{{ 'Unable to connect to wallet server.' | translate }} {{ 'Your balances may be wrong!' | translate }}"></span>
                 <div uk-spinner="ratio: 0.6;" *ngIf="connecting()" uk-tooltip title="{{ 'Attempting to connect to wallet server' | translate }}"></div>
+                <div uk-spinner="ratio: 0.6;" *ngIf="connected() && synchronizing()" uk-tooltip title="{{ 'Synchronizing data with wallet server' | translate }}"></div>
               </div>
             </div>
   

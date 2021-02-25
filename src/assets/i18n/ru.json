@@ -3,6 +3,7 @@
   "Unable to connect to wallet server.": "Невозможно подключиться к серверу кошелька.",
   "Your balances may be wrong!": "Ваш баланс может быть неправильным!",
   "Attempting to connect to wallet server": "Попытка подключиться к серверу кошелька",
+  "Synchronizing data with wallet server": "Синхронизация данных с сервером кошелька",
   "Wallet ID": "ID кошелька",
   "Account": "учетная запись",
   "Copy Account Address": "Копировать адрес аккаунта",
