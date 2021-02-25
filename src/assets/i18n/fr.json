@@ -3,6 +3,7 @@
   "Unable to connect to wallet server.": "Impossible de se connecter au serveur de portefeuille.",
   "Your balances may be wrong!": "Vos soldes peuvent être erronés!",
   "Attempting to connect to wallet server": "Tentative de connexion au serveur de portefeuille",
+  "Synchronizing data with wallet server": "Synchroniser les données avec le serveur de portefeuille",
   "Wallet ID": "ID de portefeuille",
   "Account": "Compte",
   "Copy Account Address": "Copier l'adresse du compte",

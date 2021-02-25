@@ -3,6 +3,7 @@
   "Unable to connect to wallet server.": "No se puede conectar al servidor de billetera.",
   "Your balances may be wrong!": "¡Tus saldos pueden estar equivocados!",
   "Attempting to connect to wallet server": "Intentando conectarse al servidor de billetera",
+  "Synchronizing data with wallet server": "Sincronizar datos con el servidor de billetera",
   "Wallet ID": "ID de cartera",
   "Account": "Cuenta",
   "Copy Account Address": "Copiar dirección de cuenta",

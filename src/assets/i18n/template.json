@@ -3,6 +3,7 @@
 	"Unable to connect to wallet server.": "Unable to connect to wallet server.",
 	"Your balances may be wrong!": "Your balances may be wrong!",
 	"Attempting to connect to wallet server": "Attempting to connect to wallet server",
+	"Synchronizing data with wallet server": "Synchronizing data with wallet server",
 	"Wallet ID": "Wallet ID",
 	"Account": "Account",
 	"Copy Account Address": "Copy Account Address",

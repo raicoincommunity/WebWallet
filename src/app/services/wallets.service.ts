@@ -180,6 +180,15 @@ export class WalletsService {
     return headInfo.block.representative().toAccountAddress();
   }
 
+  synchronizing(address?: string): boolean {
+    let account = this.selectedAccount();
+    if (address) {
+      account = this.findAccounts(address)[0];
+    }
+    if (!account) return false;
+    return !(account.subscribed && account.synced);
+  }
+
   blockStatus(block: Block): BlockStatus {
     let account = this.findAccounts(block.account().toAccountAddress())[0];
     if (!account || !account.created()) return BlockStatus.UNKNOWN;
