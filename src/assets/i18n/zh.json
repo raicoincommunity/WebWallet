@@ -67,6 +67,7 @@
   "Import From Seed": "从种子导入",
   "Wallet Created!": "钱包已创建！",
   "Your new Raicoin wallet has been created!": "您的新Raicoin钱包已创建！",
+  "Make sure to write down your seed or save it somewhere safe, and never share it with anyone!": "确保写下您的种子或将其保存在安全的地方，切勿与任何人共享！",
   "It is the master key to all of your accounts, and the only way to recover your funds in an emergency.": "它是所有帐户的万能钥匙，并且是在紧急情况下找回资金的唯一方法。",
   "Raicoin Seed": "Raicoin种子",
   "Copy Seed To Clipboard": "将种子复制到剪贴板",
