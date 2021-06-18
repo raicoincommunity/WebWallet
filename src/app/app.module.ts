@@ -6,7 +6,8 @@ import { TranslateLoader, TranslateModule, TranslateCompiler } from '@ngx-transl
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
-
+import { Web3ModalModule, Web3ModalService } from '@mindsorg/web3modal-angular';
+import WalletConnectProvider from "@walletconnect/web3-provider";
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -25,6 +26,27 @@ import { AccountSettingsComponent } from './components/account-settings/account-
 import { WalletSettingsComponent } from './components/wallet-settings/wallet-settings.component';
 import { GlobalSettingsComponent } from './components/global-settings/global-settings.component';
 import { TransactionDetailsComponent } from './components/transaction-details/transaction-details.component';
+import { BridgeBscComponent } from './components/bridge-bsc/bridge-bsc.component';
+import { environment } from '../environments/environment'
+
+const providerOptions = {
+  walletconnect: {
+    package: WalletConnectProvider, // required
+    options: {
+      rpc: environment.rpc_options,
+      bridge: 'https://pancakeswap.bridge.walletconnect.org/',
+      qrcodeModalOptions: {
+        mobileLinks: [
+          'Trust Wallet',
+          "Metamask",
+          'MathWallet',
+          'SafePal',
+          'TokenPocket'
+        ]
+      }
+    },
+  }
+};
 
 @NgModule({
   declarations: [
@@ -43,7 +65,8 @@ import { TransactionDetailsComponent } from './components/transaction-details/tr
     AccountSettingsComponent,
     WalletSettingsComponent,
     GlobalSettingsComponent,
-    TransactionDetailsComponent
+    TransactionDetailsComponent,
+    BridgeBscComponent
   ],
   imports: [
     BrowserModule,
@@ -52,6 +75,7 @@ import { TransactionDetailsComponent } from './components/transaction-details/tr
     FormsModule,
     ClipboardModule,
     HttpClientModule,
+    Web3ModalModule,
     TranslateModule.forRoot({
       loader: {
         provide: TranslateLoader,
@@ -65,6 +89,18 @@ import { TransactionDetailsComponent } from './components/transaction-details/tr
     }),
   ],
   providers: [
+    {
+      provide: Web3ModalService,
+      useFactory: () => {
+        return new Web3ModalService({
+          network: environment.bsc_network, // optional
+          cacheProvider: false, // optional
+          providerOptions, // required
+          disableInjectedProvider: false
+        });
+      },
+    },
+
   ],
   bootstrap: [AppComponent]
 })

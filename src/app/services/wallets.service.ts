@@ -165,8 +165,7 @@ export class WalletsService {
   }
 
   restricted(account: Account): boolean {
-    // TODL:
-    return false;
+    return account.restricted;
   }
 
   representative(address?: string): string {
@@ -278,7 +277,7 @@ export class WalletsService {
 
     this.blockPublish(blockInfo.block);
 
-    return { errorCode: WalletErrorCode.SUCCESS };
+    return { errorCode: WalletErrorCode.SUCCESS, block: blockInfo.block };
   }
 
   receive(hash: string, account?: Account, wallet?: Wallet): WalletOpResult {
@@ -1928,6 +1927,7 @@ export interface WalletOpResult {
   walletId?: string;
   walletIndex?: number;
   accountAddress?: string;
+  block?: Block
 }
 
 class WalletStorage {

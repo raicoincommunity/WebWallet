@@ -1,0 +1,234 @@
+<h2>RAI ⇄ BSC {{ 'Bridge' | translate }}</h2>
+<p>{{ 'BEP20 RAI is the 1:1 Raicoin backed token on Binace Smart Chain (BSC), use this bridge to convert RAI to BEP20 RAI or vice versa.' | translate }} <br />
+    {{ 'The BSC contract address is ' | translate }} <b>{{ contractAddress() }}</b></p>
+<div uk-grid *ngIf="activePanel == 0 || activePanel == 1">
+  <div class="uk-width-1-1">
+    <div class="uk-button-group uk-width-1-1">
+      <button (click)="setPanel(0)" class="uk-button uk-width-1-2" [ngClass]="{ 'uk-button-primary': activePanel == 0, 'uk-button-secondary': activePanel != 0 }">RAI ⇒ BEP20 RAI</button>
+      <button (click)="setPanel(1)" class="uk-button uk-width-1-2" [ngClass]="{ 'uk-button-primary': activePanel == 1, 'uk-button-secondary': activePanel != 1 }">BEP20 RAI ⇒ RAI</button>
+    </div>
+  </div>
+</div>
+
+<div class="uk-card uk-card-default" *ngIf="activePanel == 0 && !connected()">
+    <div class="uk-card-body">
+        <p>
+            {{ 'Convert RAI to BEP20 RAI.' | translate }}
+        </p>
+        <div class="uk-alert-primary" uk-alert>
+            <p>{{ 'You need to connect a web3 wallet first, such as metamask, trustwallet!' | translate }}</p>
+        </div>
+    </div>
+    <m-web3-modal title="Please choose a web3 protocol" description="" descriptionGray="" dismissText="Cancel"> </m-web3-modal>
+    <div class="uk-card-footer uk-text-right">
+        <button class="uk-button uk-button-primary"
+            (click)="connectWallet()">{{ 'Connect Web3 Wallet' | translate }}</button>
+    </div>
+</div>
+
+<div class="uk-card uk-card-default" *ngIf="activePanel == 1 && !connected()">
+    <div class="uk-card-body">
+        <p>
+            {{ 'Convert BEP20 RAI to RAI.' | translate }}
+        </p>
+        <div class="uk-alert-primary" uk-alert>
+            <p>{{ 'You need to connect a web3 wallet first, such as metamask, trustwallet!' | translate }}</p>
+        </div>
+    </div>
+
+    <m-web3-modal title="Please choose a web3 protocol" description="" descriptionGray="" dismissText="Cancel"> </m-web3-modal>
+
+    <div class="uk-card-footer uk-text-right">
+        <button class="uk-button uk-button-primary"
+            (click)="connectWallet()">{{ 'Connect Web3 Wallet' | translate }}</button>
+    </div>
+</div>
+
+<div class="uk-card uk-card-default" *ngIf="activePanel == 0 && connected()">
+    <div class="uk-card-body">
+        <div class="uk-form-horizontal">
+            <div class="uk-margin">
+                <label class="uk-form-label" for="form-horizontal-select">{{ 'From' | translate }}</label>
+                <div class="uk-form-controls">
+                    <select class="uk-select" [(ngModel)]="selectedFromAccount" (change)="changeRaiAccount($event)" id="form-horizontal-select">
+                        <option *ngFor="let option of raiAccounts()" [value]="option.address()">#{{ option.index() + 1 }} -
+                            {{ option.address() | shortAccount }} ({{ option.balance() | balance }})</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="uk-margin">
+                <label class="uk-form-label" for="form-horizontal-to">{{ 'To' | translate }}</label>
+                <div class="uk-form-controls">
+                    <div class="uk-inline uk-width-1-1">
+                        <input [ngModel]="bscShortAccount()" class="uk-input" id="form-horizontal-to" type="text" disabled
+                            placeholder="{{'Your BSC account' | translate}}" autocomplete="off">
+                    </div>
+                </div>
+            </div>
+
+            <div class="uk-margin">
+                <label class="uk-form-label" for="form-horizontal-text2">{{ 'Amount' | translate }} </label>
+                <div class="uk-form-controls">
+                    <div uk-grid>
+                        <div class="uk-width-1-1">
+                            <div class="uk-inline uk-width-1-1">
+                                <a class="uk-form-icon uk-form-icon-flip" (click)="setRaiMaxAmount()" style="padding-right: 7px;"
+                                    uk-tooltip title="{{ 'Set Maximum Amount' | translate }}">{{ 'Max' | translate }}</a>
+                                <input [(ngModel)]="inputRaiAmount" class="uk-input" id="form-horizontal-text2"
+                                    (keyup)="syncRaiAmount()" (change)="syncRaiAmount()" type="text"
+                                    placeholder="{{'Amount of RAI to convert' | translate}}"
+                                    [ngClass]="{ 'uk-form-success': inputRaiStatus === 1, 'uk-form-danger': inputRaiStatus === 2 }">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+    <div class="uk-card-footer uk-text-right">
+        <button class="uk-button uk-button-primary uk-margin-right" (click)="convertToBep()">{{ 'Convert' | translate }}</button>
+        <button class="uk-button uk-button-danger" (click)="cancel()">{{ 'Cancel' | translate }}</button>
+    </div>
+</div>
+
+<div class="uk-card uk-card-default" *ngIf="activePanel == 1 && connected()">
+    <div class="uk-card-body">
+        <div class="uk-form-horizontal">
+            <div class="uk-margin">
+                <label class="uk-form-label" for="form-horizontal-to">{{ 'From' | translate }}</label>
+                <div class="uk-form-controls">
+                    <div class="uk-inline uk-width-1-1">
+                        <input [ngModel]="bscAccountBalance()" class="uk-input" id="form-horizontal-to" type="text" disabled
+                            placeholder="{{'Your BSC account' | translate}}" autocomplete="off">
+                    </div>
+                </div>
+            </div>
+
+            <div class="uk-margin">
+                <label class="uk-form-label" for="form-horizontal-select">{{ 'To' | translate }}</label>
+                <div class="uk-form-controls">
+                    <select class="uk-select" [(ngModel)]="selectedToAccount" id="form-horizontal-select">
+                        <option *ngFor="let option of raiAccounts()" [value]="option.address()">#{{ option.index() + 1 }} -
+                            {{ option.address() | shortAccount }} ({{ option.balance() | balance }})</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="uk-margin">
+                <label class="uk-form-label" for="form-horizontal-text2">{{ 'Amount' | translate }} </label>
+                <div class="uk-form-controls">
+                    <div uk-grid>
+                        <div class="uk-width-1-1">
+                            <div class="uk-inline uk-width-1-1">
+                                <a class="uk-form-icon uk-form-icon-flip" (click)="setBepMaxAmount()" style="padding-right: 7px;"
+                                    uk-tooltip title="{{ 'Set Maximum Amount' | translate }}">{{ 'Max' | translate }}</a>
+                                <input [(ngModel)]="inputBepAmount" class="uk-input" id="form-horizontal-text2"
+                                    (keyup)="syncBepAmount()" (change)="syncBepAmount()" type="text"
+                                    placeholder="{{'Amount of RAI to convert' | translate}}"
+                                    [ngClass]="{ 'uk-form-success': inputBepStatus === 1, 'uk-form-danger': inputBepStatus === 2 }">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+    <div class="uk-card-footer uk-text-right">
+        <button class="uk-button uk-button-primary uk-margin-right" (click)="convertToRai()">{{ 'Convert' | translate }}</button>
+        <button class="uk-button uk-button-danger" (click)="cancel()">{{ 'Cancel' | translate }}</button>
+    </div>
+</div>
+
+<div uk-grid style="margin-top: 25px;" *ngIf="activePanel == 0">
+    <div class="uk-width-1-1">
+        <h3 class="uk-heading-divider uk-text-center" style="margin-bottom: 0;">{{ 'Recent Minting Transactions' | translate }}
+        </h3>
+        <table class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
+            <thead>
+                <tr>
+                    <th class="uk-width-1-5@m uk-visible@m uk-text-left">{{ 'Date' | translate }}</th>
+                    <th class="uk-width-1-4 uk-width-1-5@m uk-text-left">{{ 'From' | translate }}</th>
+                    <th class="uk-width-1-4 uk-width-1-5@m uk-text-left">{{ 'To' | translate }}</th>
+                    <th class="uk-width-1-4 uk-width-1-5@m uk-text-right">{{ 'Amount' | translate }}</th>
+                    <th class="uk-width-1-4 uk-width-1-5@m uk-text-center">{{ 'Status' | translate }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let item of mintItems()">
+                    <td class="uk-visible@m uk-text-left">
+                        {{ item.timestamp * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+                    <td class="uk-text-left uk-text-truncate">{{ item.from }}</td>
+                    <td class="uk-text-left uk-text-truncate">{{ item.to }}</td>
+                    <td class="uk-text-right">
+                        <span *ngIf="!item.amount.eq(0)">{{ item.amount | balance }}</span>
+                    </td>
+                    <td class="uk-text-center">
+                        <span *ngIf="success(item)" uk-icon="icon: check;" class="uk-text-success"
+                            title="{{ item.state | translate }}" uk-tooltip></span>
+                        <span *ngIf="!success(item) && !canMintRetry(item)" uk-spinner="ratio: 0.6;" title="{{ item.state | translate }}"
+                            uk-tooltip></span>
+                        <span *ngIf="!success(item) && canMintRetry(item)" uk-icon="icon: forward;" title="{{ 'Resend mint request to your web3 wallet' | translate }}" class="uk-text-warning" (click)="mintRetry(item)"
+                            uk-tooltip></span>
+                    </td>
+                </tr>
+                <tr *ngIf="mintItemsEmpty()">
+                    <td colspan="5" style="text-align: center;">{{ 'No transactions yet' | translate }}</td>
+                </tr>
+                <tr *ngIf="!mintItemsAll()">
+                    <td colspan="5" style="text-align: center;">
+                        <a (click)="loadMoreMintItems()" class="uk-link-text">{{ 'Load More Results' | translate }}</a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+<div uk-grid style="margin-top: 25px;" *ngIf="activePanel == 1 && bscAccount()">
+    <div class="uk-width-1-1">
+        <h3 class="uk-heading-divider uk-text-center" style="margin-bottom: 0;">{{ 'Recent Redemption Transactions' | translate }}
+        </h3>
+        <table class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
+            <thead>
+                <tr>
+                    <th class="uk-width-1-5@m uk-visible@m uk-text-left">{{ 'Date' | translate }}</th>
+                    <th class="uk-width-1-4 uk-width-1-5@m uk-text-left">{{ 'From' | translate }}</th>
+                    <th class="uk-width-1-4 uk-width-1-5@m uk-text-left">{{ 'To' | translate }}</th>
+                    <th class="uk-width-1-4 uk-width-1-5@m uk-text-right">{{ 'Amount' | translate }}</th>
+                    <th class="uk-width-1-4 uk-width-1-5@m uk-text-center">{{ 'Status' | translate }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let item of redeemItems()">
+                    <td class="uk-visible@m uk-text-left">
+                        {{ item.timestamp * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+                    <td class="uk-text-left uk-text-truncate">{{ item.from }}</td>
+                    <td class="uk-text-left uk-text-truncate">{{ item.to }}</td>
+                    <td class="uk-text-right">
+                        <span *ngIf="!item.amount.eq(0)">{{ item.amount | balance }}</span>
+                    </td>
+                    <td class="uk-text-center">
+                        <span *ngIf="success(item)" uk-icon="icon: check;" class="uk-text-success"
+                            title="{{ item.state | translate }}" uk-tooltip></span>
+                        <span *ngIf="!success(item) && !burning(item)" uk-spinner="ratio: 0.6;" title="{{ item.state | translate }}" uk-tooltip></span>
+                        <span *ngIf="!success(item) && burning(item)" class="uk-text-warning" uk-tooltip>{{ item.confirmations }}</span>
+                    </td>
+                </tr>
+                <tr *ngIf="redeemItemsEmpty()">
+                    <td colspan="5" style="text-align: center;">{{ 'No transactions yet' | translate }}</td>
+                </tr>
+                <tr *ngIf="!redeemItemsAll()">
+                    <td colspan="5" style="text-align: center;">
+                        <a (click)="loadMoreRedeemItems()" class="uk-link-text">{{ 'Load More Results' | translate }}</a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

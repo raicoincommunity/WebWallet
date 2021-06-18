@@ -12,11 +12,13 @@ import { AccountSettingsComponent } from './components/account-settings/account-
 import { WalletSettingsComponent } from './components/wallet-settings/wallet-settings.component';
 import { GlobalSettingsComponent } from './components/global-settings/global-settings.component';
 import { TransactionDetailsComponent } from './components/transaction-details/transaction-details.component';
+import { BridgeBscComponent } from './components/bridge-bsc/bridge-bsc.component';
 
 const routes: Routes = [
   { path: '', component: WelcomeComponent },
   { path: 'account/:address', component: AccountDetailsComponent },
   { path: 'accounts', component: AccountsComponent },
+  { path: 'bridge-bsc', component: BridgeBscComponent},
   { path: 'configure-wallet', component: ConfigureWalletComponent },
   { path: 'send', component: SendComponent },
   { path: 'wallets', component: WalletsComponent },
