@@ -26,6 +26,10 @@ export class BlocksService {
     return this.blocks[hash.toHex()];
   }
 
+  getBlockAmount(hash: U256): Amount | undefined {
+    return this.blocks[hash.toHex()]?.amount;
+  }
+
   delBlock(hash: U256) {
     let existing = this.getBlock(hash);
     if (existing) {

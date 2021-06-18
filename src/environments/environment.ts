@@ -11,7 +11,15 @@ export const environment = {
     'rai_36bu4g1tegdbwwqnec4otqncqkjzyn5134skna4i8gexhx11eeawry4akjhu',
     'rai_14k51wrdhpfyf3ikh811pedndjof6fffziokwymapwjbk8obrztmawsw9bnm',
   ],
-  epoch_timestamp: 1585699200
+  epoch_timestamp: 1585699200,
+  bsc_network: 'binance-testnet',
+  bsc_chain_id: 97,
+  rpc_options: {
+    //1: 'https://mainnet.infura.io/v3/b06ff656dd6349909e805f50ff2d8250',
+    97: 'https://data-seed-prebsc-1-s1.binance.org:8545/',
+  },
+  bsc_contract_address: '0xDF4c22DD5a4D12C7d4EeE5064B09e1A31EC552AB',
+  bsc_bridge_address: 'rai_3wacx85yoau7hejaiu1xyfzof6btdcwnx68nyn6ei7ocrcbr4ptabu169t8m',
 };
 
 /*

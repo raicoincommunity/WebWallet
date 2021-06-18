@@ -1,0 +1,45 @@
+diff --git a/node_modules/@mindsorg/web3modal-ts/dist/constants/chains.js b/node_modules/@mindsorg/web3modal-ts/dist/constants/chains.js
+index 6286c10..c3568f2 100644
+--- a/node_modules/@mindsorg/web3modal-ts/dist/constants/chains.js
++++ b/node_modules/@mindsorg/web3modal-ts/dist/constants/chains.js
+@@ -137,6 +137,12 @@ export const CHAIN_DATA_LIST = {
+         network: 'tomochain',
+         networkId: 88,
+     },
++    97: {
++        chainId: 97,
++        chain: 'BSC',
++        network: 'binance-testnet',
++        networkId: 97,
++    },
+     99: {
+         chainId: 99,
+         chain: 'POA',
+diff --git a/node_modules/@mindsorg/web3modal-ts/dist/providers/connectors/walletconnect.js b/node_modules/@mindsorg/web3modal-ts/dist/providers/connectors/walletconnect.js
+index 28de8ac..f21cc27 100644
+--- a/node_modules/@mindsorg/web3modal-ts/dist/providers/connectors/walletconnect.js
++++ b/node_modules/@mindsorg/web3modal-ts/dist/providers/connectors/walletconnect.js
+@@ -15,6 +15,7 @@ const ConnectToWalletConnect = (WalletConnectProvider, opts) => {
+         let infuraId = '';
+         let rpc = undefined;
+         let chainId = 1;
++        let qrcodeModalOptions = undefined;
+         console.log('wallet connect'); // todo remove dev item
+         if (opts) {
+             bridge = opts.bridge || bridge;
+@@ -23,6 +24,7 @@ const ConnectToWalletConnect = (WalletConnectProvider, opts) => {
+             rpc = opts.rpc || undefined;
+             chainId =
+                 opts.network && getChainId(opts.network) ? getChainId(opts.network) : 1;
++            qrcodeModalOptions = opts.qrcodeModalOptions;
+         }
+         const provider = new WalletConnectProvider({
+             bridge,
+@@ -30,6 +32,7 @@ const ConnectToWalletConnect = (WalletConnectProvider, opts) => {
+             infuraId,
+             rpc,
+             chainId,
++            qrcodeModalOptions,
+         });
+         try {
+             yield provider.enable();
