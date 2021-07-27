@@ -1,19 +1,14 @@
 import { Component, OnInit} from '@angular/core';
-import Web3 from 'web3';
-import { AbiItem } from 'web3-utils';
-import { Web3ModalService } from '@mindsorg/web3modal-angular';
 import { BigNumber } from 'bignumber.js';
 import { environment } from '../../../environments/environment';
-import ABI_BSC from '../../abi/bsc.json';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { TranslateService } from '@ngx-translate/core';
 import { NotificationService } from '../../services/notification.service';
 import { WalletsService, WalletErrorCode, Account, Amount } from '../../services/wallets.service';
-import { LocalStorageService, StorageKey } from '../../services/local-storage.service'
 import { U128, U256 } from '../../services/util.service';
-import { BscBridgeService, BscMintItem, BscRedeemItem } from '../../services/bsc-bridge.service'
-import { Block } from '../../services/blocks.service'
-import { THIS_EXPR } from '@angular/compiler/src/output/output_ast';
+import { BscBridgeService, BscMintItem, BscRedeemItem } from '../../services/bsc-bridge.service';
+import { Block } from '../../services/blocks.service';
+import { BscWeb3Service } from '../../services/bsc-web3.service';
 
 @Component({
   selector: 'app-bridge-bsc',
@@ -22,10 +17,6 @@ import { THIS_EXPR } from '@angular/compiler/src/output/output_ast';
 })
 export class BridgeBscComponent implements OnInit {
   public activePanel = 0;
-  public accounts: any = [];
-  public web3: Web3 | null = null;
-  public provider: any = null;
-  public contract: any = null;
   public selectedFromAccount = '';
   public selectedToAccount = '';
   public inputRaiAmount = '';
@@ -43,10 +34,9 @@ export class BridgeBscComponent implements OnInit {
   constructor(
     private translate: TranslateService,
     private notification: NotificationService,
-    private web3ModalService: Web3ModalService,
-    private storage: LocalStorageService,
     private wallets: WalletsService,
-    private bridge: BscBridgeService
+    private bridge: BscBridgeService,
+    private web3: BscWeb3Service
   ) {
     const account = this.wallets.selectedAccount();
     if (account) {
@@ -55,16 +45,16 @@ export class BridgeBscComponent implements OnInit {
       this.bridge.addAccount(this.selectedFromAccount);
     }
 
+    this.web3.accountChanged$.subscribe(e => {
+      if (e.to) this.bridge.addAccount(e.to);
+    });
   }
 
   ngOnInit(): void {
   }
 
   bscAccount(): string {
-    if (this.accounts.length) {
-      return this.accounts[0];
-    }
-    return '';
+    return this.web3.account();
   }
 
   bscShortAccount(): string {
@@ -98,108 +88,15 @@ export class BridgeBscComponent implements OnInit {
   }
 
   connected(): boolean {
-    return this.accounts && this.accounts.length;
+    return this.web3.connected();
   }
 
   async connectWallet(): Promise<any> {
-    await this.disconnectWallet();
-    try {
-      this.provider = await this.web3ModalService.open();
-      if (!this.provider) {
-        let msg = marker(`Failed to connect your web3 wallet, please try again`);
-        this.translate.get(msg).subscribe(res => msg = res);      
-        this.notification.sendError(msg);
-        return;
-      }
-      //console.log('provider', this.provider);
-    }
-    catch {
-      let msg = marker(`Failed to connect your web3 wallet, please try again`);
-      this.translate.get(msg).subscribe(res => msg = res);      
-      this.notification.sendError(msg);
-      return;
-    }
-    this.watchProvider();
-    
-    this.web3 = new Web3(this.provider);
-    const chainId = await this.web3.eth.getChainId();
-    if (chainId != environment.bsc_chain_id) {
-      await this.disconnectWallet();
-      let msg = marker(`Your wallet does not support Binance Smart Chain or not working on it now`);
-      this.translate.get(msg).subscribe(res => msg = res);      
-      this.notification.sendError(msg);
-      return;
-    }
-
-    this.accounts = await this.web3.eth.getAccounts();
-    if (!this.accounts || this.accounts.length == 0) {
-      await this.disconnectWallet();
-      return;
-    }
-
-    this.contract = new this.web3.eth.Contract((ABI_BSC as unknown) as AbiItem, environment.bsc_contract_address);
-
-    this.bridge.addAccount(this.accounts[0]);
+    await this.web3.connectWallet();
   }
 
   async disconnectWallet(): Promise<any> {
-    if (this.provider) {
-      if (this.provider.close) {
-        await this.provider.close();
-      }
-
-      if (this.provider.clearCachedProvider) {
-        await this.provider.clearCachedProvider();
-      }
-
-      if (this.provider.disconnect) {
-        this.provider.disconnect();
-      }
-    }
-
-    this.provider = null;
-    this.accounts = [];
-    this.web3 = null;
-    this.contract = null;
-    this.storage.clear(StorageKey.WALLETCONNECT_DEEPLINK_CHOICE);
-    this.storage.clear(StorageKey.WALLET_CONNECT);
-    this.storage.clear(StorageKey.WEB3_CONNECT_CACHED_PROVIDER);
-  }
-
-  watchProvider(): void {
-    if (!this.provider) {
-      return;
-    }
-
-    const provider = this.provider;
-    this.provider.on("accountsChanged", (accounts: string[]) => {
-      if (this.provider !== provider) {
-        return;
-      }
-      this.accounts = accounts;
-      console.log('accountsChanged', accounts);
-      if (accounts.length === 0) {
-        this.disconnectWallet().then(_ => {}).catch(_ => {});
-      } else {
-        this.bridge.addAccount(this.accounts[0]);
-      }
-    });
-
-    this.provider.on("chainChanged", (chainId: number) => {
-      console.log('chainChanged', chainId);
-      if (this.provider !== provider) {
-        return;
-      }    
-      this.disconnectWallet().then(_ => {}).catch(_ => {});
-    });
-
-    this.provider.on("disconnect", (err: { code: number; message: string }) => {
-      console.log('disconnect:', err.message);
-      if (this.provider !== provider) {
-        return;
-      }    
-      this.disconnectWallet().then(_ => {}).catch(_ => {});
-    });
+    await this.web3.disconnectWallet();
   }
 
   setPanel(panel: number) {
@@ -303,7 +200,7 @@ export class BridgeBscComponent implements OnInit {
 
     if (!this.selectedToAccount) return;
 
-    if (!this.connected() || !this.web3 || !this.bscAccount()) return;
+    if (!this.connected()) return;
 
     this.sendRedeemRequest(this.selectedToAccount, this.bepAmount).then(_ => {
       this.bridge.updateBscAccountBalance(this.bscAccount());
@@ -321,7 +218,7 @@ export class BridgeBscComponent implements OnInit {
   async sendMintRequest(item: BscMintItem): Promise<any> {
     try {
       this.addMintingTxn(item);
-      await this.contract.methods.mint('0x' + item.source_txn.toHex(), item.to, item.amount.toDec(), '0x' + item.v.toHex(), '0x' + item.r.toHex(), '0x' + item.s.toHex()).send({ from: this.accounts[0] });
+      await this.web3.contract.methods.mint('0x' + item.source_txn.toHex(), item.to, item.amount.toDec(), '0x' + item.v.toHex(), '0x' + item.r.toHex(), '0x' + item.s.toHex()).send({ from: this.bscAccount() });
     } catch (error) {
       console.log('sendMintRequest error:', error);
     }
@@ -331,8 +228,8 @@ export class BridgeBscComponent implements OnInit {
     try {
       let publicKey = new U256();
       if (publicKey.fromAccountAddress(to)) return;
-      await this.contract.methods.redeem('0x' + publicKey.toHex(), '0x' + amount.toHex()).send(
-        { from: this.accounts[0] }
+      await this.web3.contract.methods.redeem('0x' + publicKey.toHex(), '0x' + amount.toHex()).send(
+        { from: this.bscAccount() }
       );
     } catch (error) {
       console.log('sendRedeemRequest error:', error);
@@ -494,6 +391,12 @@ export class BridgeBscComponent implements OnInit {
     this.bepAmount = new U128();
     this.inputBepStatus = 0;
     await this.disconnectWallet();
+  }
+
+  copied() {
+    let msg = marker(`Contract address copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
   }
 
 }
