@@ -1,0 +1,130 @@
+<h2>{{ 'Free Faucet' | translate }}</h2>
+<p>{{ 'If you are BNB or BEP20 RAI holders, or have added liquidity for RAI/BNB or RAI/USDT on pancakeswap, please bind a RAI account to your BSC account here, then you can claim free RAI faucet every 24 hours.' | translate }}
+    <br />
+    {{ 'The fund in the faucet pool grows second by second and works on a first-come first-served basis.' | translate }}
+</p>
+
+<div class="uk-width-1-1">
+  <div class="uk-card uk-card-default uk-width-1-1 uk-text-center">
+    <span style="display: block; padding-top: 8px;">{{ 'Amount in the pool' | translate }}</span>
+    <span style="display: block; font-size: 32px;">{{ claimable() | balance }}</span>
+  </div>
+  <br>
+</div>
+
+<div class="uk-card uk-card-default uk-margin">
+  <div class="uk-card-header">
+    <h3 class="uk-card-title">{{ 'Claim Faucet' | translate }}</h3>
+  </div>
+
+  <div class="uk-card-body">
+    <div class="uk-form-horizontal">
+
+      <div class="uk-margin">
+        <label class="uk-form-label" for="form-horizontal-select">{{ 'Your RAI account' | translate }}</label>
+        <div class="uk-form-controls">
+          <select class="uk-select" [(ngModel)]="selectedRaiAccount" (change)="changeRaiAccount($event)"
+            id="form-horizontal-select">
+            <option *ngFor="let option of raiAccounts()" [value]="option.address()">#{{ option.index() + 1 }} -
+              {{ option.address() | shortAccount }} ({{ option.balance() | balance }})</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="uk-margin" *ngIf='bound()'>
+        <label class="uk-form-label" for="form-horizontal-bound">{{ 'Bound BSC account' | translate }}</label>
+        <div class="uk-form-controls">
+          <div class="uk-inline uk-width-1-1">
+            <input [ngModel]="boundBscAccount()" class="uk-input" id="form-horizontal-bound" type="text" disabled autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-margin" *ngIf='bound()'>
+        <label class="uk-form-label" for="form-horizontal-bound">{{ 'Max claimable amount' | translate }} <span uk-icon="icon: info;" uk-tooltip title="{{ 'Calculated by formula M=X*10+Y/10+Z/20, where M is your daily max claimable amount, X is your BNB balance, Y is your liquidity of RAI on pancakeswap, and Z is your BEP20 RAI balance.' | translate }}"></span></label>
+        <div class="uk-form-controls">
+          <div class="uk-inline uk-width-1-1">
+            <input [ngModel]="maxClaimable()" class="uk-input" id="form-horizontal-bound" type="text" disabled autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-margin" *ngIf='!bound()'>
+        <label class="uk-form-label" for="form-horizontal-bound">{{ 'Connected BSC account' | translate }}</label>
+        <div class="uk-form-controls">
+          <div class="uk-inline uk-width-1-1">
+            <input [ngModel]="connectedBscAccount()" class="uk-input" id="form-horizontal-bound" type="text" disabled autocomplete="off" [ngClass]="{ 'uk-text-danger': boundWarning() }">
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <m-web3-modal title="Please choose a web3 protocol" description="" descriptionGray="" dismissText="Cancel"> </m-web3-modal>
+
+  <div class="uk-card-footer uk-text-right">
+    <div class="uk-button-group uk-visible@s">
+      <button *ngIf='!bound() && !connected()' class="uk-button uk-button-primary uk-margin-left"
+        (click)="connectWallet()">{{ 'Connect Web3 Wallet' | translate }}</button>
+      <button *ngIf='!bound() && connected()' (click)="bind()" class="uk-button uk-button-primary uk-margin-left">{{ 'Sign & Bind' | translate }}</button>
+      <button *ngIf='bound() && available()' (click)="claim()" class="uk-button uk-button-primary uk-margin-left">{{ 'Claim' | translate }}</button>
+      <button *ngIf='bound() && !available()' disabled class="uk-button uk-button-primary uk-margin-left">{{ 'Claim' | translate }} {{ waiting() }}</button>
+      <button *ngIf='!bound() && connected()' class="uk-button uk-button-danger uk-margin-left"
+        (click)="disconnectWallet()">{{ 'Disconnect' | translate }}</button>
+    </div>
+  
+    <div class='uk-hidden@s'>
+      <button *ngIf='!bound() && !connected()' (click)="connectWallet()" class="uk-button uk-button-primary uk-width-1-1 uk-margin-bottom">{{ 'Connect Web3 Wallet' | translate }}</button>
+      <button *ngIf='!bound() && connected()' (click)="bind()" class="uk-button uk-button-primary uk-width-1-1 uk-margin-bottom">{{ 'Sign & Bind' | translate }}</button>
+      <button *ngIf='bound() && available()' (click)="claim()" class="uk-button uk-button-primary uk-width-1-1 uk-margin-bottom">{{ 'Claim' | translate }}</button>
+      <button *ngIf='bound() && !available()' class="uk-button uk-button-primary uk-width-1-1 uk-margin-bottom" disabled>{{ 'Claim' | translate }} {{ waiting() }}</button>
+      <button *ngIf='!bound() && connected()' class="uk-button uk-button-danger uk-width-1-1 uk-margin-bottom"
+        (click)="disconnectWallet()">{{ 'Disconnect' | translate }}</button>
+    </div>
+  
+  </div>
+
+</div>
+
+<div uk-grid style="margin-top: 25px;">
+  <div class="uk-width-1-1">
+    <h3 class="uk-heading-divider uk-text-center" style="margin-bottom: 0;">{{ 'Faucet History' | translate }}
+    </h3>
+    <table class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
+      <thead>
+        <tr>
+          <th class="uk-width-1-6@m uk-visible@m uk-text-left">{{ 'ID' | translate }}</th>
+          <th class="uk-width-1-3 uk-width-1-6@m uk-text-left">{{ 'Date' | translate }}</th>
+          <th class="uk-width-1-3 uk-width-1-4@m uk-text-left">{{ 'Claimer' | translate }}</th>
+          <th class="uk-width-1-3 uk-width-1-6@m uk-text-right">{{ 'Amount' | translate }}</th>
+          <th class="uk-width-1-4@m uk-visible@m uk-text-left">{{ 'Hash' | translate }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of historyItems()">
+          <td class="uk-visible@m uk-text-left">{{ item.index }}</td>
+          <td class="uk-text-left">
+            {{ item.timestamp * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td class="uk-text-left uk-text-truncate"><a [href]="'https://raicoin.org/explorer.html?search=' + item.to"
+              target="_blank">{{ item.to }}</a>
+          </td>
+          <td class="uk-text-right">{{ item.amount | balance:0 }}</td>
+          <td class="uk-visible@m uk-text-left uk-text-truncate">
+            <a [href]="'https://raicoin.org/explorer.html?search=' + item.hash.toHex()" target="_blank">
+              {{ item.hash.toHex() }}
+            </a>
+          </td>
+        </tr>
+        <tr *ngIf="historyEmpty()">
+          <td colspan="5" style="text-align: center;">{{ 'No transactions yet' | translate }}</td>
+        </tr>
+        <tr *ngIf="historyMore()">
+          <td colspan="5" style="text-align: center;">
+            <a (click)="loadMoreHistory()" class="uk-link-text">{{ 'Load More Results' | translate }}</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

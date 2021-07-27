@@ -13,6 +13,8 @@ import { WalletSettingsComponent } from './components/wallet-settings/wallet-set
 import { GlobalSettingsComponent } from './components/global-settings/global-settings.component';
 import { TransactionDetailsComponent } from './components/transaction-details/transaction-details.component';
 import { BridgeBscComponent } from './components/bridge-bsc/bridge-bsc.component';
+import { LiquidityRewardComponent } from './components/liquidity-reward/liquidity-reward.component';
+import { FaucetComponent } from './components/faucet/faucet.component';
 
 const routes: Routes = [
   { path: '', component: WelcomeComponent },
@@ -27,6 +29,8 @@ const routes: Routes = [
   { path: 'wallet-settings', component: WalletSettingsComponent },
   { path: 'global-settings', component: GlobalSettingsComponent },
   { path: 'transaction/:hash', component: TransactionDetailsComponent },
+  { path: 'liquidity-reward', component: LiquidityRewardComponent },
+  { path: 'faucet', component: FaucetComponent },
 ];
 
 @NgModule({

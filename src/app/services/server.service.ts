@@ -1,21 +1,23 @@
-import { Injectable } from '@angular/core';
+import { Injectable, OnDestroy } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { Subject, BehaviorSubject } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
 })
-export class ServerService {
+export class ServerService implements OnDestroy {
   private stateSubject = new BehaviorSubject(ServerState.DISCONNECTED);
   private messageSubject = new Subject<any>();
   
   private ws: WebSocket | null = null;
   private currentServerUrl = '';
   private readonly reconnectInterval = 10 * 1000;
+  private timerReconnect: any = null;
 
   private serverTimestamp = 0;
   private localTimestamp = 0;
   private readonly timeSyncInterval = 300 * 1000;
+  private timerTimeSync: any = null;
 
 
   state$ = this.stateSubject.asObservable();
@@ -27,10 +29,22 @@ export class ServerService {
     this.message$.subscribe((message) => this.onMessage(message));
 
     this.tryReconnect();
-    setInterval(() => this.tryReconnect(), this.reconnectInterval);
+    this.timerReconnect = setInterval(() => this.tryReconnect(), this.reconnectInterval);
 
     if (window.performance) {
-      setInterval(() => this.syncTimestamp(), this.timeSyncInterval);
+      this.timerTimeSync = setInterval(() => this.syncTimestamp(), this.timeSyncInterval);
+    }
+  }
+
+  ngOnDestroy() {
+    if (this.timerReconnect) {
+      clearInterval(this.timerReconnect);
+      this.timerReconnect = null;
+    }
+
+    if (this.timerTimeSync) {
+      clearInterval(this.timerTimeSync);
+      this.timerTimeSync = null;
     }
   }
 

@@ -1,6 +1,7 @@
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { HashLocationStrategy, LocationStrategy } from '@angular/common';
 import { ClipboardModule } from "ngx-clipboard";
 import { TranslateLoader, TranslateModule, TranslateCompiler } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
@@ -27,7 +28,9 @@ import { WalletSettingsComponent } from './components/wallet-settings/wallet-set
 import { GlobalSettingsComponent } from './components/global-settings/global-settings.component';
 import { TransactionDetailsComponent } from './components/transaction-details/transaction-details.component';
 import { BridgeBscComponent } from './components/bridge-bsc/bridge-bsc.component';
-import { environment } from '../environments/environment'
+import { environment } from '../environments/environment';
+import { LiquidityRewardComponent } from './components/liquidity-reward/liquidity-reward.component';
+import { FaucetComponent } from './components/faucet/faucet.component'
 
 const providerOptions = {
   walletconnect: {
@@ -66,7 +69,9 @@ const providerOptions = {
     WalletSettingsComponent,
     GlobalSettingsComponent,
     TransactionDetailsComponent,
-    BridgeBscComponent
+    BridgeBscComponent,
+    LiquidityRewardComponent,
+    FaucetComponent
   ],
   imports: [
     BrowserModule,
@@ -89,6 +94,7 @@ const providerOptions = {
     }),
   ],
   providers: [
+    {provide: LocationStrategy, useClass: HashLocationStrategy},
     {
       provide: Web3ModalService,
       useFactory: () => {

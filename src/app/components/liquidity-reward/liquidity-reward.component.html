@@ -1,0 +1,109 @@
+<h2>{{ 'Liquidity Reward' | translate }}</h2>
+<p>{{ 'If you have added liquidity for RAI/BNB or RAI/USDT on pancakeswap, please set up a RAI account here to receive reward.' | translate }} <br />
+{{ 'Rewards will be issued randomly every 0 to 48 hours, with average interval of 24 hours.' | translate }}
+</p>
+
+<div class="uk-card uk-card-default uk-margin">
+    <div class="uk-card-header">
+      <h3 class="uk-card-title">{{ 'Set Reward Recipient' | translate }}</h3>
+    </div>
+    <div class="uk-card-body">
+      <div uk-grid>
+
+        <div class="uk-width-1-1" *ngIf="connected()">
+          <div class="uk-form-horizontal">
+            <div class="uk-margin">
+              <label class="uk-form-label" for="form-horizontal-text1">{{ 'BSC Account' | translate }} </label>
+              <div class="uk-form-controls">
+                <div class="uk-inline uk-width-1-1">
+                  <input [value]="bscAccount()" class="uk-input" disabled id="form-horizontal-text1" type="text">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="uk-width-1-1" *ngIf="connected()">
+            <div class="uk-form-horizontal">
+                <div class="uk-margin">
+                    <label class="uk-form-label" for="form-horizontal-text1">{{ 'Current Recipient' | translate }} </label>
+                    <div class="uk-form-controls">
+                        <div class="uk-inline uk-width-1-1">
+                            <input [value]="recipient()" class="uk-input" disabled id="form-horizontal-text2" type="text">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="uk-width-1-1" *ngIf="connected()">
+            <div class="uk-form-horizontal">
+                <div class="uk-margin">
+                    <label class="uk-form-label" for="form-horizontal-text3">{{ 'New Recipient' | translate }} </label>
+                    <div class="uk-form-controls">
+                        <select class="uk-select" [(ngModel)]="selectedRecipient" id="form-horizontal-select">
+                            <option *ngFor="let option of raiAccounts()" [value]="option.address()">#{{ option.index() + 1 }} -
+                                {{ option.address() | shortAccount }} ({{ option.balance() | balance }})</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <m-web3-modal title="Please choose a web3 protocol" description="" descriptionGray="" dismissText="Cancel"> </m-web3-modal>
+
+        <div class="uk-width-1-1" *ngIf="!connected()">
+          <div class="uk-form-horizontal">
+            <div class="uk-margin">
+                <p>{{ 'You need to connect your BSC wallet first!' | translate }}</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="uk-card-footer uk-text-right" *ngIf="connected()">
+      <div class="uk-button-group">
+        <button (click)="setRecipient()" class="uk-button uk-button-primary uk-margin-right">{{ 'Sign & Set' | translate }}</button>
+        <button class="uk-button uk-button-danger" (click)="disconnectWallet()">{{ 'Disconnect' | translate }}</button>
+      </div>
+    </div>
+
+    <div class="uk-card-footer uk-text-right" *ngIf="!connected()">
+        <button class="uk-button uk-button-primary"
+            (click)="connectWallet()">{{ 'Connect Web3 Wallet' | translate }}</button>
+    </div>
+
+  </div>
+
+<div uk-grid style="margin-top: 25px;">
+  <div class="uk-width-1-1">
+    <h3 class="uk-heading-divider uk-text-center" style="margin-bottom: 0;">
+      {{ 'Your Active Liquidity' | translate }}
+    </h3>
+    <table class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
+      <thead>
+        <tr>
+          <th class="uk-width-1-4 uk-width-1-5@m uk-text-left">{{ 'Pair' | translate }}</th>
+          <th class="uk-width-1-4 uk-width-1-5@m uk-text-left">{{ 'Liquidity' | translate }}</th>
+          <th class="uk-width-1-4 uk-width-1-5@muk-text-left">{{ 'Reward/Day' | translate }}</th>
+          <th class="uk-width-1-4 uk-width-1-5@m uk-text-left">{{ 'Account' | translate }}</th>
+          <th class="uk-width-1-5 uk-visible@m uk-text-left">{{ 'Recipient' | translate }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of lpItems()">
+          <td class="uk-text-left">{{ item.pair }}</td>
+          <td class="uk-text-left">{{ item.share | balance:0 }}</td>
+          <td class="uk-text-left">{{ item.reward | balance:0 }}</td>
+          <td class="uk-text-left uk-text-truncate">{{ item.account }}</td>
+          <td class="uk-text-left uk-text-truncate">{{ item.recipient }}</td>
+        </tr>
+        <tr *ngIf="lpItemsEmpty()">
+          <td colspan="5" style="text-align: center;">{{ 'No liquidity yet' | translate }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -44,7 +44,16 @@
       <ul class="uk-nav uk-nav-default uk-nav-parent-icon left-nav" uk-nav>
         <li><a routerLink="/send" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Send' | translate }}</a></li>
         <li><a routerLink="/receive" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Receive' | translate }}</a></li>
-        <li><a routerLink="/bridge-bsc" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Bridge' | translate }}</a></li>
+        <li class="uk-parent">
+          <a href="#" class="uk-margin-left">{{ 'Apps' | translate }}</a>
+          <ul class="uk-nav-sub">
+            <li><a routerLink="/bridge-bsc" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">RAI ⇄ BSC {{ 'Bridge' | translate }}</a></li>
+            <li><a routerLink="/liquidity-reward" routerLinkActive="active" class="uk-margin-left"
+                uk-toggle="target: #mobile-nav">{{ 'Liquidity Reward' | translate }}</a></li>
+            <li><a routerLink="/faucet" routerLinkActive="active" class="uk-margin-left"
+                uk-toggle="target: #mobile-nav">{{ 'Free Faucet' | translate }}</a></li>
+          </ul>
+        </li>
         <li routerLink="/accounts" routerLinkActive="uk-active"><a routerLink="/accounts" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Accounts' | translate }}</a></li>
         <li routerLink="/wallets" routerLinkActive="uk-active"><a routerLink="/wallets" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Wallets' | translate }}</a></li>
         <li class="uk-parent">
@@ -130,7 +139,15 @@
         <ul class="uk-nav uk-nav-default uk-nav-parent-icon left-nav" uk-nav>
           <li><a routerLink="/send" routerLinkActive="active" class="uk-margin-left">{{ 'Send' | translate }}</a></li>
           <li><a routerLink="/receive" routerLinkActive="active" class="uk-margin-left">{{ 'Receive' | translate }}</a></li>
-          <li><a routerLink="/bridge-bsc" routerLinkActive="active" class="uk-margin-left">{{ 'Bridge' | translate }}</a></li>
+          <li class="uk-parent">
+            <a href="#" class="uk-margin-left">{{ 'Apps' | translate }}</a>
+            <ul class="uk-nav-sub">
+              <li><a routerLink="/bridge-bsc" routerLinkActive="active" class="uk-margin-left">RAI ⇄ BSC {{ 'Bridge' | translate }}</a></li>
+              <li><a routerLink="/liquidity-reward" routerLinkActive="active"
+                  class="uk-margin-left">{{ 'Liquidity Reward' | translate }}</a></li>
+              <li><a routerLink="/faucet" routerLinkActive="active" class="uk-margin-left">{{ 'Free Faucet' | translate }}</a></li>
+            </ul>
+          </li>
           <li><a routerLink="/accounts" routerLinkActive="active" class="uk-margin-left">{{ 'Accounts' | translate }}</a></li>
           <li><a routerLink="/wallets" routerLinkActive="active" class="uk-margin-left">{{ 'Wallets' | translate }}</a></li>
           <li class="uk-parent">

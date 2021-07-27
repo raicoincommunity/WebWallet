@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, OnDestroy } from '@angular/core';
 import { ServerService, ServerState } from './server.service';
 import { UtilService, U128, U256, U8, Extension } from './util.service';
 import { Block, BlocksService } from './blocks.service';
@@ -6,10 +6,11 @@ import { Block, BlocksService } from './blocks.service';
 @Injectable({
   providedIn: 'root'
 })
-export class BscBridgeService {
+export class BscBridgeService implements OnDestroy {
 
   private mints: {[account: string]: BscMintAccountInfo} = {};
   private redeems: {[account: string]: BscRedeemAccountInfo} = {};
+  private timer: any = null;
 
   constructor(
     private util: UtilService,
@@ -18,7 +19,14 @@ export class BscBridgeService {
 
     this.server.state$.subscribe(state => this.processServerState(state));
     this.server.message$.subscribe(message => this.processMessage(message));
-    setInterval(() => this.ongoingSync(), 1000);
+    this.timer = setInterval(() => this.ongoingSync(), 1000);
+  }
+
+  ngOnDestroy() {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
   }
 
   public addAccount(account: string) {

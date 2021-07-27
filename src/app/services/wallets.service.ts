@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, OnDestroy } from '@angular/core';
 import { v4 as uuid } from 'uuid';
 import * as CryptoJS from 'crypto-js';
 import { LocalStorageService, StorageKey, AppStorageEvent } from './local-storage.service';
@@ -14,7 +14,7 @@ export { Amount } from './blocks.service';
 @Injectable({
   providedIn: 'root'
 })
-export class WalletsService {
+export class WalletsService implements OnDestroy {
   private instanceId = uuid();
   private walletsStorage: WalletsStorage = new WalletsStorage();
 
@@ -22,6 +22,8 @@ export class WalletsService {
   wallet: Wallet | undefined = undefined;
 
   private unlockedInstances: UnlockedInstance[] = [];
+  private timerSync: any = null;
+  private timerAutoReceive: any = null;
 
   constructor(
     private storage: LocalStorageService,
@@ -36,8 +38,19 @@ export class WalletsService {
     this.server.state$.subscribe(state => this.processServerState(state));
     this.server.message$.subscribe(message => this.processMessage(message));
     this.storage.changes$.subscribe(event => this.processStorageEvent(event));
-    setInterval(() => this.ongoingSync(), 1000);
-    setInterval(() => this.autoReceive(), 1000);
+    this.timerSync = setInterval(() => this.ongoingSync(), 1000);
+    this.timerAutoReceive = setInterval(() => this.autoReceive(), 1000);
+  }
+
+  ngOnDestroy() {
+    if (this.timerSync) {
+      clearInterval(this.timerSync);
+      this.timerSync = null;
+    }
+    if (this.timerAutoReceive) {
+      clearInterval(this.timerAutoReceive);
+      this.timerAutoReceive = null;
+    }
   }
 
   creditCost(credit: U16, timestamp?: U64): U128 {
@@ -928,6 +941,7 @@ export class WalletsService {
   }
 
   private processMessage(message: any) {
+    if (message.service) return;
     if (message.ack) {
       switch (message.ack) {
         case 'account_info':

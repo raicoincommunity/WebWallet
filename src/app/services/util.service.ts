@@ -627,7 +627,7 @@ export class U128 extends Uint {
     }
 
     let result = this.toBalanceStr(scale, new U8(9));
-    while (result[result.length - 1] === '0') {
+    while (result.length > 1 && result[result.length - 1] === '0') {
       result = result.slice(0, result.length - 1);
     }
 
@@ -646,6 +646,14 @@ export class U256 extends Uint {
   readonly size = U256.SIZE;
   constructor(from: UintFrom = 0, base?: number, check: boolean = true) {
     super(from, base, U256.SIZE, check);
+  }
+
+  mul(other: UintFrom, base?: number): U256 {
+    return super.mul(other, base) as U256;
+  }
+
+  idiv(other: UintFrom, base?: number): U256 {
+    return super.idiv(other, base) as U256;
   }
 
   toAccountAddress(): string {

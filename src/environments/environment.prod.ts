@@ -19,5 +19,6 @@ export const environment = {
     //97: 'https://data-seed-prebsc-1-s1.binance.org:8545/',
     56: 'https://bsc-dataseed.binance.org/'
   },
-  bsc_contract_address: "",
+  bsc_contract_address: "0x64EF755D5A2627538CAA3Eb62ee07f96f9B608E4",
+  bsc_bridge_address: 'rai_3aukf74ro1feotkixkkwdi7jua8ceajg969asm6tb4e5nhwyynj74dxynoah',
 };

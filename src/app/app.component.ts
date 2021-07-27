@@ -1,4 +1,4 @@
-import { Component, HostListener, OnInit } from '@angular/core';
+import { Component, HostListener, OnInit, OnDestroy } from '@angular/core';
 import { WalletsService, Amount, WalletErrorCode } from './services/wallets.service';
 import { NotificationService } from './services/notification.service';
 import { U128 } from './services/util.service';
@@ -12,7 +12,7 @@ import { marker } from '@biesbjerg/ngx-translate-extract-marker';
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css']
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
 
   inactiveSeconds: number = 0;
   windowHeight:number = 1000;
@@ -21,6 +21,8 @@ export class AppComponent implements OnInit {
   @HostListener('window:resize', ['$event']) onResize (e: any) {
     this.windowHeight = e.target.innerHeight;
   };
+
+  private timer: any = null;
 
   constructor(
     private translate: TranslateService,
@@ -37,7 +39,7 @@ export class AppComponent implements OnInit {
 
     this.server.state$.subscribe(s => this.state = s);
 
-    setInterval(() => {
+    this.timer = setInterval(() => {
       this.inactiveSeconds += 5;
       if (!this.settings.getLockMinutes()) return; // Do not lock on inactivity
 
@@ -55,6 +57,13 @@ export class AppComponent implements OnInit {
         this.inactiveSeconds = 0;
       }
     }, 5000);
+  }
+
+  ngOnDestroy() {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
   }
 
   updateIdleTime() {

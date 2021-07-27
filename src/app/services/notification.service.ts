@@ -50,3 +50,9 @@ export interface Notification {
   message: string;
   options: any;
 }
+
+export enum NotificationId {
+  BSC_TXN_SENT = 'bsc_txn_sent',
+  BSC_SINGING_SENT = 'bsc_signing_sent',
+}
+
