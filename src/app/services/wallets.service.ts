@@ -2,7 +2,7 @@ import { Injectable, OnDestroy } from '@angular/core';
 import { v4 as uuid } from 'uuid';
 import * as CryptoJS from 'crypto-js';
 import { LocalStorageService, StorageKey, AppStorageEvent } from './local-storage.service';
-import { UtilService, U8, U64, U256, U128, BlockOpcodeStr, U32, U512, BlockTypeStr, U16 } from './util.service';
+import { UtilService, U8, U64, U256, U128, BlockOpcodeStr, U32, U512, BlockTypeStr, U16, ExtensionTypeStr, ExtensionAliasOpStr } from './util.service';
 import { ServerService, ServerState } from './server.service';
 import { BlocksService, Receivable, Block, Amount, BlockInfo, TxBlock } from './blocks.service';
 import { environment } from '../../environments/environment';
@@ -262,7 +262,7 @@ export class WalletsService implements OnDestroy {
     })
   }
 
-  send(destination: string, value: U128, note?: string, account?: Account, wallet?: Wallet): WalletOpResult {
+  send(destination: string, value: U128, note?: string, subaccount?: string, account?: Account, wallet?: Wallet): WalletOpResult {
     if (!account) {
       account = this.selectedAccount();
     }
@@ -276,10 +276,22 @@ export class WalletsService implements OnDestroy {
       return { errorCode: WalletErrorCode.BALANCE };
     }
 
-    let extensions:any;
+    let extensions:any = null;
     if (note) {
-      extensions = [ { type: 'note', value: note } ];
+      extensions = [ { type: ExtensionTypeStr.NOTE, value: note } ];
     }
+
+    if (subaccount) {
+      const extension = { type: ExtensionTypeStr.SUB_ACCOUNT, value: subaccount }
+      if (extensions) {
+        extensions.push(extension);
+      } else {
+        extensions = [ extension ];
+      }
+    }
+
+    console.log(`!!!===extensions=`, extensions);
+
     let blockInfo = this.generateSendBlock(account!, wallet!, destination, value, extensions);
     if (blockInfo.errorCode !== WalletErrorCode.SUCCESS || !blockInfo.block) {
       return { errorCode: blockInfo.errorCode };
@@ -334,6 +346,62 @@ export class WalletsService implements OnDestroy {
     if (errorCode !== WalletErrorCode.SUCCESS) return { errorCode };
 
     let blockInfo = this.generateChangeBlock(account!, wallet!, rep);
+    if (blockInfo.errorCode !== WalletErrorCode.SUCCESS || !blockInfo.block) {
+      return { errorCode: blockInfo.errorCode };
+    }
+
+    let amount: Amount = { negative: false, value: new U128(0) };
+    this.receiveBlock(blockInfo.block, amount, false, true);
+
+    this.blockPublish(blockInfo.block);
+
+    return { errorCode: WalletErrorCode.SUCCESS };
+  }
+
+  setName(name: string, account?: Account, wallet?: Wallet): WalletOpResult {
+    if (!account) {
+      account = this.selectedAccount();
+    }
+
+    if (!wallet) {
+      wallet = this.wallet;
+    }
+
+    let errorCode = this.accountActionCheck(account, wallet);
+    if (errorCode !== WalletErrorCode.SUCCESS) return { errorCode };
+
+    const extensions = [
+      { type: ExtensionTypeStr.ALIAS, value: { op: ExtensionAliasOpStr.NAME, op_value: name } }
+    ];
+    let blockInfo = this.generateChangeBlock(account!, wallet!, '', extensions);
+    if (blockInfo.errorCode !== WalletErrorCode.SUCCESS || !blockInfo.block) {
+      return { errorCode: blockInfo.errorCode };
+    }
+
+    let amount: Amount = { negative: false, value: new U128(0) };
+    this.receiveBlock(blockInfo.block, amount, false, true);
+
+    this.blockPublish(blockInfo.block);
+
+    return { errorCode: WalletErrorCode.SUCCESS };
+  }
+
+  setDns(domain: string, account?: Account, wallet?: Wallet): WalletOpResult {
+    if (!account) {
+      account = this.selectedAccount();
+    }
+
+    if (!wallet) {
+      wallet = this.wallet;
+    }
+
+    let errorCode = this.accountActionCheck(account, wallet);
+    if (errorCode !== WalletErrorCode.SUCCESS) return { errorCode };
+
+    const extensions = [
+      { type: ExtensionTypeStr.ALIAS, value: { op: ExtensionAliasOpStr.DNS, op_value: domain } }
+    ];
+    let blockInfo = this.generateChangeBlock(account!, wallet!, '', extensions);
     if (blockInfo.errorCode !== WalletErrorCode.SUCCESS || !blockInfo.block) {
       return { errorCode: blockInfo.errorCode };
     }
@@ -1587,11 +1655,14 @@ export class WalletsService implements OnDestroy {
     if (!previousInfo) return { errorCode: WalletErrorCode.MISS };
     let previous = previousInfo.block;
 
+    if (!rep) {
+      rep = previous.representative().toAccountAddress();
+    }
+
     let now = this.server.getTimestamp();
     let previousTimestamp = previous.timestamp().toNumber();
     let timestamp = now > previousTimestamp ? now : previousTimestamp;
     if (timestamp > now + 60) return { errorCode: WalletErrorCode.TIMESTAMP };
-
 
     let counter = new U32(1);
     if (previous.timestamp().sameDay(timestamp)) {

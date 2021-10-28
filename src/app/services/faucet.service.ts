@@ -136,6 +136,7 @@ export class FaucetService implements OnDestroy {
 
   loadMoreHisotry() {
     const history = this.globalState.history;
+    history.count += 10;
     while (history.count < history.items.length) {
       history.count += 10;
     }

@@ -331,8 +331,13 @@ export class TxBlock implements Block {
         this._link = new U256(json.link, 16);
       }
 
-      error = this.extensionsFromJson(json.extensions);
-      if (error) return true;
+      if (json.extensions_raw) {
+        this._extensions = ExtensionHelper.encodeHex(json.extensions_raw);
+      } else {
+        error = this.extensionsFromJson(json.extensions);
+        if (error) return true;  
+      }
+
       this._extensionLength = new U32(this._extensions.length);
 
       if (json.extensions_length) {

@@ -2,6 +2,7 @@ import { Component, OnInit, AfterViewInit, Renderer2 } from '@angular/core';
 import { WalletsService, WalletErrorCode } from '../../services/wallets.service';
 import { NotificationService } from '../../services/notification.service';
 import { BlockTypeStr, U128, U16, U32 } from 'src/app/services/util.service';
+import { AliasService } from '../../services/alias.service';
 import { ActivatedRoute } from "@angular/router";
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
@@ -16,15 +17,21 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
   increaseTxns = '';
   txnsStatus = 0;
   increaseCredit = new U16(0);
+  newName = '';
+  newDns = '';
+  newDnsStatus = 0;
+  dnsRegexp = /^([a-z0-9-]{1,63}\.)+[a-z]{2,}$/i;
 
   constructor(
     private translate: TranslateService,
     private wallets: WalletsService,
     private route: ActivatedRoute,
     private renderer: Renderer2,
+    private alias: AliasService,
     private notification: NotificationService) { }
 
   ngOnInit(): void {
+    this.alias.addAccount(this.selectedAccountAddress());
   }
 
   ngAfterViewInit(): void {
@@ -79,12 +86,95 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
     this.newRep = '';
   }
 
+  
+  changeName() {
+    if (this.locked()) {
+      let msg = marker(`Wallet must be unlocked`);
+      this.translate.get(msg).subscribe(res => msg = res);      
+      this.notification.sendWarning(msg);
+      return;
+    }
+
+    this.newName = this.newName.trim();
+    if (this.newName.includes('@')) {
+      let msg = marker(`Character '@' is reserved , can't be used in alias`);
+      this.translate.get(msg).subscribe(res => msg = res);      
+      this.notification.sendError(msg);
+      return;
+    }
+
+    let result = this.wallets.setName(this.newName);
+    if (result.errorCode !== WalletErrorCode.SUCCESS) {
+      let msg = result.errorCode;
+      this.translate.get(msg).subscribe(res => msg = res);      
+      this.notification.sendError(msg);
+      return;
+    }
+
+    let msg = marker(`Successfully change alias!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+    this.newName = '';
+  }
+
+  changeDns() {
+    if (this.locked()) {
+      let msg = marker(`Wallet must be unlocked`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendWarning(msg);
+      return;
+    }
+
+    this.checkNewDns();
+    if (this.newDnsStatus !== 0) {
+      let msg = marker(`Invalid domain format`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    }
+
+    let result = this.wallets.setDns(this.newDns);
+    if (result.errorCode !== WalletErrorCode.SUCCESS) {
+      let msg = result.errorCode;
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    }
+
+    let msg = marker(`Successfully change domain!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+    this.newDns = '';
+  }
+
+  checkNewDns() {
+    this.newDns = this.newDns.trim();
+    if (this.newDns === '') {
+      this.newDnsStatus = 0;
+      return;
+    }
+    this.newDnsStatus = this.dnsRegexp.test(this.newDns) ? 0 : 1;
+  }
+
   currentRep() {
     return this.wallets.representative();
   }
 
   currentDailyTxns(): number {
     return this.wallets.credit() * 20;
+  }
+
+  currentName(): string {
+    const address = this.selectedAccountAddress();
+    if (!address) return '';
+    this.alias.addAccount(address);
+    return this.alias.name(address);
+  }
+
+  currentDns(): string {
+    const address = this.selectedAccountAddress();
+    if (!address) return '';
+    return this.alias.dns(address);
   }
 
   checkTxns() {
@@ -165,6 +255,40 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
     let account = this.wallets.selectedAccount();
     if (!account) return false;
     return account.synced;
+  }
+
+  nameCopied() {
+    let msg = marker('TXT record name copied to clipboard!');
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  valueCopied() {
+    let msg = marker('TXT record value copied to clipboard!');
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  showDnsVerified(): boolean {
+    const address = this.selectedAccountAddress();
+    if (!address) return false;
+    if (!this.alias.verified(address)) return false;
+    return this.alias.dnsValid(address);
+  }
+
+  showDnsUnverified(): boolean {
+    const address = this.selectedAccountAddress();
+    if (!address) return false;
+    if (!this.alias.verified(address)) return false;
+    return !this.alias.dnsValid(address);
+  }
+
+  verifyDns() {
+    const error = this.alias.verify(this.selectedAccountAddress());
+    if (error) return;
+    let msg = marker('Account verification request sent!');
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
   }
 
 }

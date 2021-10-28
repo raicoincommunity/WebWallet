@@ -41,6 +41,10 @@ export class UtilService {
     sign: sign,
     verify: verify
   };
+
+  other = {
+    shortAddress: shortAddress
+  };
 }
 
 function uint8ToUint4(uint8: Uint8Array): Uint8Array {
@@ -233,6 +237,13 @@ function stringToUint5(str: string) {
   let uint5 = new Uint8Array(length);
   for (let i = 0; i < length; i++)	uint5[i] = letters.indexOf(str_array[i]);
   return uint5;
+}
+
+function shortAddress(addr: string, reserve: number = 5): string {
+  if (addr.startsWith('rai_') && addr.length  == 64) {
+    return addr.substr(0, reserve + 4) + '...' + addr.substr(-reserve);
+  }
+  return addr;
 }
 
 export type Uall = U8 | U16 | U32 | U64 | U128 | U256 | U512;
@@ -696,7 +707,7 @@ export enum ExtensionType {
   INVALID     = 0,
   SUB_ACCOUNT = 1,
   NOTE        = 2,
-  UNIQUE_ID   = 3,
+  ALIAS       = 3,
 
   RESERVED_MAX = 1023,
 }
@@ -705,11 +716,23 @@ export enum ExtensionTypeStr {
   INVALID     = 'invalid',
   SUB_ACCOUNT = 'sub_account',
   NOTE        = 'note',
-  UNIQUE_ID   = 'unique_id',
+  ALIAS       = 'alias',
+}
+
+export enum ExtensionAliasOp {
+  INVALID     = 0,
+  NAME        = 1,
+  DNS         = 2,
+}
+
+export enum ExtensionAliasOpStr {
+  INVALID     = 'invalid',
+  NAME        = 'name',
+  DNS         = 'dns',
 }
 
 interface ExtensionCodec {
-  encode(str: string): Uint8Array;
+  encode(value: any): Uint8Array;
   decode(array: Uint8Array): string;
 }
 
@@ -733,6 +756,44 @@ const extensionCodecs: {[codec: string]: ExtensionCodec} = {
       }
       return u64.toDec();
     }
+  },
+
+  alias: {
+    encode: (value: {op: string, op_value: string}) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      if (value.op === ExtensionAliasOpStr.NAME){
+        count += 1;
+        buffer.set([ExtensionAliasOp.NAME]);
+      } else if (value.op === ExtensionAliasOpStr.DNS) {
+        count += 1;
+        buffer.set([ExtensionAliasOp.DNS]);
+      } else {
+        throw new Error(`ExtensionHelper.alias.encode: unknown op=${value.op}`);
+      }
+      const op_value = new TextEncoder().encode(value.op_value);
+      buffer.set(op_value, count);
+      count += op_value.length;
+      return buffer.slice(0, count);
+    },
+    decode: (array: Uint8Array) => {
+      if (array.length < 1) {
+        throw new Error(`ExtensionHelper.alias.decode: bad length`);
+      }
+
+      const value: any = {}
+      if (array[0] == ExtensionAliasOp.NAME) {
+        value.op = ExtensionAliasOpStr.NAME
+      } else if (array[0] == ExtensionAliasOp.DNS) {
+        value.op = ExtensionAliasOpStr.DNS;
+      } else {
+        throw new Error(`ExtensionHelper.alias.decode: unknown op=${array[0]}`);
+      }
+
+      value.op_value = new TextDecoder('utf-8', {fatal: true}).decode(array.slice(1));
+
+      return value;
+    }
   }
 };
 
@@ -740,7 +801,7 @@ type ExtensionTypeMap = [ExtensionType, ExtensionTypeStr, ExtensionCodec];
 const extensionTypeMaps: ExtensionTypeMap[] = [
   [ExtensionType.SUB_ACCOUNT, ExtensionTypeStr.SUB_ACCOUNT, extensionCodecs.utf8],
   [ExtensionType.NOTE, ExtensionTypeStr.NOTE, extensionCodecs.utf8],
-  [ExtensionType.UNIQUE_ID, ExtensionTypeStr.UNIQUE_ID, extensionCodecs.dec64],
+  [ExtensionType.ALIAS, ExtensionTypeStr.ALIAS, extensionCodecs.alias],
 ]
 
 export enum ExtensionError {
@@ -786,6 +847,10 @@ export class ExtensionHelper {
       }
     
     return e;
+  }
+
+  static encodeHex(str: string): Uint8Array {
+    return extensionCodecs.hex.encode(str);
   }
 
   static encode(json: any): Uint8Array {
