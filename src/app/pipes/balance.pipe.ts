@@ -7,7 +7,7 @@ import { Amount } from '../services/wallets.service';
 })
 export class BalancePipe implements PipeTransform {
 
-  transform(value: Amount | U128, decimals: number = 9): unknown {
+  transform(value: Amount | U128, decimals: number = 9, exact: boolean = true): unknown {
     if (decimals < 0) decimals = 0;
     if (decimals > 9) decimals = 9;
     decimals |= 0;
@@ -26,6 +26,16 @@ export class BalancePipe implements PipeTransform {
     let result = value.value.toBalanceStr(U128.RAI(), new U8(decimals));
     if (value.negative) {
       result = '-' + result;
+    }
+
+    if (!exact && result.includes('.')) {
+      while (result.length > 1 && result[result.length - 1] === '0') {
+        result = result.slice(0, result.length - 1);
+      }
+
+      if (result[result.length - 1] === '.') {
+        result = result.slice(0, result.length - 1);
+      }
     }
 
     result += ' RAI';

@@ -176,7 +176,7 @@ export class BridgeBscComponent implements OnInit {
     const account = this.wallets.findAccounts(this.selectedFromAccount)[0];
     if (!account) return;
 
-    const result = this.wallets.send(environment.bsc_bridge_address, this.raiAmount, this.bscAccount(), account);
+    const result = this.wallets.send(environment.bsc_bridge_address, this.raiAmount, this.bscAccount(), '', account);
     if (result.errorCode !== WalletErrorCode.SUCCESS) {
       let msg = result.errorCode;
       this.translate.get(msg).subscribe(res => msg = res);

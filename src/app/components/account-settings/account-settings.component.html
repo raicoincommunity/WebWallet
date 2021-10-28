@@ -130,6 +130,122 @@
     </div>
 
 
+    <div class="uk-card uk-card-default uk-margin">
+      <div class="uk-card-header">
+        <h3 class="uk-card-title">{{ 'Account Alias' | translate }}</h3>
+      </div>
+      <div class="uk-card-body">
+        <div uk-grid>
+
+          <div class="uk-width-1-1" *ngIf="changable()">
+            <div class="uk-form-horizontal">
+              <div class="uk-margin">
+                <label class="uk-form-label" for="input-current-alias">{{ 'Current Alias' | translate }} </label>
+                <div class="uk-form-controls">
+                  <div class="uk-inline uk-width-1-1">
+                    <input [value]="currentName()" class="uk-input" disabled id="input-current-alias" type="text">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1" *ngIf="changable()">
+            <div class="uk-form-horizontal">
+              <div class="uk-margin">
+                <label class="uk-form-label" for="input-new-alias">{{ 'New Alias' | translate }} </label>
+                <div class="uk-form-controls">
+                  <div *ngIf="!locked()" class="uk-inline uk-width-1-1">
+                    <input [(ngModel)]="newName" class="uk-input" id="input-new-alias" type="text">
+                  </div>
+                  <div *ngIf="locked()" class="uk-inline uk-width-1-1">
+                    <input class="uk-input" disabled type="text" id="input-new-alias" placeholder="{{ 'Unlock wallet first' | translate }}">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1" *ngIf="!changable() && synced()">
+            <div class="uk-form-horizontal">
+              <div class="uk-margin">
+                {{ 'The account must receive a transaction before changing alias!' | translate }}
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="uk-card-footer uk-text-right" *ngIf="changable()">
+        <button (click)="changeName()" class="uk-button uk-button-secondary">{{ 'Change Alias' | translate }}</button>
+      </div>
+    </div>
+
+
+    <div class="uk-card uk-card-default uk-margin">
+      <div class="uk-card-header">
+        <h3 class="uk-card-title">{{ 'Account Verification' | translate }}</h3>
+      </div>
+      <div class="uk-card-body">
+        <div uk-grid>
+
+          <div class="uk-width-1-1" *ngIf="changable()">
+            <div class="uk-form-horizontal">
+              <div class="uk-margin uk-margin-remove-bottom">
+                <label class="uk-form-label" for="input-current-alias">{{ 'Current Domain' | translate }} </label>
+                <div class="uk-form-controls">
+                  <div class="uk-inline uk-width-1-1">
+                    <a *ngIf="showDnsVerified()" class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px;" uk-tooltip title="{{ 'Verified' | translate }}"><span uk-icon="icon: check;" class="uk-text-success"></span></a>
+                    <a *ngIf="showDnsUnverified()" class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px;" uk-tooltip title="{{ 'Unverified' | translate }}"><span uk-icon="icon: warning;" class="uk-text-warning"></span></a>
+                    <input [value]="currentDns()" class="uk-input" disabled id="input-current-alias" type="text">
+                  </div>
+                  <div  class="uk-width-1-1 uk-margin-remove" *ngIf="showDnsUnverified()">
+                    <div class="uk-text-warning">
+                      {{ 'To complete the verification, please put a DNS TXT record under your domain with the following name and value.'  | translate }} <br/>
+                    </div>
+                    <div class="uk-text-bold">
+                      {{ 'Name:'  | translate }} _raicoin-verification <span ngxClipboard [cbContent]="'_raicoin-verification'" (cbOnSuccess)="nameCopied()" uk-icon="icon: copy" title="{{ 'Copy record name' | translate }}" uk-tooltip></span><br/>
+                      {{ 'Value:'  | translate }} <span class="uk-text-break"> {{ selectedAccountAddress() }} </span> <span ngxClipboard [cbContent]="selectedAccountAddress()" (cbOnSuccess)="valueCopied()" uk-icon="icon: copy" title="{{ 'Copy record value' | translate }}" uk-tooltip></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1" *ngIf="changable()">
+            <div class="uk-form-horizontal">
+              <div class="uk-margin">
+                <label class="uk-form-label" for="input-new-alias">{{ 'New Domain' | translate }} </label>
+                <div class="uk-form-controls">
+                  <div *ngIf="!locked()" class="uk-inline uk-width-1-1">
+                    <input [(ngModel)]="newDns" (blur)="checkNewDns()" [ngClass]="{'uk-form-danger': newDnsStatus === 1 }" class="uk-input" id="input-new-alias" type="text">
+                  </div>
+                  <div *ngIf="locked()" class="uk-inline uk-width-1-1">
+                    <input class="uk-input" disabled type="text" id="input-new-alias" placeholder="{{ 'Unlock wallet first' | translate }}">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1" *ngIf="!changable() && synced()">
+            <div class="uk-form-horizontal">
+              <div class="uk-margin">
+                {{ 'The account must receive a transaction before changing domain!' | translate }}
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="uk-card-footer" *ngIf="changable()">
+        <div class="uk-button-group uk-text-right uk-align-right">
+          <button *ngIf="showDnsUnverified()" (click)="verifyDns()" class="uk-button uk-button-secondary uk-margin-small-bottom">{{ 'Verify' | translate }}</button> 
+          <button (click)="changeDns()" class="uk-button uk-button-secondary uk-margin-small-left uk-margin-small-bottom">{{ 'Change Domain' | translate }}</button>
+        </div>
+      </div>
+    </div>
 
 
   </div>
