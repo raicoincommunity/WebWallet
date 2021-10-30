@@ -2,16 +2,7 @@
   <div class="uk-width-1-1">
     <h2>{{ 'Send Raicoin' | translate }}</h2>
 
-    <div uk-grid>
-      <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
-        {{ 'Your account' | translate }}: <a [routerLink]="'/account/'+selectedAccountAddress()" class="uk-text-bold uk-link-text">{{ selectedAccountAddress() }}</a>
-      </div>
-      <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
-        <ul class="uk-hidden-hover uk-iconnav">
-          <li><a uk-icon="icon: pencil;" title="{{ 'Change Account' | translate }}" uk-tooltip routerLink="/accounts"></a></li>
-        </ul>
-      </div>
-    </div>
+    <app-account-widget raiTitle="{{ 'Your account' | translate }}" [raiCopyable]="false"></app-account-widget>
 
     <div uk-grid class="uk-margin-remove-top">
       <div class="uk-width-expand uk-width-auto@m">
@@ -31,7 +22,7 @@
                 <label class="uk-form-label" for="form-horizontal-text1">{{ 'Destination Account' | translate }} *</label>
                 <div class="uk-form-controls">
                   <div class="uk-inline uk-width-1-1">
-                    <a *ngIf="selectedDnsValid()" class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px;" uk-tooltip title="{{ 'Account verified' | translate }}"><span uk-icon="icon: check;" class="uk-text-success"></span></a>
+                    <a *ngIf="selectedDnsValid() && destinationStatus() === 1" class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px;" uk-tooltip title="{{ 'Account verified' | translate }}"><span uk-icon="icon: check;" class="uk-text-success"></span></a>
                     <input #destinationInput (focus)="destinationFocus()" (blur)="destinationBlur()" (ngModelChange)="destinationChanged()" [(ngModel)]="destination" [ngClass]="{ 'uk-form-success': destinationStatus() === 1, 'uk-form-danger': destinationStatus() === 2 && !destinationFocused && !searchResultShown }" class="uk-input" id="form-horizontal-text1" type="text" placeholder="{{'Account to send to' | translate}}" autocomplete="off">
                     <button type="button" style="display:none"></button>
                     <div uk-dropdown="mode: click" #destinationDropdown class="uk-width-1-1">

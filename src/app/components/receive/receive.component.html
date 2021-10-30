@@ -17,16 +17,8 @@
       </div>
     </div>
 
-    <div uk-grid>
-      <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
-        {{ 'Your account' | translate }}: <a [routerLink]="'/account/'+selectedAccountAddress()" class="uk-text-bold uk-link-text">{{ selectedAccountAddress() }}</a>
-      </div>
-      <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
-        <ul class="uk-hidden-hover uk-iconnav">
-          <li><a uk-icon="icon: pencil;" title="{{ 'Change Account' | translate }}" uk-tooltip routerLink="/accounts"></a></li>
-        </ul>
-      </div>
-    </div>
+    <app-account-widget raiTitle="{{ 'Your account' | translate }}"></app-account-widget>
+
 
     <div class="uk-card uk-card-default uk-margin-top">
       <table class="uk-table uk-table-striped uk-table-small">

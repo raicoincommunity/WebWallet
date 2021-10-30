@@ -2,16 +2,7 @@
   <div class="uk-width-1-1">
     <h2>{{ 'Account Settings' | translate }}</h2>
 
-    <div uk-grid>
-      <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
-        {{ 'Your account' | translate }}: <a [routerLink]="'/account/'+selectedAccountAddress()" class="uk-text-bold uk-link-text">{{ selectedAccountAddress() }}</a>
-      </div>
-      <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
-        <ul class="uk-hidden-hover uk-iconnav">
-          <li><a uk-icon="icon: pencil;" title="{{ 'Change Account' | translate }}" uk-tooltip routerLink="/accounts"></a></li>
-        </ul>
-      </div>
-    </div>
+    <app-account-widget raiTitle="{{ 'Your account' | translate }}" [raiCopyable]="false"></app-account-widget>
 
     <div class="uk-card uk-card-default uk-margin">
       <div class="uk-card-header">
@@ -219,7 +210,7 @@
                 <label class="uk-form-label" for="input-new-alias">{{ 'New Domain' | translate }} </label>
                 <div class="uk-form-controls">
                   <div *ngIf="!locked()" class="uk-inline uk-width-1-1">
-                    <input [(ngModel)]="newDns" (blur)="checkNewDns()" [ngClass]="{'uk-form-danger': newDnsStatus === 1 }" class="uk-input" id="input-new-alias" type="text">
+                    <input [(ngModel)]="newDns" (blur)="checkNewDns()" [ngClass]="{'uk-form-danger': newDnsStatus === 1 }" class="uk-input" id="input-new-alias" type="text" placeholder="{{ 'Input a domain name you own, such as google.com' | translate }}">
                   </div>
                   <div *ngIf="locked()" class="uk-inline uk-width-1-1">
                     <input class="uk-input" disabled type="text" id="input-new-alias" placeholder="{{ 'Unlock wallet first' | translate }}">

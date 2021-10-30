@@ -1,4 +1,5 @@
 import { Injectable, OnDestroy } from '@angular/core';
+import { Subject } from 'rxjs';
 import { v4 as uuid } from 'uuid';
 import * as CryptoJS from 'crypto-js';
 import { LocalStorageService, StorageKey, AppStorageEvent } from './local-storage.service';
@@ -24,6 +25,9 @@ export class WalletsService implements OnDestroy {
   private unlockedInstances: UnlockedInstance[] = [];
   private timerSync: any = null;
   private timerAutoReceive: any = null;
+  private selectedAccountSubject = new Subject<string>();
+
+  selectedAccountChanged$ = this.selectedAccountSubject.asObservable();
 
   constructor(
     private storage: LocalStorageService,
@@ -34,7 +38,6 @@ export class WalletsService implements OnDestroy {
     this.loadWallets();
     this.loadUnlockedInstances();
 
-    // debug begin
     this.server.state$.subscribe(state => this.processServerState(state));
     this.server.message$.subscribe(message => this.processMessage(message));
     this.storage.changes$.subscribe(event => this.processStorageEvent(event));
@@ -290,8 +293,6 @@ export class WalletsService implements OnDestroy {
       }
     }
 
-    console.log(`!!!===extensions=`, extensions);
-
     let blockInfo = this.generateSendBlock(account!, wallet!, destination, value, extensions);
     if (blockInfo.errorCode !== WalletErrorCode.SUCCESS || !blockInfo.block) {
       return { errorCode: blockInfo.errorCode };
@@ -454,6 +455,7 @@ export class WalletsService implements OnDestroy {
     this.wallet = wallet;
     this.walletsStorage.selected = wallet.storage.index;
     this.saveWallets();
+    this.selectedAccountSubject.next(this.selectedAccountAddress());
   }
 
   selectAccount(address: string) {
@@ -463,6 +465,7 @@ export class WalletsService implements OnDestroy {
     this.wallet.account = account;
     this.wallet.storage.selected = account.storage.index;
     this.saveWallets();
+    this.selectedAccountSubject.next(address);
   }
 
   selectedAccount(): Account | undefined {
