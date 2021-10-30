@@ -1,6 +1,7 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
 import { ServerService, ServerState } from './server.service';
+import { WalletsService } from './wallets.service';
 
 @Injectable({
   providedIn: 'root'
@@ -14,10 +15,15 @@ export class AliasService  implements OnDestroy {
   public searchResult$ = this.searchResultSubject.asObservable();
 
 
-  constructor(private server: ServerService) { 
+  constructor(
+    private server: ServerService,
+    private wallets: WalletsService
+    ) {
     this.server.state$.subscribe(state => this.processServerState(state));
     this.server.message$.subscribe(message => this.processMessage(message));
     this.timerSync = setInterval(() => this.ongoingSync(), 1000);
+    this.wallets.selectedAccountChanged$.subscribe(address => this.addAccount(address));
+    this.addAccount(this.wallets.selectedAccountAddress());
   }
 
   ngOnDestroy() {

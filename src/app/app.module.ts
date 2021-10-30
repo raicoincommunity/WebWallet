@@ -30,7 +30,8 @@ import { TransactionDetailsComponent } from './components/transaction-details/tr
 import { BridgeBscComponent } from './components/bridge-bsc/bridge-bsc.component';
 import { environment } from '../environments/environment';
 import { LiquidityRewardComponent } from './components/liquidity-reward/liquidity-reward.component';
-import { FaucetComponent } from './components/faucet/faucet.component'
+import { FaucetComponent } from './components/faucet/faucet.component';
+import { AccountWidgetComponent } from './components/account-widget/account-widget.component'
 
 const providerOptions = {
   walletconnect: {
@@ -71,7 +72,8 @@ const providerOptions = {
     TransactionDetailsComponent,
     BridgeBscComponent,
     LiquidityRewardComponent,
-    FaucetComponent
+    FaucetComponent,
+    AccountWidgetComponent
   ],
   imports: [
     BrowserModule,

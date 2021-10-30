@@ -6,6 +6,7 @@ import { SettingsService } from './services/settings.service';
 import { ServerState, ServerService } from './services/server.service';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
+import { AliasService } from './services/alias.service';
 
 @Component({
   selector: 'app-root',
@@ -17,6 +18,7 @@ export class AppComponent implements OnInit, OnDestroy {
   inactiveSeconds: number = 0;
   windowHeight:number = 1000;
   state: ServerState = ServerState.DISCONNECTED;
+  addressToggle: boolean = true;
 
   @HostListener('window:resize', ['$event']) onResize (e: any) {
     this.windowHeight = e.target.innerHeight;
@@ -29,8 +31,8 @@ export class AppComponent implements OnInit, OnDestroy {
     private wallets: WalletsService, 
     private settings: SettingsService,
     private server: ServerService,
+    private alias: AliasService,
     private notification: NotificationService){
-
   }
 
   ngOnInit() {
@@ -75,9 +77,15 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   copied() {
-    let msg = marker('Account address copied to clipboard!');
-    this.translate.get(msg).subscribe(res => msg = res);
-    this.notification.sendSuccess(msg);
+    if (this.showAlias()) {
+      let msg = marker('Account alias copied to clipboard!');
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendSuccess(msg);  
+    } else {
+      let msg = marker('Account address copied to clipboard!');
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendSuccess(msg);  
+    }
   }
 
   walletIndex(): number {
@@ -129,4 +137,30 @@ export class AppComponent implements OnInit, OnDestroy {
   synchronizing(): boolean {
     return this.wallets.synchronizing();
   }
+
+  hasAlias(): boolean {
+    return !!this.alias.alias(this.wallets.selectedAccountAddress());
+  }
+
+  showAlias(): boolean {
+    if (!this.hasAlias()) return false;
+    return this.addressToggle;
+  }
+
+  toggleAddress() {
+    this.addressToggle = !this.addressToggle;
+  }
+
+  getAlias(): string {
+    return this.alias.alias(this.wallets.selectedAccountAddress());
+  }
+
+  copyAccountOrAlias(): string {
+    if (this.showAlias()) {
+      return this.getAlias();
+    } else {
+      return this.selectedAccountAddress();
+    }
+  }
+
 }

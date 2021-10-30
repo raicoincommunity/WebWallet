@@ -33,7 +33,7 @@
                     {{ 'Balance' | translate }}
                   </div>
                   <div class="uk-width-3-5 uk-text-left">
-                    {{ balance() | balance: 9 }}
+                    {{ balance() | balance: 9: false }}
                   </div>
                 </div>
               </div>
@@ -44,7 +44,7 @@
                     {{ 'Pending' | translate }}
                   </div>
                   <div class="uk-width-3-5 uk-text-left">
-                    {{ pending() | balance: 9 }}
+                    {{ pending() | balance: 9: false }}
                   </div>
                 </div>
               </div>
@@ -57,7 +57,7 @@
                   <div class="uk-width-3-5 uk-text-left">
                     <div uk-grid>
                       <div class="uk-width-expand uk-text-truncate ">
-                        {{ receivable() | balance: 9 }}
+                        {{ receivable() | balance: 9: false }}
                       </div>
                       <div class="uk-width-auto" style="padding-left: 10px;">
                         <ul class="uk-hidden-hover uk-iconnav">
@@ -146,8 +146,8 @@
 
                 <td class="uk-text-right">
                   <span *ngIf="info.amount.value.eq(0)">0 RAI</span>
-                  <span *ngIf="!info.amount.value.eq(0) && info.amount.negative" class="uk-text-danger">{{ info.amount | balance }}</span>
-                  <span *ngIf="!info.amount.value.eq(0) && !info.amount.negative" class="uk-text-success">+{{ info.amount | balance }}</span>
+                  <span *ngIf="!info.amount.value.eq(0) && info.amount.negative" class="uk-text-danger">{{ info.amount | balance: 9: false }}</span>
+                  <span *ngIf="!info.amount.value.eq(0) && !info.amount.negative" class="uk-text-success">+{{ info.amount | balance: 9: false }}</span>
                 </td>
                 <td class="uk-text-center">
                   <span *ngIf="status(info.block) === 'confirmed'" uk-icon="icon: check;" class="uk-text-success"  title="{{ status(info.block) | translate }}" uk-tooltip ></span>

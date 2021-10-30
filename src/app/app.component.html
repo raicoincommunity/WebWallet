@@ -19,11 +19,15 @@
           </div>
           <div *ngIf="configured()">
             <div uk-grid>
-              <div class="uk-width-expand uk-text-truncate uk-text-bold uk-padding-remove-right">
+              <div *ngIf="!showAlias()" class="uk-width-expand uk-text-truncate uk-text-bold uk-padding-remove-right">
                 {{ 'Account' | translate }}: <a [routerLink]="'/account/' + selectedAccountAddress()" style="color:#666">{{ selectedAccountAddress() }}</a>
               </div>
+              <div *ngIf="showAlias()" class="uk-width-expand uk-text-truncate uk-text-bold uk-padding-remove-right">
+                {{ 'Account' | translate }}: <a [routerLink]="'/account/' + selectedAccountAddress()" style="color:#666">{{ getAlias() }}</a>
+              </div>
               <div class="uk-width-auto uk-padding-remove-left">
-                <span ngxClipboard [cbContent]="selectedAccountAddress()" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="{{ 'Copy Account Address' | translate }}" uk-tooltip></span>
+                <span *ngIf="hasAlias()" (click)="toggleAddress()" uk-icon="icon: user" title="{{ 'Switch Address and Alias' | translate }}" uk-tooltip></span>
+                <span ngxClipboard [cbContent]="copyAccountOrAlias()" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="{{ 'Copy Account Address or Alias' | translate }}" uk-tooltip></span>
               </div>
             </div>
           </div>
@@ -116,12 +120,16 @@
             </div>
             <div *ngIf="configured()">
               <div uk-grid>
-                <div class="uk-width-expand uk-text-truncate uk-text-bold uk-padding-remove-right">
+                <div *ngIf="!showAlias()" class="uk-width-expand uk-text-truncate uk-text-bold uk-padding-remove-right">
                   {{ 'Account' | translate }}: <a [routerLink]="'/account/' + selectedAccountAddress()" style="color:#666">{{ selectedAccountAddress() }}</a>
                 </div>
-                <div class="uk-width-auto uk-padding-remove-left">
-                  <span ngxClipboard [cbContent]="selectedAccountAddress()" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="{{ 'Copy Account Address' | translate }}" uk-tooltip></span>
+                <div *ngIf="showAlias()" class="uk-width-expand uk-text-truncate uk-text-bold uk-padding-remove-right">
+                  {{ 'Account' | translate }}: <a [routerLink]="'/account/' + selectedAccountAddress()" style="color:#666">{{ getAlias() }}</a>
                 </div>
+                <div class="uk-width-auto uk-padding-remove-left">
+                  <span *ngIf="hasAlias()" (click)="toggleAddress()" uk-icon="icon: user" title="{{ 'Switch Address and Alias' | translate }}" uk-tooltip></span>
+                  <span ngxClipboard [cbContent]="copyAccountOrAlias()" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="{{ 'Copy Account Address or Alias' | translate }}" uk-tooltip></span>
+                  </div>
               </div>
             </div>
             <div *ngIf="configured()">

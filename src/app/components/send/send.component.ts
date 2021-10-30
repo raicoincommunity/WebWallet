@@ -9,7 +9,6 @@ import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { AliasService } from '../../services/alias.service';
-import { AccountsComponent } from '../accounts/accounts.component';
 
 @Component({
   selector: 'app-send',
@@ -187,14 +186,20 @@ export class SendComponent implements OnInit {
       return 0;
     }
 
-    if (this.destinationName) {
+    if (this.destinationName || this.destinationDns) {
       if (this.destinationName !== this.alias.name(this.destinationAccount)) {
+        return 2;
+      }
+      if (this.destinationDns !== this.alias.dns(this.destinationAccount)) {
         return 2;
       }
     }
 
     if (this.destinationDns) {
-      if (this.destinationDns !== this.alias.dns(this.destinationAccount)) {
+      if (!this.alias.verified(this.destinationAccount)) {
+        return 0;
+      }
+      if (!this.alias.dnsValid(this.destinationAccount)) {
         return 2;
       }
     }

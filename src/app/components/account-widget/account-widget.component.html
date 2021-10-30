@@ -1,0 +1,15 @@
+<div uk-grid>
+    <div *ngIf="!showAlias()" class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+      {{ title }}: <a [routerLink]="'/account/'+selectedAccountAddress()" class="uk-text-bold uk-link-text">{{ selectedAccountAddress() }}</a>
+    </div>
+    <div *ngIf="showAlias()" class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+        {{ title }}: <a [routerLink]="'/account/'+selectedAccountAddress()" class="uk-text-bold uk-link-text">{{ getAlias() }}</a>
+    </div>
+    <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+      <ul class="uk-hidden-hover uk-iconnav">
+        <li *ngIf="hasAlias()"><a uk-icon="icon: user;" title="{{ 'Switch Address and Alias' | translate }}" uk-tooltip (click)="toggleAddress()"></a></li>
+        <li *ngIf="changable"><a uk-icon="icon: pencil;" title="{{ 'Change Account' | translate }}" uk-tooltip routerLink="/accounts"></a></li>
+        <li *ngIf="copyable"><a ngxClipboard [cbContent]="copyAccountOrAlias()" (cbOnSuccess)="copied()" uk-icon="icon: copy;" title="{{ 'Copy Account Address or Alias' | translate }}" uk-tooltip ></a></li>
+      </ul>
+    </div>
+</div>

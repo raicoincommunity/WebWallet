@@ -18,15 +18,7 @@
       </div>
     </div>
 
-    <div uk-grid>
-      <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
-        {{ 'The account in using' | translate }}: <a [routerLink]="'/account/'+selectedAccount()" class="uk-text-bold uk-link-text">{{ selectedAccount() }}</a>
-      </div>
-      <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
-        <span ngxClipboard [cbContent]="selectedAccount()" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="{{ 'Copy Account Address' | translate }}" uk-tooltip></span>
-      </div>
-    </div>
-  
+    <app-account-widget raiTitle="{{ 'The account in using' | translate }}" [raiChangable]="false"></app-account-widget>
 
 
     <div class="uk-card uk-card-default uk-margin-top">
