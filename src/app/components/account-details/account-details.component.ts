@@ -6,6 +6,7 @@ import { Block, BlockInfo } from '../../services/blocks.service';
 import { ServerService } from '../../services/server.service';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
+import { AliasService } from '../../services/alias.service';
 
 @Component({
   selector: 'app-account-details',
@@ -24,15 +25,18 @@ export class AccountDetailsComponent implements OnInit {
     private translate: TranslateService,
     private wallets: WalletsService,
     private server: ServerService,
+    private alias: AliasService,
     private notification: NotificationService) {
 
   }
 
   ngOnInit(): void {
     this.address = this.route.snapshot.params.address;
+    if (!this.address.startsWith('rai_') || this.address.length !== 64) return;
     if (!this.wallets.getRecentBlocksSize(this.address)) {
       this.wallets.setRecentBlocksSize(10, this.address);
     }
+    this.alias.addAccount(this.address);
   }
 
   copied() {
@@ -92,4 +96,22 @@ export class AccountDetailsComponent implements OnInit {
     this.wallets.setRecentBlocksSize(size + 10, this.address);
   }
 
+  getAlias(): string {
+    if (!this.address) return '';
+    return this.alias.alias(this.address);
+  }
+
+  dnsValid(): boolean {
+    if (!this.address) return false;
+    if (!this.alias.dns(this.address)) return false;
+    if (!this.alias.verified(this.address)) return false;
+    return this.alias.dnsValid(this.address);
+  }
+
+  dnsInvalid(): boolean {
+    if (!this.address) return false;
+    if (!this.alias.dns(this.address)) return false;
+    if (!this.alias.verified(this.address)) return false;
+    return !this.alias.dnsValid(this.address);
+  }
 }
