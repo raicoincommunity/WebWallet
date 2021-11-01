@@ -39,7 +39,7 @@ export class SendComponent implements OnInit {
   private subAccountRegex = /^(rai_[13456789abcdefghijkmnopqrstuwxyz]{60})_(.+)$/u;
   private aliasRegex = /^(.+)<(rai_[13456789abcdefghijkmnopqrstuwxyz]{60})>$/u;
   private subAliasRegex = /^(.+)<(rai_[13456789abcdefghijkmnopqrstuwxyz]{60})>_(.+)$/u;
-  private dnsRegexp = /^([a-z0-9-]{1,63}\.)+[a-z]{2,}$/i;
+  private dnsRegexp = /^[a-z0-9][a-z0-9-\.]{0,252}$/i;
 
   @ViewChild('destinationDropdown') destinationDropdown! : ElementRef;
   @ViewChild('destinationInput') destinationInput! : ElementRef;

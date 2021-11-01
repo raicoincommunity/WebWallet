@@ -27,6 +27,17 @@
         <div class="uk-padding-small" uk-grid>
           <div class="uk-width-1-1">
             <div uk-grid>
+              <div *ngIf="getAlias()" class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Alias' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ getAlias() }} <span *ngIf="dnsValid()" uk-icon="icon: check; ratio: 0.8;" class="uk-text-success" uk-tooltip title="{{ 'Account verified' | translate }}"></span><span *ngIf="dnsInvalid()" uk-icon="icon: warning; ratio: 0.8;" class="uk-text-warning" uk-tooltip title="{{ 'Account unverified' | translate }}"></span>
+                  </div>
+                </div>
+              </div>      
+
               <div class="uk-width-1-1">
                 <div uk-grid>
                   <div class="uk-width-2-5 uk-text-left">
