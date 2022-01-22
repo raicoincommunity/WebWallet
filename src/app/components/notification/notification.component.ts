@@ -22,6 +22,11 @@ export class NotificationComponent implements OnInit {
         if (existing) return;
       }
 
+      const existing = this.notifications.find(n => {
+        return n.message === notification.message;
+      });
+      if (existing) return;
+
       this.notifications.push(notification);
       let timeout = notification.options.timeout;
       if (timeout) {

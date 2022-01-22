@@ -6,7 +6,7 @@ import { WalletsService } from './wallets.service';
 @Injectable({
   providedIn: 'root'
 })
-export class AliasService  implements OnDestroy {
+export class AliasService implements OnDestroy {
   private accounts: {[account:string]: AliasInfo} = {};
   private timerSync: any = null;
   private SERVICE = 'alias';
@@ -293,7 +293,7 @@ export class AliasService  implements OnDestroy {
   }
 
   private processAccountSyncAck(message: any) {
-    if (!message.request_id || message.error || message.synchronized) return;
+    if (!message.request_id || message.error || !message.synchronized) return;
 
     const id = message.request_id;
     if (!id.startsWith('account:')) return;

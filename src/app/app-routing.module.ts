@@ -15,6 +15,7 @@ import { TransactionDetailsComponent } from './components/transaction-details/tr
 import { BridgeBscComponent } from './components/bridge-bsc/bridge-bsc.component';
 import { LiquidityRewardComponent } from './components/liquidity-reward/liquidity-reward.component';
 import { FaucetComponent } from './components/faucet/faucet.component';
+import { IssueTokenComponent } from './components/issue-token/issue-token.component';
 
 const routes: Routes = [
   { path: '', component: WelcomeComponent },
@@ -31,6 +32,7 @@ const routes: Routes = [
   { path: 'transaction/:hash', component: TransactionDetailsComponent },
   { path: 'liquidity-reward', component: LiquidityRewardComponent },
   { path: 'faucet', component: FaucetComponent },
+  { path: 'issue-token', component: IssueTokenComponent },
 ];
 
 @NgModule({

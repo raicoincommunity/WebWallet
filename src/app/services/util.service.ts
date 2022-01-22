@@ -183,6 +183,30 @@ function hexToUint8(hex: string): Uint8Array {
   return uint8;
 }
 
+function boolStrToUint8(bool: string): Uint8Array {
+  const uint8 = new Uint8Array(1);
+  if (bool === "true") {
+    uint8[0] = 1;
+    return uint8;
+  } else if (bool === "false") {
+    uint8[0] = 0;
+    return uint8;
+  } else {
+    return new Uint8Array();
+  }
+}
+
+function uint8ToBoolStr(array: Uint8Array, offset: number): string {
+  if (array.length <= offset) return '';
+  if (array[offset] === 0) {
+    return 'false';
+  } else if (array[offset] === 1) {
+    return 'true';
+  } else {
+    return '';
+  }
+}
+
 function generateSeed(): Uint8Array {
   return nacl.randomBytes(32);
 }
@@ -691,6 +715,27 @@ export class U256 extends Uint {
     this.bytes = key_array;
     return false;
   }
+
+  toBalanceStr(decimals: U8): string {
+    const BigNumberCustom = BigNumber.another({ DECIMAL_PLACES: 255 });
+    const decimalsValue = new BigNumberCustom(10).pow(decimals.toNumber());
+    let result = new BigNumberCustom(this.toBigNumber()).div(decimalsValue).toFormat(decimals.toNumber(), 1);
+
+    if (decimals.toNumber() === 0)
+    {
+      return result;
+    }
+
+    while (result.length > 1 && result[result.length - 1] === '0') {
+      result = result.slice(0, result.length - 1);
+    }
+
+    if (result[result.length - 1] === '.') {
+      result = result.slice(0, result.length - 1);
+    }
+
+    return result;
+  }
 }
 
 export class U512 extends Uint {
@@ -708,6 +753,7 @@ export enum ExtensionType {
   SUB_ACCOUNT = 1,
   NOTE        = 2,
   ALIAS       = 3,
+  TOKEN       = 4,
 
   RESERVED_MAX = 1023,
 }
@@ -717,6 +763,7 @@ export enum ExtensionTypeStr {
   SUB_ACCOUNT = 'sub_account',
   NOTE        = 'note',
   ALIAS       = 'alias',
+  TOKEN       = 'token',
 }
 
 export enum ExtensionAliasOp {
@@ -731,9 +778,369 @@ export enum ExtensionAliasOpStr {
   DNS         = 'dns',
 }
 
+export enum ExtensionTokenOp {
+  INVALID = 0,
+  CREATE  = 1,
+  MINT    = 2,
+  BURN    = 3,
+  SEND    = 4,
+  RECEIVE = 5,
+  SWAP    = 6,
+  UNMAP   = 7,
+  WRAP    = 8,
+}
+
+export enum ExtensionTokenOpStr {
+  INVALID = 'invalid',
+  CREATE  = 'create',
+  MINT    = 'mint',
+  BURN    = 'burn',
+  SEND    = 'send',
+  RECEIVE = 'receive',
+  SWAP    = 'swap',
+  UNMAP   = 'unmap',
+  WRAP    = 'wrap',
+}
+
+export enum TokenType {
+  INVALID = 0,
+  _20     = 1,
+  _721    = 2,
+}
+
+export enum TokenTypeStr {
+  INVALID = 'invalid',
+  _20     = '20',
+  _721    = '721',
+}
+
+type TokenTypeMap = [TokenType, TokenTypeStr];
+const tokenTypeMaps: TokenTypeMap[] = [
+  [TokenType.INVALID, TokenTypeStr.INVALID],
+  [TokenType._20, TokenTypeStr._20],
+  [TokenType._721, TokenTypeStr._721],
+]
+
+export class TokenHelper {
+  static toType(str: string): TokenType {
+    const map = tokenTypeMaps.find(x => str === x[1]);
+    if (map) return map[0];
+    return TokenType.INVALID;
+  }
+
+  static toTypeStr(type: TokenType): string {
+    const map = tokenTypeMaps.find(x => type === x[0]);
+    if (map) return map[1];
+    return '';
+  }
+}
+
+export enum Chain {
+  INVALID                 = 0,
+  RAICOIN                 = 1,
+  BITCOIN                 = 2,
+  ETHEREUM                = 3,
+  BINANCE_SMART_CHAIN     = 4,
+
+  RAICOIN_TEST                = 10010,
+  BITCOIN_TEST                = 10020,
+  ETHEREUM_TEST_ROPSTEN       = 10030,
+  ETHEREUM_TEST_KOVAN         = 10031,
+  ETHEREUM_TEST_RINKEBY       = 10032,
+  ETHEREUM_TEST_GOERLI        = 10033,
+  BINANCE_SMART_CHAIN_TEST    = 10040,
+}
+
+export enum ChainStr {
+  INVALID                 = 'invalid',
+  RAICOIN                 = 'raicoin',
+  BITCOIN                 = 'bitcoin',
+  ETHEREUM                = 'ethereum',
+  BINANCE_SMART_CHAIN     = 'binance smart chain',
+
+  RAICOIN_TEST                = 'raicoin testnet',
+  BITCOIN_TEST                = 'bitcoin testnet',
+  ETHEREUM_TEST_ROPSTEN       = 'ethereum ropsten testnet',
+  ETHEREUM_TEST_KOVAN         = 'ethereum kovan testnet',
+  ETHEREUM_TEST_RINKEBY       = 'ethereum rinkeby testnet',
+  ETHEREUM_TEST_GOERLI        = 'ethereum goerli testnet',
+  BINANCE_SMART_CHAIN_TEST    = 'binance smart chain testnet',
+}
+
+type ChainMap = [Chain, ChainStr];
+const chainMaps: ChainMap[] = [
+  [Chain.INVALID, ChainStr.INVALID],
+  [Chain.RAICOIN, ChainStr.RAICOIN],
+  [Chain.BITCOIN, ChainStr.BITCOIN],
+  [Chain.ETHEREUM, ChainStr.ETHEREUM],
+  [Chain.BINANCE_SMART_CHAIN, ChainStr.BINANCE_SMART_CHAIN],
+
+  [Chain.RAICOIN_TEST, ChainStr.RAICOIN_TEST],
+  [Chain.BITCOIN_TEST, ChainStr.BITCOIN_TEST],
+  [Chain.ETHEREUM_TEST_ROPSTEN, ChainStr.ETHEREUM_TEST_ROPSTEN],
+  [Chain.ETHEREUM_TEST_KOVAN, ChainStr.ETHEREUM_TEST_KOVAN],
+  [Chain.ETHEREUM_TEST_RINKEBY, ChainStr.ETHEREUM_TEST_RINKEBY],
+  [Chain.ETHEREUM_TEST_GOERLI, ChainStr.ETHEREUM_TEST_GOERLI],
+  [Chain.BINANCE_SMART_CHAIN_TEST, ChainStr.BINANCE_SMART_CHAIN_TEST]
+]
+
+export class ChainHelper {
+  static toChain(str: string): Chain {
+    const map = chainMaps.find(x => str === x[1]);
+    if (map) return map[0];
+    return Chain.INVALID;
+  }
+
+  static toChainStr(chain: Chain): string {
+    const map = chainMaps.find(x => chain === x[0]);
+    if (map) return map[1];
+    return '';
+  }
+}
+
+interface ExtensionTokenCodec {
+  encode(value: any): Uint8Array;
+  decode(array: Uint8Array, value: {[key: string]: string}): void;
+}
+
+const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
+  'create': {
+    encode: (value: any) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      count += 1;
+      buffer.set([ExtensionTokenOp.CREATE]);
+
+      if (!value.name || typeof value.name !== 'string') {
+        throw new Error(`ExtensionHelper.token.create.encode: invalid name=${value.name}`);
+      }
+      const name = new TextEncoder().encode(value.name);
+      if (name.length > 255) {
+        throw new Error(`ExtensionHelper.token.create.encode: invalid name=${value.name}`);
+      }
+      count += 1;
+      buffer.set([name.length]);
+      count += name.length;
+      buffer.set(name);
+
+      if (!value.symbol || typeof value.symbol !== 'string') {
+        throw new Error(`ExtensionHelper.token.create.encode: invalid symbol=${value.symbol}`);
+      }
+      const symbol = new TextEncoder().encode(value.symbol);
+      if (symbol.length > 255) {
+        throw new Error(`ExtensionHelper.token.create.encode: invalid symbol=${value.symbol}`);
+      }
+      count += 1;
+      buffer.set([symbol.length]);
+      count += symbol.length;
+      buffer.set(symbol);
+
+      if (value.type === '20') {
+        if (!value.init_supply || typeof value.init_supply !== 'string') {
+          throw new Error(`ExtensionHelper.token.create.encode: invalid init_supply=${value.init_supply}`);
+        }
+        const initSupply = new U256(value.init_supply);
+        count += initSupply.bytes.length;
+        buffer.set(initSupply.bytes);
+
+        if (!value.cap_supply || typeof value.cap_supply !== 'string') {
+          throw new Error(`ExtensionHelper.token.create.encode: invalid cap_supply=${value.cap_supply}`);
+        }
+        const capSupply = new U256(value.cap_supply);
+        count += capSupply.bytes.length;
+        buffer.set(capSupply.bytes);
+
+        if (!value.decimals || typeof value.decimals !== 'string') {
+          throw new Error(`ExtensionHelper.token.create.encode: invalid decimals=${value.decimals}`);
+        }
+        const decimals = new U8(value.decimals);
+        count += decimals.bytes.length;
+        buffer.set(decimals.bytes);
+
+        if (!value.burnable || typeof value.burnable !== 'string') {
+          throw new Error(`ExtensionHelper.token.create.encode: invalid burnable=${value.burnable}`);
+        }
+        const burnable = boolStrToUint8(value.burnable);
+        if (burnable.length !== 1) {
+          throw new Error(`ExtensionHelper.token.create.encode: invalid burnable=${value.burnable}`);
+        }
+        count += 1;
+        buffer.set(burnable);
+
+        if (!value.mintable || typeof value.mintable !== 'string') {
+          throw new Error(`ExtensionHelper.token.create.encode: invalid mintable=${value.mintable}`);
+        }
+        const mintable = boolStrToUint8(value.mintable);
+        if (mintable.length !== 1) {
+          throw new Error(`ExtensionHelper.token.create.encode: invalid mintable=${value.mintable}`);
+        }
+        count += 1;
+        buffer.set(mintable);
+
+        if (!value.circulable || typeof value.circulable !== 'string') {
+          throw new Error(`ExtensionHelper.token.create.encode: invalid circulable=${value.circulable}`);
+        }
+        const circulable = boolStrToUint8(value.circulable);
+        if (circulable.length !== 1) {
+          throw new Error(`ExtensionHelper.token.create.encode: invalid circulable=${value.circulable}`);
+        }
+        count += 1;
+        buffer.set(circulable);
+
+      } else if (value.type === '721') {
+        if (!value.base_uri || typeof value.base_uri !== 'string') {
+          throw new Error(`ExtensionHelper.token.create.encode: invalid base_uri=${value.base_uri}`);
+        }
+        const baseUri = new TextEncoder().encode(value.base_uri);
+        if (baseUri.length > 255) {
+          throw new Error(`ExtensionHelper.token.create.encode: invalid base_uri=${value.base_uri}`);
+        }
+        count += 1;
+        buffer.set([baseUri.length]);
+        count += baseUri.length;
+        buffer.set(baseUri);
+  
+        if (!value.cap_supply || typeof value.cap_supply !== 'string') {
+          throw new Error(`ExtensionHelper.token.create.encode: invalid cap_supply=${value.cap_supply}`);
+        }
+        const capSupply = new U256(value.cap_supply);
+        count += capSupply.bytes.length;
+        buffer.set(capSupply.bytes);
+
+        if (!value.burnable || typeof value.burnable !== 'string') {
+          throw new Error(`ExtensionHelper.token.create.encode: invalid burnable=${value.burnable}`);
+        }
+        const burnable = boolStrToUint8(value.burnable);
+        if (burnable.length !== 1) {
+          throw new Error(`ExtensionHelper.token.create.encode: invalid burnable=${value.burnable}`);
+        }
+        count += 1;
+        buffer.set(burnable);
+
+        if (!value.circulable || typeof value.circulable !== 'string') {
+          throw new Error(`ExtensionHelper.token.create.encode: invalid circulable=${value.circulable}`);
+        }
+        const circulable = boolStrToUint8(value.circulable);
+        if (circulable.length !== 1) {
+          throw new Error(`ExtensionHelper.token.create.encode: invalid circulable=${value.circulable}`);
+        }
+        count += 1;
+        buffer.set(circulable);
+
+      } else {
+        throw new Error(`ExtensionHelper.token.create.encode: unknown op=${value.type}`);
+      }
+
+      return buffer.slice(0, count);
+    },
+    decode: (array: Uint8Array, value: {[key: string]: string}) => {
+      const streamError = new Error(`ExtensionHelper.token.create.decode: invalid stream`);
+      let offset = 0;
+      let end = 0;
+      const length = array.length;
+      const type = array[offset];
+      offset += 1;
+
+      if (offset + 1 > length) {
+        throw streamError;
+      }
+      const utf8Decoder = new TextDecoder('utf-8', {fatal: true});
+      const nameSize = array[offset];
+      offset += 1;
+      end = offset + nameSize
+      if (end > length) {
+        throw streamError;
+      }
+      value.name = utf8Decoder.decode(array.slice(offset, end));
+      offset += nameSize;
+
+      if (offset + 1 > length) {
+        throw streamError;
+      }
+      const symbolSize = array[offset];
+      offset += 1;
+      end = offset + symbolSize;
+      if (end > length) {
+        throw streamError;
+      }
+      value.symbol = utf8Decoder.decode(array.slice(offset, end));
+      offset += symbolSize;
+
+      if (type === TokenType._20) {
+        const initSupply = new U256();
+        let error = initSupply.fromArray(array, offset);
+        if (error) throw streamError;
+        value.init_supply = initSupply.toDec();
+        offset += initSupply.bytes.length;
+
+        const capSupply = new U256();
+        error = capSupply.fromArray(array, offset);
+        if (error) throw streamError;
+        value.cap_supply = capSupply.toDec();
+        offset += capSupply.bytes.length;
+
+        const decimals = new U8();
+        error = decimals.fromArray(array, offset);
+        if (error) throw streamError;
+        value.decimals = decimals.toDec();
+        offset += decimals.bytes.length;
+
+        const burnable = uint8ToBoolStr(array, offset);
+        if (!burnable) throw streamError;
+        value.burnable = burnable;
+        offset += 1;
+
+        const mintable = uint8ToBoolStr(array, offset);
+        if (!mintable) throw streamError;
+        value.mintable = mintable;
+        offset += 1;
+
+        const circulable = uint8ToBoolStr(array, offset);
+        if (!circulable) throw streamError;
+        value.circulabe = circulable;
+        offset += 1;
+
+      } else if (type === TokenType._721) {
+        if (offset + 1 > length) {
+          throw streamError;
+        }
+        const baseUriSize = array[offset];
+        offset += 1;
+        end = offset + baseUriSize
+        if (end > length) {
+          throw streamError;
+        }
+        value.base_uri = utf8Decoder.decode(array.slice(offset, end));
+        offset += baseUriSize;
+  
+        const capSupply = new U256();
+        let error = capSupply.fromArray(array, offset);
+        if (error) throw streamError;
+        value.cap_supply = capSupply.toDec();
+        offset += capSupply.bytes.length;
+
+        const burnable = uint8ToBoolStr(array, offset);
+        if (!burnable) throw streamError;
+        value.burnable = burnable;
+        offset += 1;
+
+        const circulable = uint8ToBoolStr(array, offset);
+        if (!circulable) throw streamError;
+        value.circulabe = circulable;
+        offset += 1;
+
+      } else {
+        throw streamError;
+      }
+
+      if (offset !== array.length) throw streamError;
+    }
+  }
+}
+
 interface ExtensionCodec {
   encode(value: any): Uint8Array;
-  decode(array: Uint8Array): string;
+  decode(array: Uint8Array): string | object;
 }
 
 const extensionCodecs: {[codec: string]: ExtensionCodec} = {
@@ -794,6 +1201,38 @@ const extensionCodecs: {[codec: string]: ExtensionCodec} = {
 
       return value;
     }
+  },
+
+  token: {
+    encode : (value: any) => {
+      if (!value.op || typeof value.op !== 'string') {
+        throw new Error(`ExtensionHelper.token.encode: invalid op=${value.op}`);
+      }
+
+      if (!tokenExtensionCodecs[value.op]) {
+        throw new Error(`ExtensionHelper.token.encode: codec missing, op=${value.op}`);
+      }
+
+      return tokenExtensionCodecs[value.op].encode(value);
+    },
+    decode :  (array: Uint8Array) => {
+      if (array.length <= 1) {
+        throw new Error(`ExtensionHelper.token.decode: bad length`);
+      }
+      const value: any = {}
+      if (array[0] == ExtensionTokenOp.CREATE) {
+        value.op = ExtensionTokenOpStr.CREATE;
+      } else {
+        throw new Error(`ExtensionHelper.token.decode: unknown op=${array[0]}`);
+      }
+
+      if (!tokenExtensionCodecs[value.op]) {
+        throw new Error(`ExtensionHelper.token.decode: codec missing, op=${value.op}`);
+      }
+
+      tokenExtensionCodecs[value.op].decode(array.slice(1), value);
+      return value;
+    }
   }
 };
 
@@ -802,6 +1241,7 @@ const extensionTypeMaps: ExtensionTypeMap[] = [
   [ExtensionType.SUB_ACCOUNT, ExtensionTypeStr.SUB_ACCOUNT, extensionCodecs.utf8],
   [ExtensionType.NOTE, ExtensionTypeStr.NOTE, extensionCodecs.utf8],
   [ExtensionType.ALIAS, ExtensionTypeStr.ALIAS, extensionCodecs.alias],
+  [ExtensionType.TOKEN, ExtensionTypeStr.TOKEN, extensionCodecs.token]
 ]
 
 export enum ExtensionError {
@@ -813,7 +1253,7 @@ export enum ExtensionError {
 export interface Extension {
   type: string;
   length: string;
-  value: string;
+  value: string | object;
   error?: ExtensionError;
 }
 
@@ -844,7 +1284,7 @@ export class ExtensionHelper {
     }
     catch (err) {
       return {...e, error: ExtensionError.VALUE};
-      }
+    }
     
     return e;
   }

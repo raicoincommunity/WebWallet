@@ -82,6 +82,13 @@
           </ul>
         </li>
 
+        <li class="uk-parent">
+          <a href="#" class="uk-margin-left">{{ 'Advanced' | translate }}</a>
+          <ul class="uk-nav-sub">
+            <li><a routerLink="/issue-token" routerLinkActive="active" class="uk-margin-left" uk-toggle="target: #mobile-nav">{{ 'Issue Token' | translate }}</a></li>
+          </ul>
+        </li>
+
       </ul>
     </div>
   </div>
@@ -177,6 +184,13 @@
               <li><a (click)="changeLang('ru')" class="uk-margin-left" [ngClass]="{'active': lang() === 'ru'}">Русский</a></li>
               <li><a (click)="changeLang('vi')" class="uk-margin-left" [ngClass]="{'active': lang() === 'vi'}">Tiếng Việt</a></li>
               <li><a (click)="changeLang('zh')" class="uk-margin-left" [ngClass]="{'active': lang() === 'zh'}">简体中文</a></li>
+            </ul>
+          </li>
+
+          <li class="uk-parent">
+            <a href="#" class="uk-margin-left">{{ 'Advanced' | translate }}</a>
+            <ul class="uk-nav-sub">
+              <li><a routerLink="/issue-token" routerLinkActive="active" class="uk-margin-left">{{ 'Issue Token' | translate }}</a></li>
             </ul>
           </li>
 

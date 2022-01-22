@@ -359,6 +359,10 @@ export class WalletsService implements OnDestroy {
     return { errorCode: WalletErrorCode.SUCCESS };
   }
 
+  changeExtension(extension: { [key: string]: any }, account?: Account, wallet?: Wallet) {
+    // todo:
+  }
+
   setName(name: string, account?: Account, wallet?: Wallet): WalletOpResult {
     if (!account) {
       account = this.selectedAccount();
