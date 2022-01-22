@@ -41,7 +41,7 @@
       </div>
 
       <div class="uk-margin" *ngIf='bound()'>
-        <label class="uk-form-label" for="form-horizontal-bound">{{ 'Max claimable amount' | translate }} <span uk-icon="icon: info;" uk-tooltip title="{{ 'Calculated by formula M=X+Y/50+Z/500, where M is your daily max claimable amount, X is your BNB balance, Y is your liquidity of RAI on pancakeswap, and Z is your BEP20 RAI balance.' | translate }}"></span></label>
+        <label class="uk-form-label" for="form-horizontal-bound">{{ 'Max claimable amount' | translate }} <span uk-icon="icon: info; ratio: 0.8;" uk-tooltip title="{{ 'Calculated by formula M=X+Y/50+Z/500, where M is your daily max claimable amount, X is your BNB balance, Y is your liquidity of RAI on pancakeswap, and Z is your BEP20 RAI balance.' | translate }}"></span></label>
         <div class="uk-form-controls">
           <div class="uk-inline uk-width-1-1">
             <input [ngModel]="maxClaimable()" class="uk-input" id="form-horizontal-bound" type="text" disabled autocomplete="off">

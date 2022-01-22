@@ -1,0 +1,305 @@
+<div class="uk-animation-slide-left-small" uk-grid>
+  <div class="uk-width-1-1">
+
+    <h2>{{ 'Issue & Manage Token' | translate }}</h2>
+    <p>
+      {{ 'Each account is allowed to create one Raicoin native token. The token address is same with the account address.' | translate }}
+      <br />
+      <app-account-widget raiTitle="{{ 'Your account' | translate }}" [raiCopyable]="false"></app-account-widget>
+    </p>
+
+    <!-- Create Token Panel -->
+    <div *ngIf="activePanel === 'create'" class="uk-card uk-card-default uk-margin">
+      <div class="uk-card-header">
+        <h3 class="uk-card-title">{{ 'Create Token' | translate }}</h3>
+      </div>
+    
+      <div class="uk-card-body">
+        <div class="uk-form-horizontal">
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-horizontal-select-token-type">{{ 'Type' | translate }} *</label>
+            <div class="uk-form-controls">
+              <select class="uk-select" [(ngModel)]="selectedTokenType"
+                id="form-horizontal-select-token-type">
+                <option value="RAI-20" selected>RAI-20</option>
+                <option value="RAI-721">RAI-721</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-horizontal-text-token-name">{{ 'Name' | translate }} *</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <input #elemTokenName [(ngModel)]="inputTokenName" class="uk-input" id="form-horizontal-text-token-name" type="text" placeholder="{{'Token name, such as Bitcoin' | translate}}" (keyup)="checkTokenName()" (change)="checkTokenName()" (blur)="checkTokenName()" [ngClass]="{ 'uk-form-danger': tokenNameStatus === 1 }">
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-horizontal-text-token-symbol">{{ 'Symbol' | translate }} *</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <input #elemTokenSymbol [(ngModel)]="inputTokenSymbol" class="uk-input" id="form-horizontal-text-token-symbol" type="text" placeholder="{{'Token symbol, such as BTC' | translate}}" (keyup)="checkTokenSymbol()" (change)="checkTokenSymbol()" (blur)="checkTokenSymbol()" [ngClass]="{ 'uk-form-danger': tokenSymbolStatus === 1 }">
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="selectedTokenType == 'RAI-20'" class="uk-margin">
+            <label class="uk-form-label" for="form-horizontal-text-decimals">{{ 'Decimals' | translate }}</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <input [(ngModel)]="inputDecimals" class="uk-input" id="form-horizontal-text-decimals" type="text" placeholder="18" [ngClass]="{ 'uk-form-danger': syncDecimals() }">
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="selectedTokenType == 'RAI-20'" class="uk-margin">
+            <label class="uk-form-label" for="form-horizontal-text-init-supply">{{ 'Initial Supply' | translate }}</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <span *ngIf="inputInitSupply !== ''"  class="uk-form-icon uk-form-icon-flip" style="padding-right: 17px;">{{ inputTokenSymbol }}</span>
+                <input [(ngModel)]="inputInitSupply" class="uk-input" id="form-horizontal-text-init-supply" type="text" placeholder="0" [ngClass]="{ 'uk-form-danger': syncInitSupply() }">
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-horizontal-text-cap-supply">{{ 'Cap Supply' | translate }}</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <span *ngIf="inputCapSupply !== ''" class="uk-form-icon uk-form-icon-flip" style="padding-right: 17px;">{{ inputTokenSymbol }}</span>
+                <input [(ngModel)]="inputCapSupply" class="uk-input" id="form-horizontal-text-cap-supply" type="text" placeholder="{{'Set to 0 or leave it blank as no limit' | translate}}" [ngClass]="{ 'uk-form-danger': syncCapSupply() }">
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="selectedTokenType == 'RAI-20'" class="uk-margin">
+            <label class="uk-form-label" for="form-horizontal-checkbox-mintable-20">{{ 'Mintable' | translate }} <span uk-icon="icon: info; ratio: 0.8;" uk-tooltip
+              title="{{ 'Allow the issuer to mint additional tokens after creation.' | translate }}"></span></label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <input class="uk-checkbox" type="checkbox" [checked]="inputMintable" (click)="toggleInputMintable()" id="form-horizontal-checkbox-mintable-20">
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="selectedTokenType == 'RAI-721'" class="uk-margin">
+            <label class="uk-form-label" for="form-horizontal-checkbox-mintable-721">{{ 'Mintable' | translate }}</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <input class="uk-checkbox" type="checkbox" disabled checked="true" id="form-horizontal-checkbox-mintable-721">
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-horizontal-checkbox-burnable">{{ 'Burnable' | translate }} <span uk-icon="icon: info; ratio: 0.8;" uk-tooltip
+              title="{{ 'Allow the issuer to burn tokens.' | translate }}"></span></label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <input class="uk-checkbox" type="checkbox" [checked]="inputBurnable" (click)="toggleInputBurnable()" id="form-horizontal-checkbox-burnable">
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-horizontal-checkbox-circulable">{{ 'Circulable' | translate }} <span uk-icon="icon: info; ratio: 0.8;" uk-tooltip
+                title="{{ 'If disabled, holders are only allowed to transfer or swap the token with the issuer.' | translate }}"></span></label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <input class="uk-checkbox" type="checkbox" [checked]="inputCirculable" (click)="toggleInputCirculable()" id="form-horizontal-checkbox-mintable-20">
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="selectedTokenType == 'RAI-721'" class="uk-margin">
+            <label class="uk-form-label" for="form-horizontal-text-base-uri">{{ 'Base URI' | translate }}</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <input [(ngModel)]="inputBaseUri" class="uk-input" id="form-horizontal-text-base-uri" type="text" placeholder="https://example.com/nft/">
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="uk-card-footer uk-text-right">
+        <div class="uk-button-group">
+          <button class="uk-button uk-button-primary uk-margin-left"
+            (click)="create()">{{ 'Create' | translate }}</button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Confirm Creation Panel -->
+    <div *ngIf="activePanel === 'confirmCreation'" uk-grid>
+      <div class="uk-width-1-1">
+        <div class="uk-card uk-card-default uk-text-center">
+          <span
+            style="display: block; padding: 8px; font-size: 32px">{{ 'Please recheck and confirm' | translate }}</span>
+        </div>
+        <br />
+    
+        <div uk-grid>
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title uk-text-truncate">{{ selectedTokenType }}</span>
+                    <span class="confirm-subtitle">{{ 'Type' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+    
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title uk-text-truncate">{{ inputTokenName }}</span>
+                    <span class="confirm-subtitle">{{ 'Name' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+    
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title uk-text-truncate">{{ inputTokenSymbol }}</span>
+                    <span class="confirm-subtitle">{{ 'Symbol' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+    
+          <div *ngIf="selectedTokenType === 'RAI-20'" class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title uk-text-truncate">{{ getDecimals() }}</span>
+                    <span class="confirm-subtitle">{{ 'Decimals' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+    
+          <div *ngIf="selectedTokenType === 'RAI-20'" class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title uk-text-truncate">{{ getInitSupply() }}</span>
+                    <span class="confirm-subtitle">{{ 'Initial Supply' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+    
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title uk-text-truncate">{{ getCapSupply() }}</span>
+                    <span class="confirm-subtitle">{{ 'Cap Supply' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+    
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title uk-text-truncate">{{ getMintable() }}</span>
+                    <span class="confirm-subtitle">{{ 'Mintable' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+    
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title uk-text-truncate">{{ getBurnable() }}</span>
+                    <span class="confirm-subtitle">{{ 'Burnable' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+    
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title uk-text-truncate">{{ getCirculable() }}</span>
+                    <span class="confirm-subtitle">{{ 'Circulable' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+    
+          <div *ngIf="selectedTokenType === 'RAI-721'" class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title uk-text-truncate">{{ inputBaseUri }}</span>
+                    <span class="confirm-subtitle">{{ 'Base URI' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+    
+        <div uk-grid>
+          <div class="uk-width-1-2@s">
+            <button (click)="activePanel = 'create'"
+              class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate }}</button>
+          </div>
+          <div class="uk-width-1-2@s">
+            <button class="uk-button uk-button-primary uk-width-1-1"
+              (click)="confirmCreation()">{{ 'Confirm' | translate }}</button>
+          </div>
+        </div>
+    
+      </div>
+    </div>
+
+
+  </div>
+</div>
