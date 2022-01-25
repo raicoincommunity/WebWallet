@@ -359,8 +359,33 @@ export class WalletsService implements OnDestroy {
     return { errorCode: WalletErrorCode.SUCCESS };
   }
 
-  changeExtension(extension: { [key: string]: any }, account?: Account, wallet?: Wallet) {
-    // todo:
+  changeExtensions(extensions: { [key: string]: any }[], account?: Account, wallet?: Wallet) {
+    if (!account) {
+      account = this.selectedAccount();
+    }
+
+    if (!wallet) {
+      wallet = this.wallet;
+    }
+
+    let errorCode = this.accountActionCheck(account, wallet);
+    if (errorCode !== WalletErrorCode.SUCCESS) return { errorCode };
+
+    if (!account?.created()) {
+      return { error_code: WalletErrorCode.NOT_ACTIVATED }
+    }
+
+    let blockInfo = this.generateChangeBlock(account!, wallet!, '', extensions);
+    if (blockInfo.errorCode !== WalletErrorCode.SUCCESS || !blockInfo.block) {
+      return { errorCode: blockInfo.errorCode };
+    }
+
+    let amount: Amount = { negative: false, value: new U128(0) };
+    this.receiveBlock(blockInfo.block, amount, false, true);
+
+    this.blockPublish(blockInfo.block);
+
+    return { errorCode: WalletErrorCode.SUCCESS };
   }
 
   setName(name: string, account?: Account, wallet?: Wallet): WalletOpResult {
@@ -1983,6 +2008,7 @@ export enum WalletErrorCode {
   DISCONNECTED = 'Not connected to server yet',
   BALANCE = 'Not enough balance',
   CREDIT_MAX = 'Account\'s max allowed daily transactions limit is 1310700',
+  NOT_ACTIVATED = 'The account is not activated, please deposit some Raicoin to activate it'
 }
 marker('Success');
 marker('Invalid seed');
