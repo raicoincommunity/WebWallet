@@ -623,6 +623,14 @@ export class U64 extends Uint {
     return a.eq(b);
   }
 
+  isMax(): boolean {
+    return this.eq(U64.max());
+  }
+
+  valid(): boolean {
+    return !this.isMax();
+  }
+
 }
 
 export class U128 extends Uint {
