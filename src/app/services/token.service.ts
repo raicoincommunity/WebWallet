@@ -1,7 +1,11 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { ServerService, ServerState } from './server.service';
 import { WalletsService } from './wallets.service';
-import { U64, U256, TokenType, U8, TokenHelper, U32} from './util.service';
+import { U64, U256, TokenType, U8, TokenHelper, U32, ChainHelper, Chain, ChainStr} from './util.service';
+import { environment } from '../../environments/environment';
+import { Subject } from 'rxjs';
+import { THIS_EXPR } from '@angular/compiler/src/output/output_ast';
+
 
 @Injectable({
   providedIn: 'root'
@@ -10,8 +14,11 @@ export class TokenService implements OnDestroy {
   private SERVICE = 'token';
   private accounts: {[account: string]: AccountTokensInfo} = {};
   private tokenBlocks: {[accountHeight: string]: TokenBlock} = {};
+  private tokenInfos: {[chainAddress: string]: TokenInfo} = {};
   private timerSync: any = null;
+  private issuerSubject = new Subject<{account: string, created: boolean}>();
 
+  public issuer$ = this.issuerSubject.asObservable();
 
   constructor(
     private server: ServerService,
@@ -43,6 +50,31 @@ export class TokenService implements OnDestroy {
     this.ongoingSync();
   }
 
+  issued(address: string): boolean {
+    const info = this.accounts[address];
+    if (!info) return false;
+    return info.issuerInfo.created;
+  }
+
+  issuerQueried(address: string): boolean {
+    if (!address) return false;
+    const info = this.accounts[address];
+    if (!info) return false;
+    return info.issuerInfo.queried;
+  }
+
+  tokenInfo(address: string | U256, chain?: string): TokenInfo | undefined {
+    if (!chain) {
+      chain = environment.current_chain;
+    }
+    if (typeof address === 'string') {
+      const ret = ChainHelper.addressToRaw(chain, address);
+      if (ret.error) return;
+      address = ret.raw!;
+    }
+    return this.getTokenInfo(chain, address);
+  }
+
   private processServerState(state: ServerState) {
     if (state === ServerState.CONNECTED) {
       this.ongoingSync(true);
@@ -61,6 +93,8 @@ export class TokenService implements OnDestroy {
 
       this.subscribe(address);
       this.queryAccountTokensInfo(address);
+      this.queryTokenInfo(environment.current_chain, address);
+      this.queryTokenReceivables(address);
       // todo:
 
       if (info.subscribed) {
@@ -89,6 +123,20 @@ export class TokenService implements OnDestroy {
       account: address,
       request_id: `account:${address}`
     };
+    this.server.send(message);
+  }
+
+  private queryTokenInfo(chain: string, address: string | U256) {
+    const message: any = {
+      action: 'token_info',
+      service: this.SERVICE,
+      chain
+    };
+    if (address instanceof U256) {
+      message.address_raw = address.toHex();
+    } else {
+      message.address = address;
+    }
     this.server.send(message);
   }
 
@@ -121,6 +169,9 @@ export class TokenService implements OnDestroy {
         case 'previous_token_blocks':
           this.processTokenBlocksQueryAck(message, true);
           break;
+        case 'token_info':
+          this.processTokenInfoQueryAck(message);
+          break;
         default:
           break;
       }
@@ -129,6 +180,9 @@ export class TokenService implements OnDestroy {
       switch (message.notify) {
         case 'account_synchronize':
           this.processAccountSyncNotify(message);
+          break;
+        case 'token_info':
+          this.processTokenInfoNotify(message);
           break;
         default:
           break;
@@ -253,12 +307,54 @@ export class TokenService implements OnDestroy {
     this.syncTokenBlocks(account, info);
   }
 
+  private processTokenInfoQueryAck(message: any) {
+    if (!message.chain || !message.address || !message.address_raw) return;
+    if (message.error) {
+      if (message.error === "The token doesn't exist") {
+        if (!this.isRaicoin(message.chain)) return;
+        const info = this.accounts[message.address];
+        if (!info) return;
+        info.issuerInfo.queried = true;
+        this.issuerSubject.next({account: message.address, created: info.issuerInfo.created});
+      }
+      return;
+    }
+
+    const tokenInfo = new TokenInfo();
+    let error = tokenInfo.fromJson(message);
+    if (error) return;
+    this.putTokenInfo(tokenInfo.chain, tokenInfo.addressRaw, tokenInfo);
+
+    if (this.isRaicoin(tokenInfo.chain)) {
+      const info = this.accounts[message.address];
+      if (!info) return;
+      info.issuerInfo.queried = true;
+      info.issuerInfo.created = true;
+      this.issuerSubject.next({account: message.address, created: info.issuerInfo.created});
+    }
+  }
+
   private processAccountSyncNotify(message: any) {
     if (!message.account || !message.synchronized) return;
 
     const info = this.accounts[message.account];
     if (!info) return;
     info.synced = message.synchronized === 'true';
+  }
+
+  private processTokenInfoNotify(message: any) {
+    const tokenInfo = new TokenInfo();
+    let error = tokenInfo.fromJson(message);
+    if (error) return;
+    this.putTokenInfo(tokenInfo.chain, tokenInfo.addressRaw, tokenInfo);
+
+    if (this.isRaicoin(tokenInfo.chain)) {
+      const info = this.accounts[message.address];
+      if (!info) return;
+      info.issuerInfo.queried = true;
+      info.issuerInfo.created = true;
+      this.issuerSubject.next({account: message.address, created: info.issuerInfo.created});
+    }
   }
 
   private updateAccountTokensInfo(address: string, json: any) {
@@ -394,6 +490,16 @@ export class TokenService implements OnDestroy {
     this.server.send(message);
   }
 
+  private queryTokenReceivables(account: string, count?: U64) {
+    const message: any = {
+      action: 'token_receivables',
+      service: this.SERVICE,
+      account,
+      count: count ? count.toDec() : '100'
+    };
+    this.server.send(message);
+  }
+
   private putTokenBlock(account: string, height: U64, token_block: TokenBlock) {
     const key = `${account}_${height.toDec()}`;
     this.tokenBlocks[key] = token_block;
@@ -402,6 +508,23 @@ export class TokenService implements OnDestroy {
   private getTokenBlock(account: string, height: U64): TokenBlock | undefined {
     const key = `${account}_${height.toDec()}`;
     return this.tokenBlocks[key];
+  }
+
+  private putTokenInfo(chain: string, addressRaw: U256, info: TokenInfo) {
+    const key = `${chain}_${addressRaw.toHex()}`;
+    this.tokenInfos[key] = info;
+  }
+
+  private getTokenInfo(chain: string | Chain, addressRaw: U256): TokenInfo | undefined {
+    if (typeof chain === 'number') {
+      chain = ChainHelper.toChainStr(chain);
+    }
+    const key = `${chain}_${addressRaw.toHex()}`;
+    return this.tokenInfos[key];
+  }
+
+  private isRaicoin(chain: string): boolean {
+    return ChainStr.RAICOIN === chain || ChainStr.RAICOIN_TEST === chain;
   }
 
 }
@@ -425,13 +548,13 @@ class AccountTokenInfo {
 
   fromJson(json: any): boolean {
     try {
-      this.chain = json.chain;
-      this.address = json.address;
-      this.addressRaw = new U256(json.address_raw, 16);
-      this.name = json.name;
-      this.symbol = json.symbol;
-      this.type = TokenHelper.toType(json.type);
-      this.decimals = new U8(json.decimals);
+      this.chain = json.token.chain;
+      this.address = json.token.address;
+      this.addressRaw = new U256(json.token.address_raw, 16);
+      this.name = json.token.name;
+      this.symbol = json.token.symbol;
+      this.type = TokenHelper.toType(json.token.type);
+      this.decimals = new U8(json.token.decimals);
       this.balance = new U256(json.balance);
       this.balanceFormatted = json.balance_formatted;
       this.headHeight = new U64(json.head_height);
@@ -439,7 +562,7 @@ class AccountTokenInfo {
       return false;
     }
     catch (e) {
-      console.log(`AccountTokenInfo.fromJson: failed to parse json=${json}`);
+      console.log('AccountTokenInfo.fromJson: failed to parse json=', json, ', exception=', e);
       return true;
     }
   }
@@ -455,10 +578,12 @@ class AccountTokensInfo {
   subscribed: boolean = false;
   synced: boolean = false;
   nextSyncAt: number = 0;
+  issuerInfo: IssuerInfo = new IssuerInfo();
 
   headHeight: U64 = U64.max();
   tokenBlockCount: U64 = new U64();
   tokens: AccountTokenInfo[] = [];
+  receivables: TokenReceivable[] = [];
 
   //local data
   expectedRecentBlocks: number = 10;
@@ -623,6 +748,134 @@ class TokenBlockLinks {
     if (this.back().previous.eq(link.self)) {
       this.links.push(link);
     }
+  }
+
+}
+
+export class TokenInfo {
+  chain: string = '';
+  address: string = '';
+  addressRaw: U256 = new U256();
+  type: TokenType = TokenType.INVALID;
+  symbol: string = '';
+  name: string = '';
+  decimals: U8 = new U8();
+  burnable: boolean = false;
+  mintable: boolean = false;
+  circulable: boolean = false;
+  holders: U64 = new U64();
+  transfers: U64 = new U64();
+  swaps: U64 = new U64();
+  created_at: U64 = new U64();
+  totalSupply: U256 = new U256();
+  totalSupplyFormatted: string = '';
+  capSupply: U256 = new U256();
+  capSupplyFormatted: string = '';
+  localSupply: U256 = new U256();
+  localSupplyFormatted: string = '';
+  base_uri: string = '';
+
+  fromJson(json: any): boolean {
+    try {
+      this.chain = json.chain;
+      this.address = json.address;
+      this.addressRaw = new U256(json.address_raw, 16);
+      this.type = TokenHelper.toType(json.type);
+      this.symbol = json.symbol;
+      this.name = json.name;
+      this.decimals = new U8(json.decimals);
+      this.burnable = json.burnable === 'true';
+      this.mintable = json.mintable === 'true';
+      this.circulable = json.circulable === 'true';
+      this.holders = new U64(json.holders);
+      this.transfers = new U64(json.transfers);
+      this.swaps = new U64(json.swaps);
+      this.created_at = new U64(json.created_at);
+      this.totalSupply = new U256(json.total_supply);
+      this.totalSupplyFormatted = json.total_supply_formatted;
+      this.capSupply = new U256(json.cap_supply);
+      this.capSupplyFormatted = json.cap_supply_formatted;
+      this.localSupply = new U256(json.local_supply);
+      this.localSupplyFormatted = json.local_supply_formatted;
+      this.base_uri = json.base_uri;
+      return false;
+    }
+    catch (e) {
+      console.log(`TokenInfo.fromJson: failed to parse json=`, json, 'exception=', e);
+      return true;
+    }
+  }
+
+}
+
+class IssuerInfo {
+  queried: boolean = false;
+  created: boolean = false;
+}
+
+export class TokenReceivableTokenInfo {
+  chain: string = '';
+  address: string = '';
+  addressRaw: U256 = new U256();
+  type: string = '';
+  name: string = '';
+  symbol: string = '';
+  decimals: U8 = new U8();
+
+  fromJson(json: any): boolean {
+    try {
+      this.chain =  json.chain;
+      this.address = json.address;
+      this.addressRaw = new U256(json.address_raw, 16);
+      this.type = json.type;
+      this.name = json.name;
+      this.symbol = json.symbol;
+      this.decimals = new U8(json.decimals);
+      return false;
+    }
+    catch (e) {
+      console.log(`TokenReceivableTokenInfo.fromJson: failed to parse json=`, json, 'exception=', e);
+      return true;
+    }
+  }
+}
+
+export class TokenReceivable {
+  to: string = '';
+  token: TokenReceivableTokenInfo = new TokenReceivableTokenInfo();
+  chain: string = '';
+  txHash: U256 = new U256();
+  from: string = '';
+  fromRaw: U256 = new U256();
+  value: U256 = new U256();
+  blockHeight: U64 = new U64();
+  sourceType: string = '';
+  block: any = null;
+
+  fromJson(json: any): boolean {
+    try {
+      this.to = json.to;
+      this.token = new TokenReceivableTokenInfo();
+      const error = this.token.fromJson(json.token);
+      if (error) return true;
+      this.chain = json.chain;
+      this.txHash = new U256(json.tx_hash, 16);
+      this.from = json.from;
+      this.fromRaw = new U256(json.from_raw, 16);
+      this.value = new U256(json.value);
+      this.blockHeight = new U64(json.block_height);
+      this.sourceType = json.source;
+      this.block = json.block;
+      return false;
+    }
+    catch (e) {
+      console.log(`TokenReceivable.fromJson: failed to parse json=`, json, 'exception=', e);
+      return true;
+    }
+  }
+
+  key(): string {
+    return `${this.to}_${this.token.chain}_${this.token.address}_${this.chain}_${this.txHash.toHex()}`
   }
 
 }

@@ -498,7 +498,7 @@ export class BscMintItem {
   fromBlock(block: Block, amount: U128 | undefined) {
     const j = block.json();
     this.from = j.account;
-    this.to = (j.extensions as Extension[]).find(x => x['type'] === 'note')?.value || '';
+    this.to = (j.extensions as Extension[]).find(x => x['type'] === 'note')?.value as string || '';
     this.timestamp = +j.timestamp;
     this.state = 'paying';
     this.source_txn = block.hash();

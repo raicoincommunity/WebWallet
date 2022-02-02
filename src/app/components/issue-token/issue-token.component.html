@@ -136,9 +136,9 @@
     </div>
 
     <!-- Confirm Creation Panel -->
-    <div *ngIf="activePanel === 'confirmCreation'" uk-grid>
+    <div *ngIf="activePanel === 'confirm_creation'" uk-grid >
       <div class="uk-width-1-1">
-        <div class="uk-card uk-card-default uk-text-center">
+        <div class="uk-card uk-card-default uk-text-center" >
           <span
             style="display: block; padding: 8px; font-size: 32px">{{ 'Please recheck and confirm' | translate }}</span>
         </div>
@@ -300,6 +300,193 @@
       </div>
     </div>
 
+    <!-- Token Details -->
+    <div *ngIf="issued()" class="uk-card uk-card-default uk-margin">
+      <div class="uk-card-header">
+        <h3 class="uk-card-title">{{ 'Token Details' | translate }}</h3>
+      </div>
+    
+      <div class="uk-card-body uk-padding-remove uk-form-horizontal">
+        <div class="uk-padding-small" uk-grid>
+          <div class="uk-width-1-1">
+            <div uk-grid>
+
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Name' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left uk-text-truncate">
+                    {{ name() }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Symbol' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ symbol() }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Address' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    <div uk-grid>
+                      <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">{{ address() }} </div>
+                      <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left"><a ngxClipboard [cbContent]="address()" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="{{ 'Copy Token Address' | translate }}" uk-tooltip></a></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Type' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ type() }}
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="type() === 'RAI-20'" class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Decimals' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ showDecimals() }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Circulating Supply' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ totalSupply() }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Cap Supply' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    <div uk-grid>
+                      <div class="uk-width-expand uk-text-truncate ">
+                        {{ showCapSupply() }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1" >
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Mintable' | translate }} <span uk-icon="icon: info; ratio: 0.8;" uk-tooltip
+                    title="{{ 'Allow the issuer to mint additional tokens after creation.' | translate }}"></span>
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ mintable() }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1" >
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Burnable' | translate }} <span uk-icon="icon: info; ratio: 0.8;" uk-tooltip
+                    title="{{ 'Allow the issuer to burn tokens.' | translate }}"></span>
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    <div uk-grid>
+                      <div class="uk-width-expand">
+                        {{ burnable() }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1" >
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left uk-text-break">
+                    {{ 'Circulable' | translate }} <span uk-icon="icon: info; ratio: 0.8;" uk-tooltip
+                    title="{{ 'If disabled, holders are only allowed to transfer or swap the token with the issuer.' | translate }}"></span>
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    <div uk-grid>
+                      <div class="uk-width-expand uk-text-truncate ">
+                        {{ circulable() }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Holders' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ holders() }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Transfers' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ transfers() }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Swaps' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ swaps() }}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="uk-card-footer uk-text-right">
+        <div class="uk-button-group">
+          <button class="uk-button uk-button-primary uk-margin-left"
+            (click)="create()">{{ 'Create' | translate }}</button>
+        </div>
+
+      </div>
+
+    </div>
 
   </div>
 </div>

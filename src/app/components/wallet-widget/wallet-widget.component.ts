@@ -23,6 +23,11 @@ export class WalletWidgetComponent implements OnInit {
     const UIkit = (window as any).UIkit;
     const modal = UIkit.modal(document.getElementById('unlock-wallet-modal'));
     this.modal = modal;
+
+    this.wallets.showModal$.subscribe(_ => {
+      if (!this.modal) return;
+      this.modal.show();
+    });
   }
 
   configured(): boolean {

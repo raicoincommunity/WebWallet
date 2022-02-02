@@ -1,10 +1,11 @@
-import { Component, OnInit, ViewChild, ElementRef, } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { WalletsService, Amount, WalletErrorCode } from '../../services/wallets.service';
 import { NotificationService } from '../../services/notification.service';
-import { U8, UtilService, U256 } from '../../services/util.service';
+import { U8, UtilService, U256, ExtensionTypeStr, ExtensionTokenOp, ExtensionTokenOpStr, TokenType } from '../../services/util.service';
 import { BigNumber } from 'bignumber.js';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
+import { TokenService } from '../../services/token.service';
 
 @Component({
   selector: 'app-issue-token',
@@ -22,7 +23,7 @@ export class IssueTokenComponent implements OnInit {
   public inputBurnable = true;
   public inputCirculable = true;
   public inputBaseUri = '';
-  public activePanel = 'create';
+  public activePanel = '';
 
   public tokenNameStatus = 0;
   public tokenSymbolStatus = 0;
@@ -36,11 +37,29 @@ export class IssueTokenComponent implements OnInit {
 
   constructor(
     private translate: TranslateService,
+    private wallets: WalletsService,
+    private token: TokenService,
     private notification: NotificationService) {
 
   }
 
   ngOnInit(): void {
+    this.token.addAccount(this.selectedAccountAddress());
+    this.token.issuer$.subscribe(x => {
+      if (x.account !== this.selectedAccountAddress()) return;
+      if (x.created) {
+        if (this.activePanel === ActivePanel.CREATE) {
+          this.activePanel = ActivePanel.DEFUALT;
+        }
+      } else {
+        this.activePanel = ActivePanel.CREATE
+      }
+    });
+    if (this.token.issuerQueried(this.selectedAccountAddress())) {
+      if (!this.token.issued(this.selectedAccountAddress())) {
+        this.activePanel = ActivePanel.CREATE;
+      }
+    }
   }
 
   toggleInputMintable() {
@@ -139,7 +158,7 @@ export class IssueTokenComponent implements OnInit {
   getCapSupply(): string {
     if (this.capSupply.toBigNumber().eq(0))
     {
-      let msg = marker(`Unlimit`);
+      let msg = marker(`Unlimited`);
       this.translate.get(msg).subscribe(res => msg = res);
       return msg;
     }
@@ -170,6 +189,7 @@ export class IssueTokenComponent implements OnInit {
   }
 
   create() {
+    this.inputTokenName = this.inputTokenName.trim();
     if (this.inputTokenName === '') {
       this.tokenNameStatus = 1;
       if (this.elemTokenName) {
@@ -177,6 +197,8 @@ export class IssueTokenComponent implements OnInit {
       }
       return;
     }
+
+    this.inputTokenSymbol = this.inputTokenSymbol.trim();
     if (this.inputTokenSymbol === '') {
       this.tokenSymbolStatus = 1;
       if (this.elemTokenSymbol) {
@@ -184,6 +206,12 @@ export class IssueTokenComponent implements OnInit {
       }
       return;
     }
+
+    this.inputDecimals = this.inputDecimals.trim();
+    this.inputInitSupply = this.inputInitSupply.trim();
+    this.inputCapSupply = this.inputCapSupply.trim();
+    this.inputBaseUri = this.inputBaseUri.trim();
+
     if (this.selectedTokenType === 'RAI-20') {
       if (this.syncDecimals()) return;
       if (this.syncInitSupply()) return;
@@ -209,11 +237,184 @@ export class IssueTokenComponent implements OnInit {
       return;
     }
 
-    this.activePanel = 'confirmCreation';
+    const wallet = this.wallets.selectedWallet()
+    if (!wallet) {
+      let msg = marker(`Please configure a wallet first`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    } else {
+      if (wallet.locked()) {
+        this.wallets.tryInputPassword();
+        let msg = marker(`Please unlock your wallet and retry again`);
+        this.translate.get(msg).subscribe(res => msg = res);
+        this.notification.sendError(msg);
+        return;
+      }
+    }
+
+    this.activePanel = ActivePanel.CONFIRM_CREATION;
   }
 
   confirmCreation() {
-    // todo:
+    let value = {};
+    if (this.selectedTokenType === 'RAI-20') {
+      value = {
+        op: ExtensionTokenOpStr.CREATE,
+        type: '20',
+        name: this.inputTokenName,
+        symbol: this.inputTokenSymbol,
+        init_supply: this.initSupply.toDec(),
+        cap_supply: this.capSupply.toDec(),
+        decimals: this.decimals.toDec(),
+        burnable: this.inputBurnable ? 'true' : 'false',
+        mintable: this.inputMintable ? 'true' : 'false',
+        circulable: this.inputCirculable ? 'true' : 'false'
+      };
+    } else if (this.selectedTokenType === 'RAI-721') {
+      value = {
+        op: ExtensionTokenOpStr.CREATE,
+        type: '721',
+        name: this.inputTokenName,
+        symbol: this.inputTokenSymbol,
+        base_uri: this.inputBaseUri,
+        cap_supply: this.capSupply.toDec(),
+        burnable: this.inputBurnable ? 'true' : 'false',
+        circulable: this.inputCirculable ? 'true' : 'false'
+      }
+    } else {
+      console.log(`confirmCreation:Unknown type=${this.selectedTokenType}`);
+      return;
+    }
+
+    let extensions = [ { type: ExtensionTypeStr.TOKEN, value } ];
+    let result = this.wallets.changeExtensions(extensions);
+    if (result.errorCode !== WalletErrorCode.SUCCESS) {
+      let msg = result.errorCode;
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    }
+
+    let msg = marker(`Successfully sent token creation block!`);
+    this.translate.get(msg).subscribe(res => msg = res);    
+    this.notification.sendSuccess(msg);
+
+    this.activePanel = ActivePanel.DEFUALT;
+    this.inputTokenName = '';
+    this.inputTokenSymbol = '';
+    this.inputDecimals = '';
+    this.inputInitSupply = '';
+    this.inputCapSupply = '';
+    this.inputMintable = true;
+    this.inputBurnable = true;
+    this.inputCirculable = true;
+    this.inputBaseUri = '';
+  }
+
+  selectedAccountAddress(): string {
+    return this.wallets.selectedAccountAddress();
+  }
+
+  issued(): boolean {
+    if (!this.selectedAccountAddress()) return false;
+    if (!this.token.issuerQueried(this.selectedAccountAddress())) return false;
+    return this.token.issued(this.selectedAccountAddress());
+  }
+
+  name(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    return info.name;
+  }
+
+  symbol(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    return info.symbol;
+  }
+
+  address(): string {
+    return this.selectedAccountAddress();
+  }
+
+  copied() {
+    let msg = marker(`Token address copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  type(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    if (info.type === TokenType._20) {
+      return 'RAI-20'
+    } else if (info.type === TokenType._721) {
+      return 'RAI-721';
+    } else {
+      return 'Unknown type';
+    }
+  }
+
+  showDecimals(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    return info.decimals.toDec();
+  }
+
+  totalSupply(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    return info.totalSupply.toBalanceStr(info.decimals) + ' ' + info.symbol;
+  }
+
+  showCapSupply(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    if (info.capSupply.eq(0))
+    {
+      let msg = marker(`Unlimited`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      return msg;
+    }
+
+    return info.capSupply.toBalanceStr(info.decimals) + ' ' + info.symbol;
+  }
+
+  mintable(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    return this.boolToString(info.mintable);
+  }
+
+  burnable(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    return this.boolToString(info.burnable);
+  }
+
+  circulable(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    return this.boolToString(info.circulable);
+  }
+
+  holders(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    return info.holders.toFormat();
+  }
+
+  transfers(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    return info.transfers.toFormat();
+  }
+
+  swaps(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    return info.swaps.toFormat();
   }
 
   private boolToString(bool: boolean): string {
@@ -222,4 +423,10 @@ export class IssueTokenComponent implements OnInit {
     return msg;
   }
 
+}
+
+enum ActivePanel {
+  DEFUALT = '',
+  CREATE = 'create',
+  CONFIRM_CREATION = 'confirm_creation',
 }
