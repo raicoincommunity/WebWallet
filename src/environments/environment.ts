@@ -12,6 +12,7 @@ export const environment = {
     'rai_14k51wrdhpfyf3ikh811pedndjof6fffziokwymapwjbk8obrztmawsw9bnm',
   ],
   epoch_timestamp: 1585699200,
+  current_chain: 'raicoin testnet',
   bsc_network: 'binance-testnet',
   bsc_chain_id: 97,
   rpc_options: {

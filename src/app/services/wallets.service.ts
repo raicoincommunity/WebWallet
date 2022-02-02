@@ -26,8 +26,10 @@ export class WalletsService implements OnDestroy {
   private timerSync: any = null;
   private timerAutoReceive: any = null;
   private selectedAccountSubject = new Subject<string>();
+  private showModalSubject = new Subject();
 
   selectedAccountChanged$ = this.selectedAccountSubject.asObservable();
+  showModal$ = this.showModalSubject.asObservable();
 
   constructor(
     private storage: LocalStorageService,
@@ -359,7 +361,9 @@ export class WalletsService implements OnDestroy {
     return { errorCode: WalletErrorCode.SUCCESS };
   }
 
-  changeExtensions(extensions: { [key: string]: any }[], account?: Account, wallet?: Wallet) {
+  changeExtensions(extensions: { [key: string]: any }[], account?: Account, wallet?: Wallet)
+    : WalletOpResult
+  {
     if (!account) {
       account = this.selectedAccount();
     }
@@ -371,8 +375,8 @@ export class WalletsService implements OnDestroy {
     let errorCode = this.accountActionCheck(account, wallet);
     if (errorCode !== WalletErrorCode.SUCCESS) return { errorCode };
 
-    if (!account?.created()) {
-      return { error_code: WalletErrorCode.NOT_ACTIVATED }
+    if (!account || !account.created()) {
+      return { errorCode: WalletErrorCode.NOT_ACTIVATED }
     }
 
     let blockInfo = this.generateChangeBlock(account!, wallet!, '', extensions);
@@ -688,6 +692,11 @@ export class WalletsService implements OnDestroy {
     }
 
     return WalletErrorCode.SUCCESS;
+  }
+
+  tryInputPassword() {
+    if (!this.selectedWallet()) return;
+    this.showModalSubject.next();
   }
 
   private loadWallets() {
@@ -1728,7 +1737,7 @@ export class WalletsService implements OnDestroy {
 
     let block = new TxBlock();
     let error = block.fromJson(json);
-    if (error) return { errorCode: WalletErrorCode.UNEXPECTED };
+    if (error) return { errorCode: WalletErrorCode.CONSTRUCT_BLOCK };
     let signature = this.sign(wallet, account.storage.address, block.hash().bytes);
     if (signature.error) return { errorCode: WalletErrorCode.UNEXPECTED };
     block.setSignature(signature.signature);
@@ -2008,7 +2017,8 @@ export enum WalletErrorCode {
   DISCONNECTED = 'Not connected to server yet',
   BALANCE = 'Not enough balance',
   CREDIT_MAX = 'Account\'s max allowed daily transactions limit is 1310700',
-  NOT_ACTIVATED = 'The account is not activated, please deposit some Raicoin to activate it'
+  NOT_ACTIVATED = 'The account is not activated, please deposit some Raicoin to activate it',
+  CONSTRUCT_BLOCK = 'Failed to contruct block'
 }
 marker('Success');
 marker('Invalid seed');
@@ -2027,6 +2037,7 @@ marker('Receivable amount less than credit price');
 marker('Not connected to server yet');
 marker('Not enough balance');
 marker('Account\'s max allowed daily transactions limit is 1310700');
+marker('The account is not activated, please deposit some Raicoin to activate it');
 
 export enum BlockStatus {
   PENDING = 'pending',

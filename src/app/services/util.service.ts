@@ -360,6 +360,10 @@ class Uint {
     return this.toBigNumber().toFixed();
   }
 
+  toFormat(): string {
+    return this.toBigNumber().toFormat(0, 1);
+  }
+
   plus(other: UintFrom, base?: number): Uall {
     other = UintHelper.create(this.size, other, base).toBigNumber();
     let sum = this.toBigNumber().plus(other);
@@ -630,7 +634,6 @@ export class U64 extends Uint {
   valid(): boolean {
     return !this.isMax();
   }
-
 }
 
 export class U128 extends Uint {
@@ -904,6 +907,21 @@ export class ChainHelper {
     if (map) return map[1];
     return '';
   }
+
+  static addressToRaw(chain: string, address: string): {error: boolean, raw?: U256} {
+    switch (chain) {
+      case ChainStr.RAICOIN:
+      case ChainStr.RAICOIN_TEST:
+      {
+        const raw = new U256();
+        const error = raw.fromAccountAddress(address);
+        return { error, raw };
+      }
+      // todo:
+      default:
+        return { error: true };
+    }
+  }
 }
 
 interface ExtensionTokenCodec {
@@ -916,8 +934,12 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
     encode: (value: any) => {
       let buffer = new Uint8Array(1024);
       let count = 0;
+      buffer.set([ExtensionTokenOp.CREATE], count);
       count += 1;
-      buffer.set([ExtensionTokenOp.CREATE]);
+
+      const type = TokenHelper.toType(value.type);
+      buffer.set([type], count);
+      count += 1;
 
       if (!value.name || typeof value.name !== 'string') {
         throw new Error(`ExtensionHelper.token.create.encode: invalid name=${value.name}`);
@@ -926,10 +948,10 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
       if (name.length > 255) {
         throw new Error(`ExtensionHelper.token.create.encode: invalid name=${value.name}`);
       }
+      buffer.set([name.length], count);
       count += 1;
-      buffer.set([name.length]);
+      buffer.set(name, count);
       count += name.length;
-      buffer.set(name);
 
       if (!value.symbol || typeof value.symbol !== 'string') {
         throw new Error(`ExtensionHelper.token.create.encode: invalid symbol=${value.symbol}`);
@@ -938,32 +960,32 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
       if (symbol.length > 255) {
         throw new Error(`ExtensionHelper.token.create.encode: invalid symbol=${value.symbol}`);
       }
+      buffer.set([symbol.length], count);
       count += 1;
-      buffer.set([symbol.length]);
+      buffer.set(symbol, count);
       count += symbol.length;
-      buffer.set(symbol);
 
       if (value.type === '20') {
         if (!value.init_supply || typeof value.init_supply !== 'string') {
           throw new Error(`ExtensionHelper.token.create.encode: invalid init_supply=${value.init_supply}`);
         }
         const initSupply = new U256(value.init_supply);
+        buffer.set(initSupply.bytes, count);
         count += initSupply.bytes.length;
-        buffer.set(initSupply.bytes);
 
         if (!value.cap_supply || typeof value.cap_supply !== 'string') {
           throw new Error(`ExtensionHelper.token.create.encode: invalid cap_supply=${value.cap_supply}`);
         }
         const capSupply = new U256(value.cap_supply);
+        buffer.set(capSupply.bytes, count);
         count += capSupply.bytes.length;
-        buffer.set(capSupply.bytes);
 
         if (!value.decimals || typeof value.decimals !== 'string') {
           throw new Error(`ExtensionHelper.token.create.encode: invalid decimals=${value.decimals}`);
         }
         const decimals = new U8(value.decimals);
+        buffer.set(decimals.bytes, count);
         count += decimals.bytes.length;
-        buffer.set(decimals.bytes);
 
         if (!value.burnable || typeof value.burnable !== 'string') {
           throw new Error(`ExtensionHelper.token.create.encode: invalid burnable=${value.burnable}`);
@@ -972,8 +994,8 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
         if (burnable.length !== 1) {
           throw new Error(`ExtensionHelper.token.create.encode: invalid burnable=${value.burnable}`);
         }
+        buffer.set(burnable, count);
         count += 1;
-        buffer.set(burnable);
 
         if (!value.mintable || typeof value.mintable !== 'string') {
           throw new Error(`ExtensionHelper.token.create.encode: invalid mintable=${value.mintable}`);
@@ -982,8 +1004,8 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
         if (mintable.length !== 1) {
           throw new Error(`ExtensionHelper.token.create.encode: invalid mintable=${value.mintable}`);
         }
+        buffer.set(mintable, count);
         count += 1;
-        buffer.set(mintable);
 
         if (!value.circulable || typeof value.circulable !== 'string') {
           throw new Error(`ExtensionHelper.token.create.encode: invalid circulable=${value.circulable}`);
@@ -992,28 +1014,28 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
         if (circulable.length !== 1) {
           throw new Error(`ExtensionHelper.token.create.encode: invalid circulable=${value.circulable}`);
         }
+        buffer.set(circulable, count);
         count += 1;
-        buffer.set(circulable);
 
       } else if (value.type === '721') {
-        if (!value.base_uri || typeof value.base_uri !== 'string') {
+        if (typeof value.base_uri !== 'string') {
           throw new Error(`ExtensionHelper.token.create.encode: invalid base_uri=${value.base_uri}`);
         }
         const baseUri = new TextEncoder().encode(value.base_uri);
         if (baseUri.length > 255) {
           throw new Error(`ExtensionHelper.token.create.encode: invalid base_uri=${value.base_uri}`);
         }
+        buffer.set([baseUri.length], count);
         count += 1;
-        buffer.set([baseUri.length]);
+        buffer.set(baseUri, count);
         count += baseUri.length;
-        buffer.set(baseUri);
   
         if (!value.cap_supply || typeof value.cap_supply !== 'string') {
           throw new Error(`ExtensionHelper.token.create.encode: invalid cap_supply=${value.cap_supply}`);
         }
         const capSupply = new U256(value.cap_supply);
+        buffer.set(capSupply.bytes, count);
         count += capSupply.bytes.length;
-        buffer.set(capSupply.bytes);
 
         if (!value.burnable || typeof value.burnable !== 'string') {
           throw new Error(`ExtensionHelper.token.create.encode: invalid burnable=${value.burnable}`);
@@ -1022,8 +1044,8 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
         if (burnable.length !== 1) {
           throw new Error(`ExtensionHelper.token.create.encode: invalid burnable=${value.burnable}`);
         }
+        buffer.set(burnable, count);
         count += 1;
-        buffer.set(burnable);
 
         if (!value.circulable || typeof value.circulable !== 'string') {
           throw new Error(`ExtensionHelper.token.create.encode: invalid circulable=${value.circulable}`);
@@ -1032,8 +1054,8 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
         if (circulable.length !== 1) {
           throw new Error(`ExtensionHelper.token.create.encode: invalid circulable=${value.circulable}`);
         }
+        buffer.set(circulable, count);
         count += 1;
-        buffer.set(circulable);
 
       } else {
         throw new Error(`ExtensionHelper.token.create.encode: unknown op=${value.type}`);
@@ -1046,19 +1068,24 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
       let offset = 0;
       let end = 0;
       const length = array.length;
-      const type = array[offset];
-      offset += 1;
 
       if (offset + 1 > length) {
         throw streamError;
       }
-      const utf8Decoder = new TextDecoder('utf-8', {fatal: true});
+      const type = array[offset];
+      offset += 1;
+      value.type = TokenHelper.toTypeStr(type);
+
+      if (offset + 1 > length) {
+        throw streamError;
+      }
       const nameSize = array[offset];
       offset += 1;
       end = offset + nameSize
       if (end > length) {
         throw streamError;
       }
+      const utf8Decoder = new TextDecoder('utf-8', {fatal: true});
       value.name = utf8Decoder.decode(array.slice(offset, end));
       offset += nameSize;
 
@@ -1105,7 +1132,7 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
 
         const circulable = uint8ToBoolStr(array, offset);
         if (!circulable) throw streamError;
-        value.circulabe = circulable;
+        value.circulable = circulable;
         offset += 1;
 
       } else if (type === TokenType._721) {
@@ -1134,7 +1161,7 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
 
         const circulable = uint8ToBoolStr(array, offset);
         if (!circulable) throw streamError;
-        value.circulabe = circulable;
+        value.circulable = circulable;
         offset += 1;
 
       } else {
@@ -1291,6 +1318,7 @@ export class ExtensionHelper {
       e.value = codec.decode(array.slice(value_offset, value_offset + length.toNumber()));
     }
     catch (err) {
+      console.log(`ExtensionHelper.deocde: exception=${err}`)
       return {...e, error: ExtensionError.VALUE};
     }
     
@@ -1323,6 +1351,7 @@ export class ExtensionHelper {
       return result;
     }
     catch (err) {
+      console.log(`ExtensionHelper.encode: exception=${err}`)
       return error_result;
     }
   }
