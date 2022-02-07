@@ -14,7 +14,7 @@ export class BlocksService {
 
   constructor(private server: ServerService, private util: UtilService) {
     
-   }
+  }
 
   putBlock(hash: U256, block: Block, amount: Amount, successor: U256 = new U256(0)) {
     this.blocks[hash.toHex()] = { block, amount, successor };

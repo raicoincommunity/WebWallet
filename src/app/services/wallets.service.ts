@@ -7,7 +7,6 @@ import { UtilService, U8, U64, U256, U128, BlockOpcodeStr, U32, U512, BlockTypeS
 import { ServerService, ServerState } from './server.service';
 import { BlocksService, Receivable, Block, Amount, BlockInfo, TxBlock } from './blocks.service';
 import { environment } from '../../environments/environment';
-import { SettingsService } from './settings.service';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 
 export { Amount } from './blocks.service';
@@ -24,7 +23,6 @@ export class WalletsService implements OnDestroy {
 
   private unlockedInstances: UnlockedInstance[] = [];
   private timerSync: any = null;
-  private timerAutoReceive: any = null;
   private selectedAccountSubject = new Subject<string>();
   private showModalSubject = new Subject();
 
@@ -35,7 +33,6 @@ export class WalletsService implements OnDestroy {
     private storage: LocalStorageService,
     private util: UtilService,
     private server: ServerService,
-    private settings: SettingsService,
     private blocks: BlocksService) {
     this.loadWallets();
     this.loadUnlockedInstances();
@@ -44,17 +41,12 @@ export class WalletsService implements OnDestroy {
     this.server.message$.subscribe(message => this.processMessage(message));
     this.storage.changes$.subscribe(event => this.processStorageEvent(event));
     this.timerSync = setInterval(() => this.ongoingSync(), 1000);
-    this.timerAutoReceive = setInterval(() => this.autoReceive(), 1000);
   }
 
   ngOnDestroy() {
     if (this.timerSync) {
       clearInterval(this.timerSync);
       this.timerSync = null;
-    }
-    if (this.timerAutoReceive) {
-      clearInterval(this.timerAutoReceive);
-      this.timerAutoReceive = null;
     }
   }
 
@@ -230,41 +222,6 @@ export class WalletsService implements OnDestroy {
     if (!account) account = this.selectedAccount();
     if (!account) return [];
     return this.blocks.getReceivable(account.storage.address);
-  }
-
-  autoReceive() {
-    let setting = this.settings.getAutoReceive();
-    if (!setting.enable) return;
-    if (this.server.getState() !== ServerState.CONNECTED) return;
-    
-    this.wallets.forEach(w => {
-      if (w.locked()) return;
-      w.accounts.forEach (a => {
-        let check = this.accountActionCheck(a, w);
-        if (check !== WalletErrorCode.SUCCESS) return;
-        let received = false;
-        while (true) {
-          let receivables = this.receivables(a);
-          if (receivables.length === 0) break;
-
-          if (this.limited(a)) break;
-          if (this.restricted(a)) break;
-
-          let r = receivables[0];
-          if (r.amount.lt(setting.minimum)) break;
-          if (!a.created()) {
-            let timestamp = this.server.getTimestamp();
-            if (r.amount.lt(this.creditPrice(new U64(timestamp)))) break;
-          }
-          let result = this.receive(r.hash.toHex(), a, w);
-          if (result.errorCode !== WalletErrorCode.SUCCESS) break;
-          received = true;
-        }
-        if (received) {
-          this.receivablesQuery(a);
-        }
-      });
-    })
   }
 
   send(destination: string, value: U128, note?: string, subaccount?: string, account?: Account, wallet?: Wallet): WalletOpResult {
@@ -970,7 +927,7 @@ export class WalletsService implements OnDestroy {
       action: 'receivables',
       account: account.storage.address,
       type: 'confirmed',
-      count: new U64(100).toDec()
+      count: new U64(50).toDec()
     }
 
     this.server.send(message);
@@ -1804,7 +1761,7 @@ export class WalletsService implements OnDestroy {
     return { errorCode: WalletErrorCode.SUCCESS, block };
   }
 
-  private creditPrice(timestamp: U64): U128 {
+  public creditPrice(timestamp: U64): U128 {
     let epoch = new U64(environment.epoch_timestamp);
     let rates = [
       1000, 1000, 1000, 1000,
@@ -1874,6 +1831,7 @@ export class Account {
   recentBlocks: number = 0;
 
   copyOperationData(other: Account) {
+    this.type = other.type;
     this.headHeight = other.headHeight;
     this.head = other.head;
     this.confirmedHeight = other.confirmedHeight;
@@ -1884,6 +1842,7 @@ export class Account {
     this.balanceConfirmed = other.balanceConfirmed;
     this.balanceReceivable = other.balanceReceivable;
     this.forks = other.forks;
+    this.restricted = other.restricted;
     this.synced = other.synced;
     this.subscribed = other.subscribed;
     this.nextSyncAt = other.nextSyncAt;

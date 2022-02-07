@@ -32,7 +32,9 @@ import { environment } from '../environments/environment';
 import { LiquidityRewardComponent } from './components/liquidity-reward/liquidity-reward.component';
 import { FaucetComponent } from './components/faucet/faucet.component';
 import { AccountWidgetComponent } from './components/account-widget/account-widget.component';
-import { IssueTokenComponent } from './components/issue-token/issue-token.component'
+import { IssueTokenComponent } from './components/issue-token/issue-token.component';
+import { AssetsComponent } from './components/assets/assets.component';
+import { AssetWidgetComponent } from './components/asset-widget/asset-widget.component'
 
 const providerOptions = {
   walletconnect: {
@@ -75,7 +77,9 @@ const providerOptions = {
     LiquidityRewardComponent,
     FaucetComponent,
     AccountWidgetComponent,
-    IssueTokenComponent
+    IssueTokenComponent,
+    AssetsComponent,
+    AssetWidgetComponent
   ],
   imports: [
     BrowserModule,
