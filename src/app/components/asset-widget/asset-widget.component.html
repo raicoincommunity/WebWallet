@@ -1,0 +1,44 @@
+<div uk-grid >
+  <div class="uk-width-1-1">
+    <label class="uk-form-label" for="input-asset">
+      {{ 'Asset' | translate }} *
+    </label>
+    <div class="uk-form-controls">
+      <div class="uk-inline uk-width-1-1">
+        <a *ngIf="selectedAsset" class="uk-form-icon" href="#" style="padding-left: 15px;"><img [src]="selectedAsset.chainLogo" width="20" height="20" /></a>
+        <a *ngIf="selectedAsset" class="uk-form-icon" href="#" style="padding-left: 0px;" ><img [src]="selectedAsset.tokenLogo" width="20" height="20" /></a>
+        <a #assetSelect (click)="onSelect()" uk-icon="icon: triangle-down;" class="uk-form-icon uk-form-icon-flip" style="padding-right: 0px;" ></a>
+        <input #assetInput (focus)="onFocus()" (blur)="onBlur()" [(ngModel)]="assetInputText" (ngModelChange)="onChange()"  [ngClass]="{ 'uk-form-danger': assetStatus() === 2 && !assetFocused && !searchResultShown }" class="uk-input" id="input-asset" type="text" placeholder="{{ 'Search by symbol, such as BTC' | translate }}" autocomplete="off" [style]="style()" />
+        <button type="button" style="display:none"></button>
+        <div uk-dropdown="mode: click" #assetDropdown class="uk-width-1-1 uk-margin-remove-top uk-padding-remove" >
+          <ul class="uk-nav uk-dropdown-nav uk-text-truncate">
+            <li *ngFor="let asset of assets()" >
+              <div (mousedown)="selectAsset(asset)" (touchstart)="selectAsset(asset)" class="uk-inline uk-width-1-1 uk-padding-remove-left">
+                <a class="uk-form-icon" href="#" style="padding-left: 15px;"><img [src]="asset.chainLogo" width="20" height="20" /></a>
+                <a class="uk-form-icon" href="#" style="padding-left: 00px;" ><img [src]="asset.tokenLogo" width="20" height="20" /></a>
+                <span style="padding-left: 50px; font-weight: bold;">{{ asset.textFormat() }}</span>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div uk-grid >
+  <div class="uk-width-1-1">
+    <label class="uk-form-label" for="form-input-amount">{{ 'Amount' | translate }} *</label>
+    <div class="uk-form-controls">
+      <div uk-grid>
+        <div class="uk-width-1-1">
+          <div class="uk-inline uk-width-1-1">
+            <a class="uk-form-icon uk-form-icon-flip" (click)="setMaxAmount()" style="padding-right: 7px;" uk-tooltip title="{{ 'Set Maximum Amount' | translate }}">{{ 'Max' | translate }}</a>
+            <input (change)="syncAmount()" (keyup)="syncAmount()" [(ngModel)]="amountInputText" class="uk-input" id="form-input-amount" type="text" [placeholder]="amountHint()" [ngClass]="{ 'uk-form-success': amountStatus === 1, 'uk-form-danger': amountStatus === 2 }">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

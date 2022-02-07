@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import * as blake from 'blakejs';
 import { BigNumber } from 'bignumber.js'
+import { environment } from '../../environments/environment';
 
 const nacl = window['nacl'];
 const account_letters = '13456789abcdefghijkmnopqrstuwxyz'.split('');
@@ -727,14 +728,14 @@ export class U256 extends Uint {
     return false;
   }
 
-  toBalanceStr(decimals: U8): string {
+  toBalanceStr(decimals: U8, format: boolean = true): string {
     const BigNumberCustom = BigNumber.another({ DECIMAL_PLACES: 255 });
     const decimalsValue = new BigNumberCustom(10).pow(decimals.toNumber());
     let result = new BigNumberCustom(this.toBigNumber()).div(decimalsValue).toFormat(decimals.toNumber(), 1);
 
     if (decimals.toNumber() === 0)
     {
-      return result;
+      return format ? result : result.replace(/,/g, '');
     }
 
     while (result.length > 1 && result[result.length - 1] === '0') {
@@ -745,8 +746,13 @@ export class U256 extends Uint {
       result = result.slice(0, result.length - 1);
     }
 
-    return result;
+    return format ? result : result.replace(/,/g, '');;
   }
+
+  isNativeTokenAddress(): boolean {
+    return this.eq(1);
+  }
+
 }
 
 export class U512 extends Uint {
@@ -813,6 +819,19 @@ export enum ExtensionTokenOpStr {
   WRAP    = 'wrap',
 }
 
+type TokenOpMap = [ExtensionTokenOp, ExtensionTokenOpStr];
+const tokenOpMaps: TokenOpMap[] = [
+  [ExtensionTokenOp.INVALID, ExtensionTokenOpStr.INVALID],
+  [ExtensionTokenOp.CREATE, ExtensionTokenOpStr.CREATE],
+  [ExtensionTokenOp.MINT, ExtensionTokenOpStr.MINT],
+  [ExtensionTokenOp.BURN, ExtensionTokenOpStr.BURN],
+  [ExtensionTokenOp.SEND, ExtensionTokenOpStr.SEND],
+  [ExtensionTokenOp.RECEIVE, ExtensionTokenOpStr.RECEIVE],
+  [ExtensionTokenOp.SWAP, ExtensionTokenOpStr.SWAP],
+  [ExtensionTokenOp.UNMAP, ExtensionTokenOpStr.UNMAP],
+  [ExtensionTokenOp.WRAP, ExtensionTokenOpStr.WRAP],
+]
+
 export enum TokenType {
   INVALID = 0,
   _20     = 1,
@@ -832,6 +851,37 @@ const tokenTypeMaps: TokenTypeMap[] = [
   [TokenType._721, TokenTypeStr._721],
 ]
 
+export enum TokenSource {
+  INVALID     = 0,
+  SEND        = 1,
+  MAP         = 2,
+  UNWRAP      = 3,
+  SWAP        = 4,
+  MINT        = 5,
+  REFUND      = 6,
+}
+
+export enum TokenSourceStr {
+  INVALID     = 'invalid',
+  SEND        = 'send',
+  MAP         = 'map',
+  UNWRAP      = 'unwrap',
+  SWAP        = 'swap',
+  MINT        = 'mint',
+  REFUND      = 'refund',
+}
+
+type TokenSourceMap = [TokenSource, TokenSourceStr];
+const tokenSourceMaps: TokenSourceMap[] = [
+  [TokenSource.INVALID, TokenSourceStr.INVALID],
+  [TokenSource.SEND, TokenSourceStr.SEND],
+  [TokenSource.MAP, TokenSourceStr.MAP],
+  [TokenSource.UNWRAP, TokenSourceStr.UNWRAP],
+  [TokenSource.SWAP, TokenSourceStr.SWAP],
+  [TokenSource.MINT, TokenSourceStr.MINT],
+  [TokenSource.REFUND, TokenSourceStr.REFUND],
+]
+
 export class TokenHelper {
   static toType(str: string): TokenType {
     const map = tokenTypeMaps.find(x => str === x[1]);
@@ -844,6 +894,36 @@ export class TokenHelper {
     if (map) return map[1];
     return '';
   }
+
+  static toSource(str: string): TokenSource {
+    const map = tokenSourceMaps.find(x => str  === x[1]);
+    if (map) return map[0];
+    return TokenSource.INVALID;
+  }
+
+  static toSourceStr(source: TokenSource): string {
+    const map = tokenSourceMaps.find(x => source === x[0]);
+    if (map) return map[1];
+    return '';
+  }
+
+  static toOp(str: string): ExtensionTokenOp {
+    const map = tokenOpMaps.find(x => str  === x[1]);
+    if (map) return map[0];
+    return ExtensionTokenOp.INVALID;
+  }
+
+  static toOpStr(op: ExtensionTokenOp): string {
+    const map = tokenOpMaps.find(x => op === x[0]);
+    if (map) return map[1];
+    return '';
+  }
+
+  static isLocalSource(source: TokenSource): boolean {
+    return source === TokenSource.MINT || source === TokenSource.SEND 
+           || source === TokenSource.SWAP || source === TokenSource.REFUND;
+  }
+
 }
 
 export enum Chain {
@@ -878,21 +958,37 @@ export enum ChainStr {
   BINANCE_SMART_CHAIN_TEST    = 'binance smart chain testnet',
 }
 
-type ChainMap = [Chain, ChainStr];
-const chainMaps: ChainMap[] = [
-  [Chain.INVALID, ChainStr.INVALID],
-  [Chain.RAICOIN, ChainStr.RAICOIN],
-  [Chain.BITCOIN, ChainStr.BITCOIN],
-  [Chain.ETHEREUM, ChainStr.ETHEREUM],
-  [Chain.BINANCE_SMART_CHAIN, ChainStr.BINANCE_SMART_CHAIN],
+export enum ChainShown {
+  INVALID                 = 'Invalid',
+  RAICOIN                 = 'Raicoin',
+  BITCOIN                 = 'Bitcoin',
+  ETHEREUM                = 'Ethereum',
+  BINANCE_SMART_CHAIN     = 'Binance Smart Chain',
 
-  [Chain.RAICOIN_TEST, ChainStr.RAICOIN_TEST],
-  [Chain.BITCOIN_TEST, ChainStr.BITCOIN_TEST],
-  [Chain.ETHEREUM_TEST_ROPSTEN, ChainStr.ETHEREUM_TEST_ROPSTEN],
-  [Chain.ETHEREUM_TEST_KOVAN, ChainStr.ETHEREUM_TEST_KOVAN],
-  [Chain.ETHEREUM_TEST_RINKEBY, ChainStr.ETHEREUM_TEST_RINKEBY],
-  [Chain.ETHEREUM_TEST_GOERLI, ChainStr.ETHEREUM_TEST_GOERLI],
-  [Chain.BINANCE_SMART_CHAIN_TEST, ChainStr.BINANCE_SMART_CHAIN_TEST]
+  RAICOIN_TEST                = 'Raicoin Testnet',
+  BITCOIN_TEST                = 'Bitcoin Testnet',
+  ETHEREUM_TEST_ROPSTEN       = 'Ropsten',
+  ETHEREUM_TEST_KOVAN         = 'Kovan',
+  ETHEREUM_TEST_RINKEBY       = 'Rinkeby',
+  ETHEREUM_TEST_GOERLI        = 'Goerli',
+  BINANCE_SMART_CHAIN_TEST    = 'BSC Testnet',
+}
+
+type ChainMap = [Chain, ChainStr, ChainShown];
+const chainMaps: ChainMap[] = [
+  [Chain.INVALID, ChainStr.INVALID, ChainShown.INVALID],
+  [Chain.RAICOIN, ChainStr.RAICOIN, ChainShown.RAICOIN],
+  [Chain.BITCOIN, ChainStr.BITCOIN, ChainShown.RAICOIN_TEST],
+  [Chain.ETHEREUM, ChainStr.ETHEREUM, ChainShown.ETHEREUM],
+  [Chain.BINANCE_SMART_CHAIN, ChainStr.BINANCE_SMART_CHAIN, ChainShown.BINANCE_SMART_CHAIN],
+
+  [Chain.RAICOIN_TEST, ChainStr.RAICOIN_TEST, ChainShown.RAICOIN_TEST],
+  [Chain.BITCOIN_TEST, ChainStr.BITCOIN_TEST, ChainShown.BITCOIN_TEST],
+  [Chain.ETHEREUM_TEST_ROPSTEN, ChainStr.ETHEREUM_TEST_ROPSTEN, ChainShown.ETHEREUM_TEST_ROPSTEN],
+  [Chain.ETHEREUM_TEST_KOVAN, ChainStr.ETHEREUM_TEST_KOVAN, ChainShown.ETHEREUM_TEST_KOVAN],
+  [Chain.ETHEREUM_TEST_RINKEBY, ChainStr.ETHEREUM_TEST_RINKEBY, ChainShown.ETHEREUM_TEST_RINKEBY],
+  [Chain.ETHEREUM_TEST_GOERLI, ChainStr.ETHEREUM_TEST_GOERLI, ChainShown.ETHEREUM_TEST_GOERLI],
+  [Chain.BINANCE_SMART_CHAIN_TEST, ChainStr.BINANCE_SMART_CHAIN_TEST, ChainShown.BINANCE_SMART_CHAIN_TEST]
 ]
 
 export class ChainHelper {
@@ -905,6 +1001,12 @@ export class ChainHelper {
   static toChainStr(chain: Chain): string {
     const map = chainMaps.find(x => chain === x[0]);
     if (map) return map[1];
+    return '';
+  }
+
+  static toChainShown(chain: string): string {
+    const map = chainMaps.find(x => chain === x[1]);
+    if (map) return map[2];
     return '';
   }
 
@@ -922,6 +1024,33 @@ export class ChainHelper {
         return { error: true };
     }
   }
+
+  static rawToAddress(chain: string, raw: U256): {error: boolean, address?: string} {
+    switch (chain) {
+      case ChainStr.RAICOIN:
+      case ChainStr.RAICOIN_TEST:
+      {
+        return { error: false, address: raw.toAccountAddress() };
+      }
+      // todo:
+      default:
+        return { error: true };
+    }
+  }
+
+  static toShortAddress(chain: string, address: string, reserve: number = 5): string {
+    switch (chain) {
+      case ChainStr.RAICOIN:
+      case ChainStr.RAICOIN_TEST:
+      {
+        return shortAddress(address, reserve);
+      }
+      // todo:
+      default:
+        return address;
+    }
+  }
+
 }
 
 interface ExtensionTokenCodec {
@@ -1170,7 +1299,164 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
 
       if (offset !== array.length) throw streamError;
     }
+  },
+
+  'receive': {
+    encode: (value: any) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      buffer.set([ExtensionTokenOp.RECEIVE], count);
+      count += 1;
+
+      const chain = ChainHelper.toChain(value.chain);
+      if (chain === Chain.INVALID) {
+        throw new Error(`ExtensionHelper.token.receive.encode: invalid chain=${value.chain}`);
+      }
+      buffer.set((new U32(chain)).bytes, count);
+      count += 4;
+
+      const type = TokenHelper.toType(value.type);
+      buffer.set([type], count);
+      count += 1;
+
+      const address = new U256(value.address_raw, 16);
+      buffer.set(address.bytes, count);
+      count += address.size;
+
+      const source = TokenHelper.toSource(value.source);
+      if (source === TokenSource.INVALID) {
+        throw new Error(`ExtensionHelper.token.receive.encode: invalid source=${value.source}`);
+      }
+      buffer.set([source], count);
+      count += 1;
+
+      const from = new U256(value.from_raw, 16);
+      buffer.set(from.bytes, count);
+      count += from.size;
+
+      const blockHeight = new U64(value.block_height);
+      buffer.set(blockHeight.bytes, count);
+      count += blockHeight.size;
+
+      const txHash = new U256(value.tx_hash, 16);
+      buffer.set(txHash.bytes, count);
+      count += txHash.size;
+
+      const tokenValue = new U256(value.value);
+      buffer.set(tokenValue.bytes, count);
+      count += tokenValue.size;
+
+      if (source === TokenSource.UNWRAP) {
+        const unwrapChain = ChainHelper.toChain(value.unwrap_chain);
+        if (unwrapChain === Chain.INVALID) {
+          throw new Error(`ExtensionHelper.token.receive.encode: invalid unwrap_chain=${value.unwrap_chain}`);
+        }
+        buffer.set((new U32(unwrapChain)).bytes, count);
+        count += 4;
+      }
+
+      return buffer.slice(0, count);
+    },
+
+    decode: (array: Uint8Array, value: {[key: string]: string}) => {
+      const streamError = new Error(`ExtensionHelper.token.receive.decode: invalid stream`);
+      let offset = 0;
+      let end = 0;
+      const length = array.length;
+
+      const chain = new U32();
+      let error = chain.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += chain.size;
+      value.chain = ChainHelper.toChainStr(chain.toNumber());
+      if (!value.chain) {
+        throw new Error(`ExtensionHelper.token.receive.decode: invalid chain=${chain.toNumber()}`);
+      }
+
+      if (offset + 1 > length) {
+        throw streamError;
+      }
+      const type = array[offset];
+      offset += 1;
+      value.type = TokenHelper.toTypeStr(type);
+      if (!value.type) {
+        throw new Error(`ExtensionHelper.token.receive.decode: invalid type=${type}`);
+      }
+
+      const address = new U256();
+      error = address.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += address.size;
+      value.address_raw = address.toHex();
+      let ret = ChainHelper.rawToAddress(value.chain, address);
+      if (ret.error || !ret.address) {
+        throw new Error(`ExtensionHelper.token.receive.decode: invalid address=${value.address_raw}`);
+      }
+      value.address = ret.address;
+
+      if (offset + 1 > length) {
+        throw streamError;
+      }
+      const source = array[offset];
+      offset += 1;
+      value.source = TokenHelper.toSourceStr(source);
+      if (!value.source) {
+        throw new Error(`ExtensionHelper.token.receive.decode: invalid source=${source}`);
+      }
+
+      const from = new U256();
+      error = from.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += from.size;
+      value.from_raw = from.toHex();
+
+      const blockHeight = new U64();
+      error = blockHeight.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += blockHeight.size;
+      value.block_height = blockHeight.toDec();
+
+      const txHash = new U256();
+      error = txHash.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += txHash.size;
+      value.tx_hash = txHash.toHex();
+
+      const tokenValue = new U256();
+      error = tokenValue.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += tokenValue.size;
+      value.value = tokenValue.toDec();
+
+      let fromChain = '';
+      if (TokenHelper.isLocalSource(source)) {
+        fromChain = environment.current_chain;
+      } else if (source === TokenSource.MAP) {
+        fromChain = value.chain;
+      } else if (source === TokenSource.UNWRAP) {
+        const unwrapChain = new U32();
+        error = unwrapChain.fromArray(array, offset);
+        if (error) throw streamError;
+        offset += unwrapChain.size;
+        value.unwrap_chain = ChainHelper.toChainStr(unwrapChain.toNumber());
+        if (!value.unwrap_chain) {
+          throw new Error(`ExtensionHelper.token.receive.decode: invalid unwrap_chain=${unwrapChain.toNumber()}`);
+        }
+        fromChain = value.unwrap_chain;
+      } else {
+        throw new Error(`ExtensionHelper.token.receive.decode: invalid source=${source}`);
+      }
+
+      ret = ChainHelper.rawToAddress(fromChain, from);
+      if (ret.error || !ret.address) {
+        throw new Error(`ExtensionHelper.token.receive.decode: invalid from=${value.from_raw}`);
+      }
+      value.from = ret.address;
+
+      if (offset !== array.length) throw streamError;
+    }
   }
+
 }
 
 interface ExtensionCodec {
@@ -1255,9 +1541,8 @@ const extensionCodecs: {[codec: string]: ExtensionCodec} = {
         throw new Error(`ExtensionHelper.token.decode: bad length`);
       }
       const value: any = {}
-      if (array[0] == ExtensionTokenOp.CREATE) {
-        value.op = ExtensionTokenOpStr.CREATE;
-      } else {
+      value.op = TokenHelper.toOpStr(array[0]);
+      if (!value.op) {
         throw new Error(`ExtensionHelper.token.decode: unknown op=${array[0]}`);
       }
 

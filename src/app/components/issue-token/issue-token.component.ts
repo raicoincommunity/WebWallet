@@ -287,8 +287,8 @@ export class IssueTokenComponent implements OnInit {
       return;
     }
 
-    let extensions = [ { type: ExtensionTypeStr.TOKEN, value } ];
-    let result = this.wallets.changeExtensions(extensions);
+    const extensions = [ { type: ExtensionTypeStr.TOKEN, value } ];
+    const result = this.wallets.changeExtensions(extensions);
     if (result.errorCode !== WalletErrorCode.SUCCESS) {
       let msg = result.errorCode;
       this.translate.get(msg).subscribe(res => msg = res);

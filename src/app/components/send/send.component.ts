@@ -9,6 +9,7 @@ import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { AliasService } from '../../services/alias.service';
+import { AssetWidgetComponent } from '../asset-widget/asset-widget.component';
 
 @Component({
   selector: 'app-send',
@@ -43,6 +44,7 @@ export class SendComponent implements OnInit {
 
   @ViewChild('destinationDropdown') destinationDropdown! : ElementRef;
   @ViewChild('destinationInput') destinationInput! : ElementRef;
+  @ViewChild(AssetWidgetComponent) private assetWidget! : AssetWidgetComponent;
 
   constructor(
     private translate: TranslateService,
@@ -69,6 +71,7 @@ export class SendComponent implements OnInit {
         this.search();
       }
     );
+
   }
 
   @HostListener('document:click', ['$event'])
@@ -97,23 +100,20 @@ export class SendComponent implements OnInit {
     this.notification.sendSuccess(msg);
 
     this.activePanel = 'send';
-    this.amountStatus = 0;
     this.destination = '';
-    this.amount = new U128(0);
-    this.amountInRai = '';
+    this.assetWidget.clear();
     this.router.navigate([`/account/${this.selectedAccountAddress()}`]);
-
   }
 
   send() {
-    this.syncAmount();
-    if (!this.amount || this.amount.eq(0)) {
-      this.amountStatus = 2;
-    }
-
-    if (this.amountStatus === 2 || this.destinationStatus() !== 1) {
+    
+    if (this.destinationStatus() !== 1) {
+      if (!this.destination) {
+        this.destinationInput.nativeElement.focus()
+      }
       return;
     }
+    if (this.assetWidget.check()) return;
 
     if (this.destinationDns && !this.alias.dnsValid(this.destinationAccount)) {
       let msg = marker('Destination account unverified');
@@ -148,31 +148,6 @@ export class SendComponent implements OnInit {
     return this.wallets.selectedAccountAddress();
   }
 
-  setMaxAmount() {
-    let amount = this.wallets.balance();
-    this.amount = amount.value;
-    this.amountInRai = this.amount.toBalanceStr(U128.RAI());
-  }
-
-  syncAmount() {
-    try {
-      if (!this.amountInRai) {
-        this.amountStatus = 2;
-        return;
-      }
-      let amount = new BigNumber(this.amountInRai).mul(U128.RAI().toBigNumber());
-      this.amount = new U128(amount);
-      if (this.amount.eq(0)) {
-        this.amountStatus = 2;
-        return;
-      }
-      this.amountStatus = 1;
-    }
-    catch (err) {
-      this.amountStatus = 2;
-    }
-  }
-  
   sourceAlias(): string {
     return this.alias.alias(this.selectedAccountAddress());
   }

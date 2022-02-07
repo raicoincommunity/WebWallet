@@ -48,7 +48,24 @@
             {{ receivable.hash.toHex() }}
           </td>
         </tr>
-        <tr *ngIf="empty">
+
+        <tr *ngFor="let receivable of tokenReceivables()">
+          <td class="uk-text-left">
+            <input class="uk-checkbox" type="checkbox" [checked]="tokenChecked(receivable.key())"
+              (click)="tokenChecked(receivable.key()) ? tokenUncheck(receivable.key()) : tokenCheck(receivable.key())">
+          </td>
+          <td class="uk-text-left uk-text-truncate">
+            {{ receivable.from }}
+          </td>
+          <td class="uk-text-right">
+            {{ receivable.valueFormatted() }}
+          </td>
+          <td class="uk-text-left uk-text-truncate">
+            {{ receivable.txHash.toHex() }}
+          </td>
+        </tr>
+
+        <tr *ngIf="empty()">
           <td colspan="4" style="text-align: center;">{{ 'No receivable transactions' | translate }}</td>
         </tr>
         </tbody>
