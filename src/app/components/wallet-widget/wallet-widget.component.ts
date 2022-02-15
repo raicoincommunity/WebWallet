@@ -13,6 +13,8 @@ export class WalletWidgetComponent implements OnInit {
   modal: any = null;
   unlockPassword = '';
 
+  private callback: any = null;
+
   constructor(
     private translate: TranslateService,
     private wallets: WalletsService,
@@ -24,9 +26,10 @@ export class WalletWidgetComponent implements OnInit {
     const modal = UIkit.modal(document.getElementById('unlock-wallet-modal'));
     this.modal = modal;
 
-    this.wallets.showModal$.subscribe(_ => {
+    this.wallets.showModal$.subscribe(x => {
       if (!this.modal) return;
       this.modal.show();
+      if (x) this.callback = x;
     });
   }
 
@@ -67,6 +70,10 @@ export class WalletWidgetComponent implements OnInit {
       this.translate.get(msg).subscribe(res => msg = res);      
       this.notification.sendSuccess(msg);
       this.modal.hide();
+      if (this.callback) {
+        this.callback();
+        this.callback = null;
+      }
     }
     else if (result.errorCode === WalletErrorCode.MISS) {
       let msg = marker('The wallet has been deleted, please refresh the page.');
@@ -83,4 +90,9 @@ export class WalletWidgetComponent implements OnInit {
 
     this.unlockPassword = '';
   }
+
+  cancel() {
+    this.callback = null;
+  }
+
 }

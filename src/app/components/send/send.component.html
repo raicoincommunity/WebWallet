@@ -11,7 +11,7 @@
     </div>
 
     <!-- Send Panel -->
-    <div uk-grid *ngIf="activePanel === 'send'" class="uk-animation-slide-left-small">
+    <div uk-grid [hidden]="activePanel !== 'send'" class="uk-animation-slide-left-small">
       <div class="uk-width-1-1">
 
         <div class="uk-card uk-card-default">
@@ -24,7 +24,7 @@
                   <div class="uk-form-controls">
                     <div class="uk-inline uk-width-1-1">
                       <a *ngIf="selectedDnsValid() && destinationStatus() === 1" class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px;" uk-tooltip title="{{ 'Account verified' | translate }}"><span uk-icon="icon: check;" class="uk-text-success"></span></a>
-                      <input #destinationInput (focus)="destinationFocus()" (blur)="destinationBlur()" (ngModelChange)="destinationChanged()" [(ngModel)]="destination" [ngClass]="{ 'uk-form-success': destinationStatus() === 1, 'uk-form-danger': destinationStatus() === 2 && !destinationFocused && !searchResultShown }" class="uk-input" id="form-horizontal-text1" type="text" placeholder="{{'Account to send to' | translate}}" autocomplete="off">
+                      <input #destinationInput (focus)="destinationFocus()" (blur)="destinationBlur()" (ngModelChange)="destinationChanged()" [(ngModel)]="destination" [ngClass]="{ 'uk-form-success': destinationStatus() === 1, 'uk-form-danger': destinationStatus() === 2 && !destinationFocused && !searchResultShown }" class="uk-input" id="form-horizontal-text1" type="text" placeholder="{{'Account or Alias to send to' | translate}}" autocomplete="off">
                       <button type="button" style="display:none"></button>
                       <div uk-dropdown="mode: click" #destinationDropdown class="uk-width-1-1 uk-margin-remove uk-padding-small uk-padding-remove-top uk-padding-remove-bottom">
                         <ul class="uk-nav uk-dropdown-nav uk-text-truncate">
@@ -67,9 +67,9 @@
       <div class="uk-width-1-1">
         <div class="uk-card uk-card-default uk-width-1-1 uk-text-center">
           <span style="display: block; padding-top: 8px;">{{ 'You are about to send' | translate }}</span>
-          <span style="display:block; font-size: 32px;">{{ amount | balance: 9: false }}</span>
+          <span style="display:block; font-size: 32px;">{{ showAmount() }}</span>
         </div>
-        <br>
+        <br />
         <div uk-grid *ngIf="destination">
           <div class="uk-width-1-2@m">
             <div class="uk-card uk-card-default">
@@ -90,11 +90,11 @@
                     <span class="confirm-subtitle">{{ 'Alias' | translate }}</span>
                   </div>
                   <div class="uk-width-1-2 uk-text-muted">
-                    <span class="confirm-currency">{{ balance() | balance: 9: false }}</span>
+                    <span class="confirm-currency">{{ showBalance() }}</span>
                     <span class="confirm-subtitle">{{ 'Current Balance' | translate }}</span>
                   </div>
                   <div class="uk-width-1-2 uk-text-right">
-                    <span class="confirm-currency uk-text-danger">-{{ amount | balance: 9: false }}</span>
+                    <span class="confirm-currency uk-text-danger">-{{ showAmount() }}</span>
                   </div>
                 </div>
               </div>
@@ -113,7 +113,7 @@
                 </span>
               </div>
 
-              <div *ngIf="destinationAlias || destinationSubAccount" class="uk-card-body" style="padding: 20px 20px;">
+              <div *ngIf="destinationAlias || destinationSubAccount" class="uk-card-body uk-text-right" style="padding: 20px 20px;">
                 <div uk-grid>
                   <div *ngIf="destinationAlias" class="uk-width-1-1 uk-text-muted uk-text-break">
                     <span class="confirm-currency">{{ destinationAlias }}</span>

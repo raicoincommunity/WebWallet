@@ -689,7 +689,14 @@ export class U128 extends Uint {
 
 export class U256 extends Uint {
   static readonly SIZE = 32;
-  
+  static _MAX: U256 | undefined;
+  static max(): U256 {
+    if (!U256._MAX) {
+      U256._MAX = UintHelper.max(U256.SIZE) as U256;
+    }
+    return U256._MAX;
+  }
+
   readonly size = U256.SIZE;
   constructor(from: UintFrom = 0, base?: number, check: boolean = true) {
     super(from, base, U256.SIZE, check);
@@ -701,6 +708,14 @@ export class U256 extends Uint {
 
   idiv(other: UintFrom, base?: number): U256 {
     return super.idiv(other, base) as U256;
+  }
+
+  plus(other: UintFrom, base?: number): U256 {
+    return super.plus(other, base) as U256;
+  }
+
+  minus(other: UintFrom, base?: number): U256 {
+    return super.minus(other, base) as U256;
   }
 
   toAccountAddress(): string {
@@ -991,6 +1006,26 @@ const chainMaps: ChainMap[] = [
   [Chain.BINANCE_SMART_CHAIN_TEST, ChainStr.BINANCE_SMART_CHAIN_TEST, ChainShown.BINANCE_SMART_CHAIN_TEST]
 ]
 
+const crossChains: {[current: string]: Chain[]} = {
+  'raicoin': [
+    // todo:
+  ],
+
+  'raicoin test': [
+    // todo:
+  ]
+}
+
+const crossChainStrs: {[current: string]: ChainStr[]} = {
+  'raicoin': [
+    // todo:
+  ],
+
+  'raicoin test': [
+    // todo:
+  ]
+}
+
 export class ChainHelper {
   static toChain(str: string): Chain {
     const map = chainMaps.find(x => str === x[1]);
@@ -1051,6 +1086,15 @@ export class ChainHelper {
     }
   }
 
+  static crossChains(currentChain: string): Chain[] {
+    if (!crossChains[currentChain]) return [];
+    return crossChains[currentChain];
+  }
+
+  static crossChainStrs(currentChain: string): ChainStr[] {
+    if (!crossChainStrs[currentChain]) return [];
+    return crossChainStrs[currentChain];
+  }
 }
 
 interface ExtensionTokenCodec {
@@ -1059,7 +1103,7 @@ interface ExtensionTokenCodec {
 }
 
 const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
-  'create': {
+  create: {
     encode: (value: any) => {
       let buffer = new Uint8Array(1024);
       let count = 0;
@@ -1276,7 +1320,7 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
         }
         value.base_uri = utf8Decoder.decode(array.slice(offset, end));
         offset += baseUriSize;
-  
+
         const capSupply = new U256();
         let error = capSupply.fromArray(array, offset);
         if (error) throw streamError;
@@ -1301,7 +1345,237 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
     }
   },
 
-  'receive': {
+  mint: {
+    encode: (value: any) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      buffer.set([ExtensionTokenOp.MINT], count);
+      count += 1;
+
+      const type = TokenHelper.toType(value.type);
+      if (type === TokenType.INVALID) {
+        throw new Error(`ExtensionHelper.token.mint.encode: invalid type=${value.type}`);
+      }
+      buffer.set([type], count);
+      count += 1;
+
+      if (!value.to || typeof value.to !== 'string') {
+        throw new Error(`ExtensionHelper.token.mint.encode: invalid to=${value.to}`);
+      }
+      const to = new U256();
+      let error = to.fromAccountAddress(value.to);
+      if (error) {
+        throw new Error(`ExtensionHelper.token.mint.encode: invalid to=${value.to}`);
+      }
+      buffer.set(to.bytes, count);
+      count += to.size;
+
+      if (!value.value || typeof value.value !== 'string') {
+        throw new Error(`ExtensionHelper.token.mint.encode: invalid value=${value.value}`);
+      }
+      const tokenValue = new U256(value.value);
+      buffer.set(tokenValue.bytes, count);
+      count += tokenValue.size;
+
+      if (type === TokenType._721) {
+        if (typeof value.uri !== 'string') {
+          throw new Error(`ExtensionHelper.token.mint.encode: invalid uri=${value.uri}`);
+        }
+        const uri = new TextEncoder().encode(value.uri);
+        if (uri.length > 255) {
+          throw new Error(`ExtensionHelper.token.mint.encode: invalid uri=${value.uri}`);
+        }
+        buffer.set([uri.length], count);
+        count += 1;
+        buffer.set(uri, count);
+        count += uri.length;
+      }
+      return buffer.slice(0, count);
+    },
+
+    decode: (array: Uint8Array, value: {[key: string]: string}) => {
+      const streamError = new Error(`ExtensionHelper.token.mint.decode: invalid stream`);
+      let offset = 0;
+      let end = 0;
+      const length = array.length;
+
+      if (offset + 1 > length) {
+        throw streamError;
+      }
+      const type = array[offset];
+      offset += 1;
+      value.type = TokenHelper.toTypeStr(type);
+
+      const to = new U256();
+      let error = to.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += to.size;
+      value.to = to.toAccountAddress();
+
+      const tokenValue = new U256();
+      error = tokenValue.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += tokenValue.size;
+      value.value = tokenValue.toDec();
+
+      if (type === TokenType._721) {
+        if (offset + 1 > length) {
+          throw streamError;
+        }
+        const uriSize = array[offset];
+        offset += 1;
+        end = offset + uriSize
+        if (end > length) {
+          throw streamError;
+        }
+        const utf8Decoder = new TextDecoder('utf-8', {fatal: true});
+        value.uri = utf8Decoder.decode(array.slice(offset, end));
+        offset += uriSize;
+      }
+      if (offset !== array.length) throw streamError;
+    }
+  },
+
+  burn: {
+    encode: (value: any) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      buffer.set([ExtensionTokenOp.BURN], count);
+      count += 1;
+
+      const type = TokenHelper.toType(value.type);
+      if (type === TokenType.INVALID) {
+        throw new Error(`ExtensionHelper.token.burn.encode: invalid type=${value.type}`);
+      }
+      buffer.set([type], count);
+      count += 1;
+
+      if (!value.value || typeof value.value !== 'string') {
+        throw new Error(`ExtensionHelper.token.burn.encode: invalid value=${value.value}`);
+      }
+      const tokenValue = new U256(value.value);
+      buffer.set(tokenValue.bytes, count);
+      count += tokenValue.size;
+      return buffer.slice(0, count);
+    },
+
+    decode: (array: Uint8Array, value: {[key: string]: string}) => {
+      const streamError = new Error(`ExtensionHelper.token.burn.decode: invalid stream`);
+      let offset = 0;
+      const length = array.length;
+
+      if (offset + 1 > length) {
+        throw streamError;
+      }
+      const type = array[offset];
+      offset += 1;
+      value.type = TokenHelper.toTypeStr(type);
+
+      const tokenValue = new U256();
+      let error = tokenValue.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += tokenValue.size;
+      value.value = tokenValue.toDec();
+      if (offset !== array.length) throw streamError;
+    }
+  },
+
+  send: {
+    encode: (value: any) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      buffer.set([ExtensionTokenOp.SEND], count);
+      count += 1;
+
+      const chain = ChainHelper.toChain(value.chain);
+      if (chain === Chain.INVALID) {
+        throw new Error(`ExtensionHelper.token.send.encode: invalid chain=${value.chain}`);
+      }
+      buffer.set((new U32(chain)).bytes, count);
+      count += 4;
+
+      const type = TokenHelper.toType(value.type);
+      if (type === TokenType.INVALID) {
+        throw new Error(`ExtensionHelper.token.send.encode: invalid type=${value.type}`);
+      }
+      buffer.set([type], count);
+      count += 1;
+
+      const address = new U256(value.address_raw, 16);
+      buffer.set(address.bytes, count);
+      count += address.size;
+      if (!value.to || typeof value.to !== 'string') {
+        throw new Error(`ExtensionHelper.token.send.encode: invalid to=${value.to}`);
+      }
+      const to = new U256();
+      let error = to.fromAccountAddress(value.to);
+      if (error) {
+        throw new Error(`ExtensionHelper.token.send.encode: invalid to=${value.to}`);
+      }
+      buffer.set(to.bytes, count);
+      count += to.size;
+
+      if (!value.value || typeof value.value !== 'string') {
+        throw new Error(`ExtensionHelper.token.send.encode: invalid value=${value.value}`);
+      }
+      const tokenValue = new U256(value.value);
+      buffer.set(tokenValue.bytes, count);
+      count += tokenValue.size;
+
+      return buffer.slice(0, count);
+    },
+    decode: (array: Uint8Array, value: {[key: string]: string}) => {
+      const streamError = new Error(`ExtensionHelper.token.send.decode: invalid stream`);
+      let offset = 0;
+      const length = array.length;
+
+      const chain = new U32();
+      let error = chain.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += chain.size;
+      value.chain = ChainHelper.toChainStr(chain.toNumber());
+      if (!value.chain) {
+        throw new Error(`ExtensionHelper.token.send.decode: invalid chain=${chain.toNumber()}`);
+      }
+
+      if (offset + 1 > length) {
+        throw streamError;
+      }
+      const type = array[offset];
+      offset += 1;
+      value.type = TokenHelper.toTypeStr(type);
+      if (!value.type) {
+        throw new Error(`ExtensionHelper.token.send.decode: invalid type=${type}`);
+      }
+
+      const address = new U256();
+      error = address.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += address.size;
+      value.address_raw = address.toHex();
+      let ret = ChainHelper.rawToAddress(value.chain, address);
+      if (ret.error || !ret.address) {
+        throw new Error(`ExtensionHelper.token.send.decode: invalid address=${value.address_raw}`);
+      }
+      value.address = ret.address;
+
+      const to = new U256();
+      error = to.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += to.size;
+      value.to = to.toAccountAddress();
+
+      const tokenValue = new U256();
+      error = tokenValue.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += tokenValue.size;
+      value.value = tokenValue.toDec();
+
+      if (offset !== array.length) throw streamError;
+    }
+  },
+
+  receive: {
     encode: (value: any) => {
       let buffer = new Uint8Array(1024);
       let count = 0;
@@ -1316,6 +1590,9 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
       count += 4;
 
       const type = TokenHelper.toType(value.type);
+      if (type === TokenType.INVALID) {
+        throw new Error(`ExtensionHelper.token.receive.encode: invalid type=${value.type}`);
+      }
       buffer.set([type], count);
       count += 1;
 
@@ -1361,7 +1638,6 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
     decode: (array: Uint8Array, value: {[key: string]: string}) => {
       const streamError = new Error(`ExtensionHelper.token.receive.decode: invalid stream`);
       let offset = 0;
-      let end = 0;
       const length = array.length;
 
       const chain = new U32();
@@ -1455,7 +1731,7 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
 
       if (offset !== array.length) throw streamError;
     }
-  }
+  },
 
 }
 

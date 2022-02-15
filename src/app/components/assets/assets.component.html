@@ -1,10 +1,23 @@
 <div class="uk-animation-slide-left-small" uk-grid>
   <div class="uk-width-1-1">
-    <h2>{{ 'Assets' | translate }}</h2>
+    <div uk-grid class="uk-margin-small-bottom">
+      <div class="uk-width-1-2">
+        <h2>{{ 'Assets' | translate }}</h2>
+      </div>
+      <div *ngIf="activePanel === ''" class="uk-width-1-2 uk-text-right">
+        <div uk-grid>
+          <div class="uk-width-1-1">
+            <button class="uk-button uk-button-secondary" (click)="activePanel = 'add_asset'">
+              {{ 'Add Asset' | translate }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <app-account-widget raiTitle="{{ 'Your account' | translate }}"></app-account-widget>
   
-    <div class="uk-card uk-card-default uk-margin-top">
+    <div *ngIf="activePanel === ''" class="uk-card uk-card-default uk-margin-top">
       <table class="uk-table uk-table-striped uk-table-small">
         <thead>
           <tr>
@@ -15,14 +28,14 @@
           </thead>
           <tbody>
           <tr *ngFor="let token of tokens()">
-            <td class="uk-text-left uk-text-truncate">
-              {{ token.symbol }}
+            <td class="uk-text-left uk-text-truncate" >
+              <img [src]="token.tokenLogo" width="20" height="20" style="vertical-align: text-top;" /> {{ token.asset }}
             </td>
             <td class="uk-text-right">
-              {{ token.balanceFormatted }}
+              {{ token.balance }}
             </td>
             <td class="uk-text-right uk-text-truncate">
-              {{ token.chainShown }}
+              <img *ngIf="token.chain !== ''" [src]="token.chainLogo" width="20" height="20" style="vertical-align: text-top;" /> {{ token.chain }}
             </td>
           </tr>
   
@@ -30,9 +43,75 @@
             <td colspan="3" style="text-align: center;">{{ 'No assets yet' | translate }}</td>
           </tr>
           </tbody>
-        </table>
-      </div>
-  
+      </table>
     </div>
+  
+
+    <!-- Add Asset Panel-->
+    <div *ngIf="activePanel === 'add_asset'" class="uk-alert-warning" uk-alert>
+      <p><b>{{ 'Warning' | translate }}:</b> {{ 'Anyone can create a token with any name and symbol, including creating fake versions of existing tokens. Please make sure the token address represents the asset you really want.' | translate }}</p>
+    </div>
+    <div *ngIf="activePanel === 'add_asset'" class="uk-card uk-card-default uk-margin">
+      <div class="uk-card-header">
+        <h3 class="uk-card-title">{{ 'Add Asset' | translate }}</h3>
+      </div>
+
+      <div class="uk-card-body">
+        <div class="uk-form-horizontal">
+
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-select-original-chain">{{ 'Original Chain' | translate }} *</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <select class="uk-select" [(ngModel)]="selectedChain" (ngModelChange)="chainChanged($event)" id="form-select-original-chain">
+                  <option *ngFor="let option of chains()" [value]="option" >{{ showChain(option) }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-input-token-address">{{ 'Token Address' | translate }} *</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <a *ngIf="tokenAddressStatus === 3" class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px;" ><span uk-spinner="ratio: 0.6;"></span></a>
+                <input [(ngModel)]="inputTokenAddress" (ngModelChange)="tokenAddressChanged()" (blur)="syncTokenAddress()" class="uk-input" id="form-input-token-address" type="text"  [ngClass]="{ 'uk-form-success': tokenAddressStatus === 1, 'uk-form-danger': tokenAddressStatus === 2 }">
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="tokenAddressStatus === 1" class="uk-margin">
+            <label class="uk-form-label" for="form-input-token-name">{{ 'Token Name' | translate }}</label>
+            <div class="uk-form-controls">
+              <input [value]="tokenName" class="uk-input" disabled id="form-input-token-name" type="text">
+            </div>
+          </div>
+
+          <div *ngIf="tokenAddressStatus === 1" class="uk-margin">
+            <label class="uk-form-label" for="form-input-token-symbol">{{ 'Token Symbol' | translate }}</label>
+            <div class="uk-form-controls">
+              <input [value]="tokenSymbol" class="uk-input" disabled id="form-input-token-symbol" type="text">
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="uk-card-footer uk-text-right">
+        <div uk-grid>
+          <div class="uk-width-1-2@s">
+            <button (click)="activePanel = ''" class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate }}</button>
+          </div>
+          <div class="uk-width-1-2@s">
+            <button class="uk-button uk-button-primary uk-width-1-1" (click)="addAsset()">{{ 'Add' | translate }}</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- End -->
+  </div>
 </div>
   

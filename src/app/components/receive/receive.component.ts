@@ -42,6 +42,23 @@ export class ReceiveComponent implements OnInit {
       return;
     }
 
+    const wallet = this.wallets.selectedWallet()
+    if (!wallet) {
+      let msg = marker(`Please configure a wallet first`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    } else {
+      if (wallet.locked()) {
+        this.wallets.tryInputPassword(() => { this.doReceive() });
+        return;
+      }
+    }
+
+    this.doReceive();
+  }
+
+  doReceive() {
     let error = false;
     let received = false;
     for (let hash of this.checkedHashs) {

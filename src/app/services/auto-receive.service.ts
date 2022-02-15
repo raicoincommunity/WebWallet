@@ -69,7 +69,7 @@ export class AutoReceiveService implements OnDestroy {
               this.notify(a.address());
               break;
             }
-            const result = this.token.receive(a.address(), r.key());
+            const result = this.token.receive(a.address(), r.key(), a, w);
             if (result.errorCode !== WalletErrorCode.SUCCESS) break;
             tokenReceived = true;
           }

@@ -16,6 +16,9 @@ export class LogoService {
     }
     const map = tokenLogoMaps.find(x => chain === x[0] && address === x[1]);
     const logo = map ? map[2] : this.DEFAULT_LOGO;
+    if (logo.startsWith('http')) {
+      return logo;
+    }
     return this.PATH_PREFIX + logo;
   }
 
@@ -25,6 +28,9 @@ export class LogoService {
     }
     const map = chainLogoMaps.find(x => chain === x[0]);
     const logo = map ? map[1] : this.DEFAULT_LOGO;
+    if (logo.startsWith('http')) {
+      return logo;
+    }
     return this.PATH_PREFIX + logo;
   }
 
