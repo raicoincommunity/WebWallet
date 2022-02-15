@@ -7,6 +7,7 @@ import { ServerState, ServerService } from './services/server.service';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { AliasService } from './services/alias.service';
+import { AutoReceiveService } from './services/auto-receive.service';
 
 @Component({
   selector: 'app-root',
@@ -32,6 +33,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private settings: SettingsService,
     private server: ServerService,
     private alias: AliasService,
+    private autoReceive: AutoReceiveService,
     private notification: NotificationService){
   }
 

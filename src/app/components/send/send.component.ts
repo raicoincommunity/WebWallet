@@ -4,12 +4,12 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { WalletsService, Amount, WalletErrorCode } from '../../services/wallets.service';
 import { NotificationService } from '../../services/notification.service';
 import { U256, U128, UtilService } from '../../services/util.service';
-import { BigNumber } from 'bignumber.js';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { AliasService } from '../../services/alias.service';
 import { AssetWidgetComponent } from '../asset-widget/asset-widget.component';
+import { ExtensionTokenOpStr, TokenTypeStr, ExtensionTypeStr } from '../../services/util.service';
 
 @Component({
   selector: 'app-send',
@@ -18,10 +18,7 @@ import { AssetWidgetComponent } from '../asset-widget/asset-widget.component';
 })
 export class SendComponent implements OnInit {
   activePanel = 'send';
-  amountStatus = 0;
   destination = '';
-  amount = new U128(0);
-  amountInRai = '';
   note = '';
   searchResult: string[] = []
   searchedName: string = '';
@@ -44,7 +41,7 @@ export class SendComponent implements OnInit {
 
   @ViewChild('destinationDropdown') destinationDropdown! : ElementRef;
   @ViewChild('destinationInput') destinationInput! : ElementRef;
-  @ViewChild(AssetWidgetComponent) private assetWidget! : AssetWidgetComponent;
+  @ViewChild(AssetWidgetComponent) assetWidget! : AssetWidgetComponent;
 
   constructor(
     private translate: TranslateService,
@@ -87,20 +84,73 @@ export class SendComponent implements OnInit {
   }
   
   confirm() {
-    let result = this.wallets.send(this.destinationAccount, this.amount, this.note, this.destinationSubAccount);
-    if (result.errorCode !== WalletErrorCode.SUCCESS) {
-      let msg = result.errorCode;
-      this.translate.get(msg).subscribe(res => msg = res);
-      this.notification.sendError(msg);
+    if (this.assetWidget.check()) {
+      this.activePanel = 'send';
       return;
     }
-    let msg = marker(`Successfully sent { amount } RAI!`);
-    const param = { 'amount': this.amountInRai };
-    this.translate.get(msg, param).subscribe(res => msg = res);    
-    this.notification.sendSuccess(msg);
+
+    const widget = this.assetWidget;
+    const asset = widget.selectedAsset;
+    if (!asset) return;
+    if (asset.isRaicoin) {
+      const amount = new U128(widget.amount.toDec(), 10, true);
+      const result = this.wallets.send(this.destinationAccount, amount,
+                                       this.note, this.destinationSubAccount);
+      if (result.errorCode !== WalletErrorCode.SUCCESS) {
+        let msg = result.errorCode;
+        this.translate.get(msg).subscribe(res => msg = res);
+        this.notification.sendError(msg);
+        return;
+      }
+      let msg = marker(`Successfully sent { amount } RAI!`);
+      const param = { 'amount': amount.toBalanceStr(U128.RAI()) };
+      this.translate.get(msg, param).subscribe(res => msg = res);    
+      this.notification.sendSuccess(msg);  
+    } else {
+      let value: any = {
+        op: ExtensionTokenOpStr.SEND,
+        chain: asset.chain,
+        type: asset.type,
+        address_raw: asset.addressRaw.toHex(),
+        to: this.destinationAccount,
+      };
+      if (asset.type === TokenTypeStr._20) {
+        value.value = widget.amount.toDec();
+      } else if (asset.type === TokenTypeStr._721) {
+        value.value = widget.tokenId.toDec();
+      } else {
+        console.log(`confirmSend:Unknown type=${asset.type}`);
+        return;
+      }
+      const extensions = [ { type: ExtensionTypeStr.TOKEN, value } ];
+
+      if (this.note) {
+        const extension = { type: ExtensionTypeStr.NOTE, value: this.note };
+        extensions.push(extension);
+      }
+
+      if (this.destinationSubAccount) {
+        const extension = { type: ExtensionTypeStr.SUB_ACCOUNT, value: this.destinationSubAccount }
+        extensions.push(extension);
+      }
+  
+      const result = this.wallets.changeExtensions(extensions);
+      if (result.errorCode !== WalletErrorCode.SUCCESS) {
+        let msg = result.errorCode;
+        this.translate.get(msg).subscribe(res => msg = res);
+        this.notification.sendError(msg);
+        return;
+      }
+  
+      let msg = marker(`Successfully sent { amount }!`);
+      const param = { 'amount': this.showAmount() };
+      this.translate.get(msg, param).subscribe(res => msg = res);    
+      this.notification.sendSuccess(msg);  
+    }
 
     this.activePanel = 'send';
     this.destination = '';
+    this.note = '';
     this.assetWidget.clear();
     this.router.navigate([`/account/${this.selectedAccountAddress()}`]);
   }
@@ -122,23 +172,17 @@ export class SendComponent implements OnInit {
       return;
     }
 
-    let account = new U256();
-    if (account.fromAccountAddress(this.destinationAccount)) return;
-
-    if (this.balance().value.lt(this.amount)) {
-      let msg = marker('Not enough balance');
+    const wallet = this.wallets.selectedWallet()
+    if (!wallet) {
+      let msg = marker(`Please configure a wallet first`);
       this.translate.get(msg).subscribe(res => msg = res);
       this.notification.sendError(msg);
       return;
-    }
-
-    let errorCode = this.wallets.accountActionCheck(this.wallets.selectedAccount(),
-                                                    this.wallets.selectedWallet());
-    if (errorCode !== WalletErrorCode.SUCCESS) {
-      let msg = errorCode;
-      this.translate.get(msg).subscribe(res => msg = res);
-      this.notification.sendError(msg);
-      return;
+    } else {
+      if (wallet.locked()) {
+        this.wallets.tryInputPassword(() => { this.activePanel = 'confirm'; });
+        return;
+      }
     }
 
     this.activePanel = 'confirm';
@@ -274,6 +318,14 @@ export class SendComponent implements OnInit {
     return this.alias.dnsValid(account);
   }
 
+  showAmount(): string {
+    return this.assetWidget.showAmount();
+  }
+
+  showBalance(): string {
+    return this.assetWidget.showBalance();
+  }
+
   private syncDestination() {
     this.destinationAccount = '';
     this.destinationSubAccount = '';
@@ -319,13 +371,26 @@ export class SendComponent implements OnInit {
     this.destinationName = '';
     this.destinationDns = '';
     if (!this.destinationAlias) return;
+
     const arr = this.destinationAlias.split('@');
     if (arr.length === 1) {
       this.destinationName = arr[0];
     } else if (arr.length === 2) {
-      if (this.dnsRegexp.test(arr[1])) {
-        this.destinationName = arr[0];
-        this.destinationDns = arr[1];  
+      const index = arr[1].indexOf('_');
+      if (index === -1) {
+        if (this.dnsRegexp.test(arr[1])) {
+          this.destinationName = arr[0];
+          this.destinationDns = arr[1];  
+        }
+      } else {
+        if (this.destinationSubAccount) return;
+        const dns = arr[1].substr(0, index);
+        if (this.dnsRegexp.test(dns)) {
+          this.destinationName = arr[0];
+          this.destinationDns = dns;
+          this.destinationAlias = `${arr[0]}@${dns}`;
+          this.destinationSubAccount = arr[1].substr(index + 1);
+        }
       }
     }
   }

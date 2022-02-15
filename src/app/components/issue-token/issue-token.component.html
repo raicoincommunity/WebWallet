@@ -300,8 +300,8 @@
       </div>
     </div>
 
-    <!-- Token Details -->
-    <div *ngIf="issued()" class="uk-card uk-card-default uk-margin">
+    <!-- Token Details Panel-->
+    <div *ngIf="issued() && activePanel === ''" class="uk-card uk-card-default uk-margin">
       <div class="uk-card-header">
         <h3 class="uk-card-title">{{ 'Token Details' | translate }}</h3>
       </div>
@@ -369,6 +369,17 @@
                 </div>
               </div>
 
+              <div *ngIf="type() === 'RAI-721'" class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Base URI' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left uk-text-break">
+                    {{ baseUri() }}
+                  </div>
+                </div>
+              </div>
+
               <div class="uk-width-1-1">
                 <div uk-grid>
                   <div class="uk-width-2-5 uk-text-left">
@@ -402,7 +413,7 @@
                     title="{{ 'Allow the issuer to mint additional tokens after creation.' | translate }}"></span>
                   </div>
                   <div class="uk-width-3-5 uk-text-left">
-                    {{ mintable() }}
+                    {{ mintableStr() }}
                   </div>
                 </div>
               </div>
@@ -416,7 +427,7 @@
                   <div class="uk-width-3-5 uk-text-left">
                     <div uk-grid>
                       <div class="uk-width-expand">
-                        {{ burnable() }}
+                        {{ burnableStr() }}
                       </div>
                     </div>
                   </div>
@@ -432,7 +443,7 @@
                   <div class="uk-width-3-5 uk-text-left">
                     <div uk-grid>
                       <div class="uk-width-expand uk-text-truncate ">
-                        {{ circulable() }}
+                        {{ circulableStr() }}
                       </div>
                     </div>
                   </div>
@@ -479,14 +490,344 @@
       </div>
 
       <div class="uk-card-footer uk-text-right">
-        <div class="uk-button-group">
-          <button class="uk-button uk-button-primary uk-margin-left"
-            (click)="create()">{{ 'Create' | translate }}</button>
+        <div uk-grid>
+          <div class="uk-width-1-2@s">
+            <button *ngIf="burnable() && synced()" (click)="activePanel = 'burn'" class="uk-button uk-button-danger uk-width-1-1">{{ 'Burn Token' | translate }}</button>
+            <button *ngIf="!burnable() || !synced()" class="uk-button uk-button-disabled uk-width-1-1">{{ 'Burn Token' | translate }}</button>
+          </div>
+          <div class="uk-width-1-2@s">
+            <button *ngIf="mintable() && synced()" class="uk-button uk-button-primary uk-width-1-1" (click)="activePanel = 'mint'">{{ 'Mint Token' | translate }}</button>
+            <button *ngIf="!mintable() || !synced()" class="uk-button uk-button-disabled uk-width-1-1" (click)="activePanel = 'mint'">{{ 'Mint Token' | translate }}</button>
+          </div>
         </div>
-
       </div>
 
     </div>
 
+
+    <!-- Mint Panel-->
+    <div *ngIf="activePanel === 'mint'" class="uk-card uk-card-default uk-margin">
+      <div class="uk-card-header">
+        <h3 class="uk-card-title">{{ 'Mint Token' | translate }}</h3>
+      </div>
+    
+      <div class="uk-card-body">
+        <div class="uk-form-horizontal">
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-input-token-address">{{ 'Address' | translate }}</label>
+            <div class="uk-form-controls">
+              <input [value]="address()" class="uk-input" disabled id="form-input-token-address" type="text">
+            </div>
+          </div>
+          
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-input-token-type">{{ 'Type' | translate }}</label>
+            <div class="uk-form-controls">
+              <input [value]="type()" class="uk-input" disabled id="form-input-token-type" type="text">
+            </div>
+          </div>
+
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-input-current-supply">{{ 'Current Supply' | translate }}</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <input [value]="totalSupply()" class="uk-input" disabled id="form-input-current-supply" type="text" >
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="type() == 'RAI-20'" class="uk-margin">
+            <label class="uk-form-label" for="form-input-mint-amount">{{ 'Mint Amount' | translate }} *</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <a class="uk-form-icon uk-form-icon-flip" (click)="setMaxMintAmount()" style="padding-right: 7px;" uk-tooltip title="{{ 'Set Maximum Amount' | translate }}">{{ 'Max' | translate }}</a>
+                <input [(ngModel)]="inputMintAmount" (change)="syncMintAmount()" (keyup)="syncMintAmount()" class="uk-input" id="form-input-mint-amount" type="text" [placeholder]="mintAmountHint()" [ngClass]="{ 'uk-form-success': mintAmountStatus === 1, 'uk-form-danger': mintAmountStatus === 2 }">
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="type() == 'RAI-721'" class="uk-margin">
+            <label class="uk-form-label" for="form-input-mint-token-id">{{ 'Token ID' | translate }} *</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <a *ngIf="mintTokenIdStatus !== 3" class="uk-form-icon uk-form-icon-flip" (click)="autoSetTokenId()" style="padding-right: 7px;" >{{ 'Auto' | translate }}</a>
+                <a *ngIf="mintTokenIdStatus === 3" class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px;" ><span uk-spinner="ratio: 0.6;"></span></a>
+                <input [(ngModel)]="inputMintTokenId" (ngModelChange)="mintTokenIdChanged()" (blur)="syncMintTokenId()" class="uk-input" id="form-input-mint-token-id" type="text"  [ngClass]="{ 'uk-form-success': mintTokenIdStatus === 1, 'uk-form-danger': mintTokenIdStatus === 2 }">
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="type() == 'RAI-721'" class="uk-margin">
+            <label class="uk-form-label" for="form-input-token-uri">{{ 'Token URI' | translate }}</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <input [(ngModel)]="inputMintTokenUri" (ngModelChange)="mintTokenUriChanged()" class="uk-input" id="form-input-token-uri" type="text" >
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="uk-card-footer uk-text-right">
+        <div uk-grid>
+          <div class="uk-width-1-2@s">
+            <button (click)="activePanel = ''" class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate }}</button>
+          </div>
+          <div class="uk-width-1-2@s">
+            <button class="uk-button uk-button-primary uk-width-1-1" (click)="mint()">{{ 'Mint Token' | translate }}</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- Confirm Mint Panel-->
+    <div *ngIf="activePanel === 'confirm_mint'" uk-grid >
+      <div class="uk-width-1-1">
+        <div class="uk-card uk-card-default uk-text-center" >
+          <span style="display: block; padding-top: 8px;">{{ 'You are about to mint' | translate }}</span>
+            <span style="display:block; font-size: 32px;">+{{ showMintAmount() }}</span>
+        </div>
+        <br />
+
+        <div uk-grid>
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title uk-text-truncate">{{ address() }}</span>
+                    <span class="confirm-subtitle">{{ 'Token Address' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+    
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title">{{ mintTotalSupply() }}</span>
+                    <span class="confirm-subtitle">{{ 'Total Supply' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="type() === 'RAI-721'" class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title uk-text-truncate">{{ inputMintTokenId }}</span>
+                    <span class="confirm-subtitle">{{ 'Token ID' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+    
+          <div *ngIf="type() === 'RAI-721'" class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-break">
+                  <div>
+                    <span class="confirm-title">{{ showMintTokenUri() }}</span>
+                    <span class="confirm-subtitle">{{ 'Token URI' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+    
+        <div uk-grid>
+          <div class="uk-width-1-2@s ">
+            <button (click)="activePanel = 'mint'"
+              class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate }}</button>
+          </div>
+          <div class="uk-width-1-2@s">
+            <button class="uk-button uk-button-primary uk-width-1-1"
+              (click)="confirmMint()">{{ 'Confirm' | translate }}</button>
+          </div>
+        </div>
+    
+      </div>
+    </div>
+
+
+    <!-- Burn Panel-->
+    <div *ngIf="activePanel === 'burn'" class="uk-card uk-card-default uk-margin">
+      <div class="uk-card-header">
+        <h3 class="uk-card-title">{{ 'Burn Token' | translate }}</h3>
+      </div>
+    
+      <div class="uk-card-body">
+        <div class="uk-form-horizontal">
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-input-token-address">{{ 'Address' | translate }}</label>
+            <div class="uk-form-controls">
+              <input [value]="address()" class="uk-input" disabled id="form-input-token-address" type="text">
+            </div>
+          </div>
+          
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-input-token-type">{{ 'Type' | translate }}</label>
+            <div class="uk-form-controls">
+              <input [value]="type()" class="uk-input" disabled id="form-input-token-type" type="text">
+            </div>
+          </div>
+
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-input-current-supply">{{ 'Current Supply' | translate }}</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <input [value]="totalSupply()" class="uk-input" disabled id="form-input-current-supply" type="text" >
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="type() === 'RAI-20'" class="uk-margin">
+            <label class="uk-form-label" for="form-input-burn-amount">{{ 'Burn Amount' | translate }} *</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <a class="uk-form-icon uk-form-icon-flip" (click)="setMaxBurnAmount()" style="padding-right: 7px;" uk-tooltip title="{{ 'Set Maximum Amount' | translate }}">{{ 'Max' | translate }}</a>
+                <input [(ngModel)]="inputBurnAmount" (change)="syncBurnAmount()" (keyup)="syncBurnAmount()" class="uk-input" id="form-input-burn-amount" type="text" [placeholder]="burnAmountHint()" [ngClass]="{ 'uk-form-success': burnAmountStatus === 1, 'uk-form-danger': burnAmountStatus === 2 }">
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="type() === 'RAI-721'" class="uk-margin">
+            <label class="uk-form-label" for="form-select-burn-token-id">{{ 'Token ID' | translate }} *</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <a *ngIf="hasMoreTokenIds()" class="uk-form-icon uk-form-icon-flip" (click)="loadMoreBurnTokenIds()" style="padding-right: 20px;" uk-tooltip title="{{ 'Load more IDs' | translate }}">{{ 'More' | translate }}</a>
+                <select class="uk-select" [(ngModel)]="selectedBurnTokenId" (ngModelChange)="burnTokenIdChanged($event)"
+                id="form-select-burn-token-id">
+                  <option *ngFor="let option of burnableTokenIds()" [value]="option.id.toDec()">{{ option.id.toDec() }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="type() === 'RAI-721'" class="uk-margin">
+            <label class="uk-form-label" for="form-input-burn-token-uri">{{ 'Token URI' | translate }}</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <input [value]="inputBurnTokenUri" disabled class="uk-input" id="form-input-burn-token-uri" type="text">
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="uk-card-footer uk-text-right">
+        <div uk-grid>
+          <div class="uk-width-1-2@s">
+            <button (click)="activePanel = ''" class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate }}</button>
+          </div>
+          <div class="uk-width-1-2@s">
+            <button class="uk-button uk-button-primary uk-width-1-1" (click)="burn()">{{ 'Burn Token' | translate }}</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- Confirm Burn Panel-->
+    <div *ngIf="activePanel === 'confirm_burn'" uk-grid >
+      <div class="uk-width-1-1">
+        <div class="uk-card uk-card-default uk-text-center" >
+          <span style="display: block; padding-top: 8px;">{{ 'You are about to burn' | translate }}</span>
+            <span style="display:block; font-size: 32px;">-{{ showBurnAmount() }}</span>
+        </div>
+        <br />
+
+        <div uk-grid>
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title uk-text-truncate">{{ address() }}</span>
+                    <span class="confirm-subtitle">{{ 'Token Address' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+    
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title">{{ burnTotalSupply() }}</span>
+                    <span class="confirm-subtitle">{{ 'Total Supply' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="type() === 'RAI-721'" class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title uk-text-truncate">{{ selectedBurnTokenId }}</span>
+                    <span class="confirm-subtitle">{{ 'Token ID' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+    
+          <div *ngIf="type() === 'RAI-721'" class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-break">
+                  <div>
+                    <span class="confirm-title">{{ showBurnTokenUri() }}</span>
+                    <span class="confirm-subtitle">{{ 'Token URI' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+    
+        <div uk-grid>
+          <div class="uk-width-1-2@s ">
+            <button (click)="activePanel = 'burn'"
+              class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate }}</button>
+          </div>
+          <div class="uk-width-1-2@s">
+            <button class="uk-button uk-button-primary uk-width-1-1"
+              (click)="confirmBurn()">{{ 'Confirm' | translate }}</button>
+          </div>
+        </div>
+    
+      </div>
+    </div>
+
+    <!-- Panel End -->
   </div>
 </div>

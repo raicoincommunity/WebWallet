@@ -143,7 +143,7 @@
               <tr>
                 <th class="uk-width-1-5@m uk-visible@m  uk-text-left">{{ 'Date' | translate }}</th>
                 <th class="uk-width-1-5@m uk-width-1-6 uk-text-center">{{ 'ID' | translate }}</th>
-                <th class="uk-width-1-5@m uk-width-1-6 uk-text-center">{{ 'Type' | translate }}</th>
+                <th class="uk-width-1-5@m uk-width-1-6 uk-text-left">{{ 'Type' | translate }}</th>
                 <th class="uk-width-1-5@m uk-width-expand uk-text-right">{{ 'Amount' | translate }}</th>
                 <th class="uk-width-1-5@m uk-width-1-6 uk-text-center">{{ 'Status' | translate }}</th>
               </tr>
@@ -153,12 +153,12 @@
               <tr *ngFor="let info of blocks()" [routerLink]="'/transaction/' + info.block.hash().toHex()">
                 <td class="uk-text-left uk-visible@m">{{ info.block.timestamp().toNumber() * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}</td>
                 <td class="uk-text-center">{{ info.block.height().toNumber() }}</td>
-                <td class="uk-text-center">{{ info.block.opcode().toBlockOpcodeStr() }}</td>
+                <td class="uk-text-left">{{ opStr(info) }}</td>
 
                 <td class="uk-text-right">
-                  <span *ngIf="info.amount.value.eq(0)">0 RAI</span>
-                  <span *ngIf="!info.amount.value.eq(0) && info.amount.negative" class="uk-text-danger">{{ info.amount | balance: 9: false }}</span>
-                  <span *ngIf="!info.amount.value.eq(0) && !info.amount.negative" class="uk-text-success">+{{ info.amount | balance: 9: false }}</span>
+                  <span *ngIf="amountShown(info).sign === 2" class="uk-text-danger">{{ amountShown(info).amount }}</span>
+                  <span *ngIf="amountShown(info).sign === 1" class="uk-text-success">{{ amountShown(info).amount }}</span>
+                  <span *ngIf="amountShown(info).sign === 0">{{ amountShown(info).amount }}</span>
                 </td>
                 <td class="uk-text-center">
                   <span *ngIf="status(info.block) === 'confirmed'" uk-icon="icon: check;" class="uk-text-success"  title="{{ status(info.block) | translate }}" uk-tooltip ></span>
@@ -169,7 +169,7 @@
                 <td colspan="4" style="text-align: center;">{{ 'No account history' | translate }}</td>
               </tr>
               <tr *ngIf="!finished">
-                <td colspan="4" style="text-align: center;">
+                <td colspan="5" style="text-align: center;">
                   <a (click)="loadMore()" class="uk-link-text">{{ 'Load More Results' | translate }}</a>
                 </td>
               </tr>

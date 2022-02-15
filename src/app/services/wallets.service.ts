@@ -24,9 +24,12 @@ export class WalletsService implements OnDestroy {
   private unlockedInstances: UnlockedInstance[] = [];
   private timerSync: any = null;
   private selectedAccountSubject = new Subject<string>();
-  private showModalSubject = new Subject();
+  private addAccountSubject = new Subject<string>();
+  private showModalSubject = new Subject<any>();
 
   selectedAccountChanged$ = this.selectedAccountSubject.asObservable();
+  addAccount$ = this.addAccountSubject.asObservable();
+
   showModal$ = this.showModalSubject.asObservable();
 
   constructor(
@@ -460,7 +463,7 @@ export class WalletsService implements OnDestroy {
 
   selectedAccount(): Account | undefined {
     if (!this.wallet) return;
-    return this.wallet.findAccount( { index: this.wallet.storage.selected } );
+    return this.wallet.account;
   }
 
   selectedAccountAddress(): string {
@@ -542,6 +545,8 @@ export class WalletsService implements OnDestroy {
     this.wallet.storage.accounts.push(accountStorage);
     this.wallet.accounts.push(new Account(accountStorage));
     this.saveWallets();
+
+    this.addAccountSubject.next(address);
 
     return { errorCode, accountAddress: address };
   }
@@ -651,9 +656,13 @@ export class WalletsService implements OnDestroy {
     return WalletErrorCode.SUCCESS;
   }
 
-  tryInputPassword() {
+  tryInputPassword(callback?: Function) {
     if (!this.selectedWallet()) return;
-    this.showModalSubject.next();
+    this.showModalSubject.next(callback);
+  }
+
+  forEachAccount(callback: (account: Account, wallet: Wallet) => void) {
+    this.wallets.forEach(w => w.accounts.forEach(a => callback(a, w)));
   }
 
   private loadWallets() {
@@ -845,11 +854,6 @@ export class WalletsService implements OnDestroy {
     let privateKey = this.util.account.generatePrivateKey(wallet.raw_seed, account.storage.index);
     let signature = this.util.account.sign(privateKey, hash);
     return {error: false, signature: this.util.uint8.toHex(signature)};
-  }
-
-
-  private forEachAccount(callback: (account: Account, wallet: Wallet) => void) {
-    this.wallets.forEach(w => w.accounts.forEach(a => callback(a, w)));
   }
 
   private accountSubscribe(account: Account, wallet: Wallet) {

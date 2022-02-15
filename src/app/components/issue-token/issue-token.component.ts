@@ -1,11 +1,16 @@
 import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
-import { WalletsService, Amount, WalletErrorCode } from '../../services/wallets.service';
+import { Router } from '@angular/router';
+import { Subject} from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { WalletsService, WalletErrorCode } from '../../services/wallets.service';
 import { NotificationService } from '../../services/notification.service';
-import { U8, UtilService, U256, ExtensionTypeStr, ExtensionTokenOp, ExtensionTokenOpStr, TokenType } from '../../services/util.service';
+import { U8, U256, ExtensionTypeStr, ExtensionTokenOpStr, TokenType, TokenHelper } from '../../services/util.service';
 import { BigNumber } from 'bignumber.js';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
-import { TokenService } from '../../services/token.service';
+import { TokenService, AccountTokenId, AccountTokenInfo } from '../../services/token.service';
+import { environment } from '../../../environments/environment';
+import { SettingsService } from '../../services/settings.service';
 
 @Component({
   selector: 'app-issue-token',
@@ -24,42 +29,121 @@ export class IssueTokenComponent implements OnInit {
   public inputCirculable = true;
   public inputBaseUri = '';
   public activePanel = '';
+  public inputMintAmount = '';
+  public inputMintTokenId = '';
+  public inputMintTokenUri = '';
+  public inputBurnAmount = '';
+  public selectedBurnTokenId = '';
+  public inputBurnTokenUri = '';
 
   public tokenNameStatus = 0;
   public tokenSymbolStatus = 0;
+  public mintAmountStatus = 0;
+  public mintTokenIdStatus = 0;
+  public burnAmountStatus = 0;
 
   private decimals = new U8(18);
   private initSupply = new U256(0);
   private capSupply = new U256(0);
+  private mintAmount = new U256(0);
+  private mintTokenId : U256 | null = null;
+  private burnAmount = new U256(0);
+  private burnTokenId = new U256(0);
+
+  private mintTokenIdSubject = new Subject<string>();
 
   @ViewChild('elemTokenName') elemTokenName : ElementRef | null = null;
   @ViewChild('elemTokenSymbol') elemTokenSymbol : ElementRef | null = null;
 
   constructor(
+    private router: Router,
     private translate: TranslateService,
     private wallets: WalletsService,
     private token: TokenService,
+    private settings: SettingsService,
     private notification: NotificationService) {
-
   }
 
   ngOnInit(): void {
     this.token.addAccount(this.selectedAccountAddress());
     this.token.issuer$.subscribe(x => {
       if (x.account !== this.selectedAccountAddress()) return;
-      if (x.created) {
-        if (this.activePanel === ActivePanel.CREATE) {
-          this.activePanel = ActivePanel.DEFUALT;
+      this.updatePanel();
+    });
+
+    this.token.accountSynced$.subscribe(x => {
+      if (x.account !== this.selectedAccountAddress()) return;
+      this.updatePanel();
+    });
+
+    this.updatePanel();
+
+    this.mintTokenIdSubject.pipe(debounceTime(500), distinctUntilChanged()).subscribe(
+      _ => {
+        this.syncMintTokenId();
+      }
+    );
+
+    this.token.tokenId$.subscribe(result => {
+      if (result.address !== this.address()) return;
+      if (!this.mintTokenId || !result.id.eq(this.mintTokenId)) return;
+      try {
+        const id = new U256(this.inputMintTokenId);
+        if (id.eq(this.mintTokenId)) {
+          this.mintTokenIdStatus = result.existing ? 2 : 1;
         }
-      } else {
-        this.activePanel = ActivePanel.CREATE
+      } catch (err) {
       }
     });
+  }
+
+  updatePanel() {
+    if (!this.synced()) {
+      this.activePanel = ActivePanel.DEFUALT;
+    }
+
     if (this.token.issuerQueried(this.selectedAccountAddress())) {
       if (!this.token.issued(this.selectedAccountAddress())) {
         this.activePanel = ActivePanel.CREATE;
+        return;
       }
     }
+    this.activePanel = ActivePanel.DEFUALT;
+  }
+
+  synced(): boolean {
+    return this.token.synced(this.selectedAccountAddress());
+  }
+
+  mintTokenIdChanged() {
+    this.inputMintTokenId = this.inputMintTokenId.trim();
+    this.mintTokenIdSubject.next(this.inputMintTokenId);
+  }
+
+  mintTokenUriChanged() {
+    this.inputMintTokenUri = this.inputMintTokenUri.trim();
+
+    if (this.baseUri() && this.inputMintTokenUri.startsWith(this.baseUri())) {
+      this.inputMintTokenUri = this.inputMintTokenUri.substr(this.baseUri().length);
+    }
+  }
+
+  burnTokenIdChanged(selected: string) {
+    if (!selected) return;
+    this.inputBurnTokenUri = this.tokenUri(selected);
+  }
+
+  loadMoreBurnTokenIds() {
+    const size = this.token.getTokenIdsSize(environment.current_chain, 
+    this.address(), this.address());
+    this.token.setTokenIdsSize(environment.current_chain, 
+    this.address(), size + 100, this.address());
+  }
+
+  hasMoreTokenIds(): boolean {
+    const info = this.accountTokenInfo();
+    if (!info) return false;
+    return info.hasMoreTokenIds();
   }
 
   toggleInputMintable() {
@@ -245,10 +329,7 @@ export class IssueTokenComponent implements OnInit {
       return;
     } else {
       if (wallet.locked()) {
-        this.wallets.tryInputPassword();
-        let msg = marker(`Please unlock your wallet and retry again`);
-        this.translate.get(msg).subscribe(res => msg = res);
-        this.notification.sendError(msg);
+        this.wallets.tryInputPassword(() => this.activePanel = ActivePanel.CONFIRM_CREATION);
         return;
       }
     }
@@ -316,6 +397,228 @@ export class IssueTokenComponent implements OnInit {
     return this.wallets.selectedAccountAddress();
   }
 
+  mint() {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return;
+
+    if (info.type === TokenType._20) {
+      this.syncMintAmount();
+      if (this.mintAmountStatus !== 1) return;
+
+    } else if (info.type === TokenType._721) {
+      this.syncMintTokenId();
+      if (this.mintTokenIdStatus !== 1) return;
+    } else {
+      console.log(`mint:Unknown type=${info.type}`);
+      return;
+    }
+
+    const wallet = this.wallets.selectedWallet()
+    if (!wallet) {
+      let msg = marker(`Please configure a wallet first`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    } else {
+      if (wallet.locked()) {
+        this.wallets.tryInputPassword(() => {this.activePanel = ActivePanel.CONFIRM_MINT});
+        return;
+      }
+    }
+
+    this.activePanel = ActivePanel.CONFIRM_MINT;  
+  }
+
+  confirmMint() {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return;
+
+    let value: any = {
+      op: ExtensionTokenOpStr.MINT,
+      type: TokenHelper.toTypeStr(info.type),
+      to: this.address()
+    };
+    if (info.type === TokenType._20) {
+      value.value = this.mintAmount.toDec();
+    } else if (info.type === TokenType._721) {
+      value.value = this.mintTokenId?.toDec();
+      value.uri = this.inputMintTokenUri;
+    } else {
+      console.log(`confirmMint:Unknown type=${info.type}`);
+      return;
+    }
+
+    const extensions = [ { type: ExtensionTypeStr.TOKEN, value } ];
+    const result = this.wallets.changeExtensions(extensions);
+    if (result.errorCode !== WalletErrorCode.SUCCESS) {
+      let msg = result.errorCode;
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    }
+
+    let msg = marker(`Successfully sent token mint block!`);
+    this.translate.get(msg).subscribe(res => msg = res);    
+    this.notification.sendSuccess(msg);
+
+    this.activePanel = ActivePanel.DEFUALT;
+    this.inputMintAmount = '';
+    this.inputMintTokenId = '';
+    this.inputMintTokenUri = '';
+    this.mintTokenIdStatus = 0;
+    this.mintAmountStatus = 0;
+    this.mintTokenId = null;
+    this.mintAmount = new U256(0);
+
+    if (this.settings.getAutoReceive().enable) {
+      this.router.navigate([`/account/${this.address()}`]);
+    } else {
+      this.router.navigate([`/receive`]);
+    }
+  }
+
+  burn() {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return;
+
+    if (info.type === TokenType._20) {
+      this.syncBurnAmount();
+      if (this.mintAmountStatus !== 1) return;
+
+    } else if (info.type === TokenType._721) {
+      const error = this.syncBurnTokenId();
+      if (error) return;
+    } else {
+      console.log(`burn:Unknown type=${info.type}`);
+      return;
+    }
+
+    const wallet = this.wallets.selectedWallet()
+    if (!wallet) {
+      let msg = marker(`Please configure a wallet first`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    } else {
+      if (wallet.locked()) {
+        this.wallets.tryInputPassword(() => {this.activePanel = ActivePanel.CONFIRM_BURN});
+        return;
+      }
+    }
+
+    this.activePanel = ActivePanel.CONFIRM_BURN;  
+  }
+
+  confirmBurn() {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return;
+
+    let value: any = {
+      op: ExtensionTokenOpStr.BURN,
+      type: TokenHelper.toTypeStr(info.type),
+    };
+    if (info.type === TokenType._20) {
+      value.value = this.burnAmount.toDec();
+    } else if (info.type === TokenType._721) {
+      value.value = this.burnTokenId.toDec();
+    } else {
+      console.log(`confirmBurn:Unknown type=${info.type}`);
+      return;
+    }
+
+    const extensions = [ { type: ExtensionTypeStr.TOKEN, value } ];
+    const result = this.wallets.changeExtensions(extensions);
+    if (result.errorCode !== WalletErrorCode.SUCCESS) {
+      let msg = result.errorCode;
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    }
+
+    let msg = marker(`Successfully sent token burn block!`);
+    this.translate.get(msg).subscribe(res => msg = res);    
+    this.notification.sendSuccess(msg);
+
+    this.activePanel = ActivePanel.DEFUALT;
+    this.inputBurnAmount = '';
+    this.selectedBurnTokenId = '';
+    this.inputBurnTokenUri = '';
+    this.burnAmountStatus = 0;
+    this.burnAmount = new U256(0);
+    this.burnTokenId = new U256(0);
+
+    this.router.navigate([`/account/${this.address()}`]);
+  }
+
+  showMintAmount(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    if (info.type === TokenType._20) {
+      return this.mintAmount.toBalanceStr(info.decimals, true) + ' ' + info.symbol;
+    } else if (info.type === TokenType._721) {
+      return '1 ' + info.symbol;
+    } else {
+      return '';
+    }
+  }
+
+  showBurnAmount(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    if (info.type === TokenType._20) {
+      return this.burnAmount.toBalanceStr(info.decimals, true) + ' ' + info.symbol;
+    } else if (info.type === TokenType._721) {
+      return '1 ' + info.symbol;
+    } else {
+      return '';
+    }
+  }
+
+  mintTotalSupply(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    if (info.type === TokenType._20) {
+      const supply = info.totalSupply.plus(this.mintAmount);
+      return supply.toBalanceStr(info.decimals, true) + ' ' + info.symbol;
+    } else if (info.type === TokenType._721) {
+      const supply = info.totalSupply.plus(1);
+      return supply.toBalanceStr(info.decimals, true) + ' ' + info.symbol;
+    } else {
+      return '';
+    }
+  }
+
+  burnTotalSupply(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    if (info.type === TokenType._20) {
+      const supply = info.totalSupply.minus(this.burnAmount);
+      return supply.toBalanceStr(info.decimals, true) + ' ' + info.symbol;
+    } else if (info.type === TokenType._721) {
+      const supply = info.totalSupply.minus(1);
+      return supply.toBalanceStr(info.decimals, true) + ' ' + info.symbol;
+    } else {
+      return '';
+    }
+  }
+
+  showMintTokenUri(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    let uri = this.inputMintTokenUri;
+    if (info.baseUri) {
+      uri = info.baseUri + uri;
+    }
+    if (uri) return uri;
+    let msg = marker(`Not set`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    return `<${msg}>`;
+  }
+
+  showBurnTokenUri(): string {
+    return this.tokenUri(this.selectedBurnTokenId);
+  }
+
   issued(): boolean {
     if (!this.selectedAccountAddress()) return false;
     if (!this.token.issuerQueried(this.selectedAccountAddress())) return false;
@@ -381,22 +684,40 @@ export class IssueTokenComponent implements OnInit {
     return info.capSupply.toBalanceStr(info.decimals) + ' ' + info.symbol;
   }
 
-  mintable(): string {
+  mintable(): boolean {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return false;
+    return info.mintable;
+  }
+
+  mintableStr(): string {
     const info = this.token.tokenInfo(this.address());
     if (!info) return '';
     return this.boolToString(info.mintable);
   }
 
-  burnable(): string {
+  burnable(): boolean {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return false;
+    return info.burnable;
+  }
+
+  burnableStr(): string {
     const info = this.token.tokenInfo(this.address());
     if (!info) return '';
     return this.boolToString(info.burnable);
   }
 
-  circulable(): string {
+  circulableStr(): string {
     const info = this.token.tokenInfo(this.address());
     if (!info) return '';
     return this.boolToString(info.circulable);
+  }
+
+  baseUri(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info || info.type !== TokenType._721) return '';
+    return info.baseUri;
   }
 
   holders(): string {
@@ -417,6 +738,188 @@ export class IssueTokenComponent implements OnInit {
     return info.swaps.toFormat();
   }
 
+  setMaxMintAmount() {
+    const amount = this.maxMintableStr();
+    if (!amount) return;
+    this.inputMintAmount = amount;
+    this.syncMintAmount();
+  }
+
+  setMaxBurnAmount() {
+    const amount = this.maxBurnableStr();
+    if (!amount) return;
+    this.inputBurnAmount = amount;
+    this.syncBurnAmount();
+  }
+
+  mintAmountHint() {
+    const info = this.token.tokenInfo(this.address());
+    if (!info || !this.maxMintableStr()) {
+      let msg = marker(`The amount to mint`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      return msg;
+    } else {
+      let max = marker(`Max`);
+      this.translate.get(max).subscribe(res => max = res);
+      return `${max}: ${this.maxMintableStr()} ${info.symbol}`;
+    }
+  }
+
+  burnAmountHint() {
+    const info = this.accountTokenInfo();
+    if (!info || !this.maxBurnableStr()) {
+      let msg = marker(`The amount to burn`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      return msg;
+    } else {
+      let max = marker(`Max`);
+      this.translate.get(max).subscribe(res => max = res);
+      return `${max}: ${this.maxBurnableStr()} ${info.symbol}`;
+    }
+  }
+
+  burnableTokenIds(): AccountTokenId[] {
+    return this.token.tokenIds(environment.current_chain, this.address(), this.address());
+  }
+
+  syncMintAmount() {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return;
+    try {
+      if (!this.inputMintAmount) {
+        this.mintAmountStatus = 0;
+        return;
+      }
+      const decimalsValue = new BigNumber(10).pow(info.decimals.toNumber());
+      this.mintAmount =
+        new U256(new BigNumber(this.inputMintAmount).mul(decimalsValue));
+      if (this.mintAmount.eq(0) || this.mintAmount.gt(this.maxMintable())) {
+        this.mintAmountStatus = 2;
+        return;
+      }
+      this.mintAmountStatus = 1;
+    }
+    catch (err) {
+      this.mintAmountStatus = 2;
+    }
+  }
+
+  syncBurnAmount() {
+    const info = this.accountTokenInfo();
+    if (!info) {
+      this.burnAmountStatus = 0;
+      return;
+    }
+
+    if (!this.inputBurnAmount) {
+      this.burnAmountStatus = 0;
+      return;
+    }
+
+    try {
+      const decimalsValue = new BigNumber(10).pow(info.decimals.toNumber());
+      this.burnAmount =
+        new U256(new BigNumber(this.inputBurnAmount).mul(decimalsValue));
+      if (this.burnAmount.eq(0) || this.burnAmount.gt(info.balance)) {
+        this.burnAmountStatus = 2;
+        return;
+      }
+      this.burnAmountStatus = 1;
+    }
+    catch (err) {
+      this.burnAmountStatus = 2;
+    }
+  }
+
+  syncBurnTokenId(): boolean {
+    if (!this.selectedBurnTokenId) {
+      return true;
+    }
+
+    const info = this.accountTokenInfo();
+    if (!info) return true;
+    try {
+      this.burnTokenId = new U256(this.selectedBurnTokenId);
+      if (!info.ownTokenId(this.burnTokenId)) {
+        return true;
+      }
+    } catch (err) {
+      return true;
+    }
+
+    return false;
+  }
+
+  autoSetTokenId() {
+    const id = this.token.autoTokenId(this.address());
+    if (!id) return;
+    this.inputMintTokenId = id.toDec();
+    this.syncMintTokenId();
+  }
+
+  syncMintTokenId() {
+    if (!this.inputMintTokenId) {
+      this.mintTokenIdStatus = 0;
+      return;
+    }
+
+    try {
+      const id = new U256(this.inputMintTokenId);
+      if (!this.mintTokenId || !id.eq(this.mintTokenId)) {
+        this.mintTokenId = id;
+        this.token.checkTokenId(this.address(), id);
+        this.mintTokenIdStatus = 3;
+      }
+    } catch (err) {
+      this.mintTokenIdStatus = 2;
+    }
+  }
+
+  private tokenUri(id: string): string {
+    const account_info = this.accountTokenInfo();
+    if (!account_info) return '';
+    const token_info = this.token.tokenInfo(this.address());
+    if (!token_info) return '';
+
+    try {
+      const token_id = new U256(id);
+      const item = account_info.tokenIds.find(x => x.id.eq(token_id));
+      if (!item) return '';
+      return `${token_info.baseUri}${item.uri}`;
+    } catch (err) {
+      return '';
+    }
+  }
+
+  private accountTokenInfo(): AccountTokenInfo | undefined {
+    return this.token.accountTokenInfo(environment.current_chain,
+                                       this.address(), this.address());
+  }
+
+  private maxMintableStr(): string {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return '';
+    const amount = this.maxMintable();
+    return amount.toBalanceStr(info.decimals, false);
+  }
+
+  private maxBurnableStr(): string {
+    const info = this.accountTokenInfo();
+    if (!info) return '';
+    return info.balance.toBalanceStr(info.decimals, false);
+  }
+
+  private maxMintable(): U256 {
+    const info = this.token.tokenInfo(this.address());
+    if (!info) return new U256();
+    const capSupply = info.capSupply.eq(0) ? U256.max() : info.capSupply;
+    let amount = new U256();
+    if (capSupply.gt(info.totalSupply)) {
+      amount = capSupply.minus(info.totalSupply);
+    }
+    return amount;
+  }
+
   private boolToString(bool: boolean): string {
     let msg = bool ? marker(`Yes`) : marker(`No`);
     this.translate.get(msg).subscribe(res => msg = res);
@@ -429,4 +932,8 @@ enum ActivePanel {
   DEFUALT = '',
   CREATE = 'create',
   CONFIRM_CREATION = 'confirm_creation',
+  MINT = 'mint',
+  CONFIRM_MINT = 'confirm_mint',
+  BURN = 'burn',
+  CONFIRM_BURN = 'confirm_burn'
 }

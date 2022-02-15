@@ -27,7 +27,7 @@
 </div>
 
 
-<div uk-grid >
+<div uk-grid *ngIf="!selectedAsset || selectedAsset.type === '20'">
   <div class="uk-width-1-1">
     <label class="uk-form-label" for="form-input-amount">{{ 'Amount' | translate }} *</label>
     <div class="uk-form-controls">
@@ -36,6 +36,24 @@
           <div class="uk-inline uk-width-1-1">
             <a class="uk-form-icon uk-form-icon-flip" (click)="setMaxAmount()" style="padding-right: 7px;" uk-tooltip title="{{ 'Set Maximum Amount' | translate }}">{{ 'Max' | translate }}</a>
             <input (change)="syncAmount()" (keyup)="syncAmount()" [(ngModel)]="amountInputText" class="uk-input" id="form-input-amount" type="text" [placeholder]="amountHint()" [ngClass]="{ 'uk-form-success': amountStatus === 1, 'uk-form-danger': amountStatus === 2 }">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div uk-grid *ngIf="selectedAsset && selectedAsset.type === '721'">
+  <div class="uk-width-1-1">
+    <label class="uk-form-label" for="form-select-token-id">{{ 'Token ID' | translate }} *</label>
+    <div class="uk-form-controls">
+      <div uk-grid>
+        <div class="uk-width-1-1">
+          <div class="uk-inline uk-width-1-1">
+            <a *ngIf="hasMoreTokenIds()" class="uk-form-icon uk-form-icon-flip" (click)="loadMoreBurnTokenIds()" style="padding-right: 20px;" uk-tooltip title="{{ 'Load more IDs' | translate }}">{{ 'More' | translate }}</a>
+            <select class="uk-select" [(ngModel)]="selectedTokenId" id="form-select-token-id">
+              <option *ngFor="let id of tokenIds()" [value]="id">{{ id }}</option>
+            </select>
           </div>
         </div>
       </div>

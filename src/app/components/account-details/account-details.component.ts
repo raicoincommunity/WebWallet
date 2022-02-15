@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import {ActivatedRoute, Router} from "@angular/router";
+import { ActivatedRoute } from "@angular/router";
 import { NotificationService } from '../../services/notification.service';
 import { WalletsService, Amount } from '../../services/wallets.service';
 import { Block, BlockInfo } from '../../services/blocks.service';
@@ -7,6 +7,8 @@ import { ServerService } from '../../services/server.service';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { AliasService } from '../../services/alias.service';
+import { TokenService } from '../../services/token.service';
+import { U128, U256, U8, TokenType, TokenHelper, ExtensionTokenOp } from '../../services/util.service';
 
 @Component({
   selector: 'app-account-details',
@@ -21,11 +23,11 @@ export class AccountDetailsComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
-    private router: Router,
     private translate: TranslateService,
     private wallets: WalletsService,
     private server: ServerService,
     private alias: AliasService,
+    private token: TokenService,
     private notification: NotificationService) {
 
   }
@@ -36,7 +38,11 @@ export class AccountDetailsComponent implements OnInit {
     if (!this.wallets.getRecentBlocksSize(this.address)) {
       this.wallets.setRecentBlocksSize(10, this.address);
     }
+    if (!this.token.getRecentBlocksSize(this.address)) {
+      this.token.setRecentBlocksSize(10, this.address);
+    }
     this.alias.addAccount(this.address);
+    this.token.addAccount(this.address);
   }
 
   copied() {
@@ -68,6 +74,76 @@ export class AccountDetailsComponent implements OnInit {
     return blocks;
   }
 
+  amountShown(info: BlockInfo): AmountShown {
+    const result = new AmountShown;
+    const address = info.block.account().toAccountAddress();
+    const tokenBlock = this.token.tokenBlock(address, info.block.height());
+    if (!tokenBlock) {
+      const value = new U256(info.amount.value);
+      if (value.eq(0)) return result;
+      const valueStr = value.toBalanceStr(new U8(9));
+      if (info.amount.negative) {
+        result.sign = 2;
+        result.amount = `-${valueStr} RAI`;
+      } else {
+        result.sign = 1;
+        result.amount = `+${valueStr} RAI`;
+      }
+      return result;
+    } else {
+      result.amount = '';
+      result.sign = 0;
+      const { type, symbol, decimals } = tokenBlock;
+      if (!info.block.hash().eq(tokenBlock.hash) || !tokenBlock.statusCode.eq(0)) {
+        return result;
+      }
+
+      if (!tokenBlock.valueOp || tokenBlock.valueOp === 'none') {
+        const tokenExtension = tokenBlock.getExtension();
+        if (!tokenExtension || !tokenExtension.op) return result;
+        const op = TokenHelper.toOp(tokenExtension.op);
+        if (op === ExtensionTokenOp.MINT || op === ExtensionTokenOp.SWAP) {
+          const value = new U256(tokenExtension.value);
+          result.amount = this.formatAmount(type, value, decimals, symbol);
+        } else if (op === ExtensionTokenOp.CREATE) {
+          if (tokenBlock.type === TokenType._20) {
+            const value = new U256(tokenExtension.init_supply);
+            result.amount = this.formatAmount(type, value, decimals, symbol);
+          } else if (tokenBlock.type === TokenType._721) {
+            result.amount = `0 ${symbol}`;
+          }
+        }
+
+        return result;
+      }
+
+      const value = this.formatAmount(type, tokenBlock.value, decimals, symbol);
+      if (tokenBlock.valueOp === 'increase')
+      {
+        result.amount = `+` + value;
+        result.sign = 1; 
+      } else if (tokenBlock.valueOp === 'decrease') {
+        result.amount = '-' + value;
+        result.sign = 2; 
+      } else {
+        return result;
+      }
+      return result;
+    }
+  }
+
+  opStr(info: BlockInfo): string {
+    const address = info.block.account().toAccountAddress();
+    const tokenBlock = this.token.tokenBlock(address, info.block.height());
+    if (!tokenBlock || !info.block.hash().eq(tokenBlock.hash)) {
+      return info.block.opcode().toBlockOpcodeStr();
+    } else {
+      const tokenExtension = tokenBlock.getExtension();
+      if (!tokenExtension || !tokenExtension.op) return 'change';
+      return tokenExtension.op;
+    }
+  }
+
   credit(): number {
     return this.wallets.credit(this.address);
   }
@@ -94,6 +170,8 @@ export class AccountDetailsComponent implements OnInit {
   loadMore() {
     let size = this.wallets.getRecentBlocksSize(this.address);
     this.wallets.setRecentBlocksSize(size + 10, this.address);
+    size = this.token.getRecentBlocksSize(this.address);
+    this.token.setRecentBlocksSize(size + 10, this.address);
   }
 
   getAlias(): string {
@@ -114,4 +192,19 @@ export class AccountDetailsComponent implements OnInit {
     if (!this.alias.verified(this.address)) return false;
     return !this.alias.dnsValid(this.address);
   }
+
+  private formatAmount(type: TokenType, value: U256, decimals: U8, symbol: string): string {
+    if (type === TokenType._20) {
+      return `${value.toBalanceStr(decimals)} ${symbol}`; 
+    } else if (type === TokenType._721) {
+      return `1 ${symbol} (${value.toBalanceStr(decimals)})`
+    } else {
+      return '';
+    }
+  }
+}
+
+class AmountShown {
+  sign: number = 0;
+  amount: string = '0 RAI';
 }
