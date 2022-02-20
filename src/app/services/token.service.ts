@@ -4,7 +4,8 @@ import { WalletsService, WalletOpResult, WalletErrorCode, Account, Wallet } from
 import { U64, U256, TokenType, U8, TokenHelper, U32, ChainHelper, Chain, ChainStr, ExtensionTypeStr, TokenTypeStr, ExtensionTokenOpStr } from './util.service';
 import { environment } from '../../environments/environment';
 import { Subject } from 'rxjs';
-import { exists } from 'fs';
+import { SettingsService } from './settings.service';
+import { LogoService } from './logo.service';
 
 @Injectable({
   providedIn: 'root'
@@ -30,7 +31,9 @@ export class TokenService implements OnDestroy {
 
   constructor(
     private server: ServerService,
-    private wallets: WalletsService
+    private wallets: WalletsService,
+    private settings: SettingsService,
+    private logo: LogoService
   ) {
     this.server.state$.subscribe(state => this.processServerState(state));
     this.server.message$.subscribe(message => this.processMessage(message));
@@ -69,6 +72,18 @@ export class TokenService implements OnDestroy {
       }
     }
     return undefined;
+  }
+
+  balance(chain: string, address: string, account?: string): U256 {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return new U256(0);
+    for (let i of info.tokens) {
+      if (i.chain === chain && i.address === address) {
+        return i.balance;
+      }
+    }
+    return new U256(0);
   }
 
   issued(address: string): boolean {
@@ -110,7 +125,7 @@ export class TokenService implements OnDestroy {
   }
 
   receivablesQuery(account: string) {
-    this.queryTokenReceivables(account);
+    this.queryTokenReceivablesSummary(account);
   }
 
   receive(address: string, key: string, account?: Account, wallet?: Wallet): WalletOpResult {
@@ -212,6 +227,16 @@ export class TokenService implements OnDestroy {
     return info.expectedRecentBlocks;
   }
 
+  syncAccount(account?: string) {
+    if (!account) {
+      account = this.wallets.selectedAccountAddress();
+    }
+    this.subscribe(account);
+    this.querySyncInfo(account);
+    this.queryAccountTokensInfo(account);
+    this.queryTokenInfo(environment.current_chain, account);
+ }
+
   private processServerState(state: ServerState) {
     if (state === ServerState.CONNECTED) {
       this.ongoingSync(true);
@@ -232,7 +257,6 @@ export class TokenService implements OnDestroy {
       this.querySyncInfo(address);
       this.queryAccountTokensInfo(address);
       this.queryTokenInfo(environment.current_chain, address);
-      this.queryTokenReceivables(address);
       // todo:
 
       if (info.subscribed) {
@@ -329,6 +353,9 @@ export class TokenService implements OnDestroy {
         case 'token_receivables':
           this.processTokenReceivablesQueryAck(message);
           break;
+        case 'token_receivables_summary':
+            this.processTokenReceivablesSummaryQueryAck(message);
+            break;  
         case 'token_max_id':
           this.processTokenMaxIdQueryAck(message);
           break;
@@ -400,11 +427,14 @@ export class TokenService implements OnDestroy {
   }
 
   private processAccountTokensInfoQueryAck(message: any) {
-    if (!message.request_id || message.error) return;
+    if (!message.request_id) return;
     const id = message.request_id;
     if (!id.startsWith('account:')) return;
     const address = id.substring(8);
-    this.updateAccountTokensInfo(address, message);
+    this.queryTokenReceivablesSummary(address);
+    if (!message.error) {
+      this.updateAccountTokensInfo(address, message);
+    }
   }
 
   private processAccountTokenIdsQueryAck(message: any)
@@ -562,13 +592,14 @@ export class TokenService implements OnDestroy {
 
     if (this.isRaicoin(tokenInfo.chain)) {
       const info = this.accounts[message.address];
-      if (!info) return;
-      if (tokenInfo.type === TokenType._721) {
-        this.queryTokenMaxId(message.address);
+      if (info) {
+        if (tokenInfo.type === TokenType._721) {
+          this.queryTokenMaxId(message.address);
+        }
+        info.issuerInfo.queried = true;
+        info.issuerInfo.created = true;
+        this.issuerSubject.next({account: message.address, created: info.issuerInfo.created});  
       }
-      info.issuerInfo.queried = true;
-      info.issuerInfo.created = true;
-      this.issuerSubject.next({account: message.address, created: info.issuerInfo.created});
     }
     this.tokenInfoSubject.next({chain, address, existing: true, info: tokenInfo});
   }
@@ -578,6 +609,19 @@ export class TokenService implements OnDestroy {
     for (let r of message.receivables) {
       this.updateReceivable(r);
     }
+  }
+
+  private processTokenReceivablesSummaryQueryAck(message: any) {
+    if (!message.account || !message.tokens) return;
+    const account = message.account;
+    const tokens: {chain: string, address_raw: string}[] = [];
+    for (let i of message.tokens) {
+      if (this.shouldReceive(account, i.chain, i.address)) {
+        tokens.push({chain: i.chain, address_raw: i.address_raw});
+      }
+    }
+    if (tokens.length === 0) return;
+    this.queryTokenReceivables(account, tokens);
   }
 
   private processAccountSyncNotify(message: any) {
@@ -611,6 +655,7 @@ export class TokenService implements OnDestroy {
 
   private processAccountTokensInfoNotify(message: any) {
     this.updateAccountTokensInfo(message.account, message);
+    this.queryTokenReceivablesSummary(message.account);
   }
 
   private processTokenMaxIdQueryAck(message: any) {
@@ -883,12 +928,22 @@ export class TokenService implements OnDestroy {
     this.server.send(message);
   }
 
-  private queryTokenReceivables(account: string, count?: U64) {
+  private queryTokenReceivables(account: string, tokens: { chain: string, address_raw: string }[], count?: U64) {
     const message: any = {
       action: 'token_receivables',
       service: this.SERVICE,
       account,
+      tokens,
       count: count ? count.toDec() : '50'
+    };
+    this.server.send(message);
+  }
+
+  private queryTokenReceivablesSummary(account: string) {
+    const message: any = {
+      action: 'token_receivables_summary',
+      service: this.SERVICE,
+      account,
     };
     this.server.send(message);
   }
@@ -950,6 +1005,9 @@ export class TokenService implements OnDestroy {
       console.log(`TokenService.updateReceivable: invalid to=${receivable.to}`);
       return;
     }
+    if (!this.shouldReceive(receivable.to, receivable.token.chain, receivable.token.address)) {
+      return;
+    }
     const info = this.accounts[receivable.to];
     if (!info) return;
     if (this.receivings[receivable.key()]) return;
@@ -967,6 +1025,19 @@ export class TokenService implements OnDestroy {
     item.valid = true;
     if (id.gt(item.id)) item.id = id;
     this.maxTokenIds[address] = item;
+  }
+
+  private shouldReceive(account: string, chain: string, address: string): boolean {
+    const info = this.accounts[account];
+    if (!info) return false;
+    if (info.getToken(chain, address)) return true;
+    if (this.settings.hasAsset(account, chain, address)) return true;
+    if (this.tokenVerified(chain, address)) return true;
+    return false;
+  }
+
+  private tokenVerified(chain: string, address: string): boolean {
+    return this.logo.hasLogo(chain, address);
   }
 
 }
@@ -1098,8 +1169,13 @@ class AccountTokensInfo {
     });
   }
 
-  getToken(chain: string, addressRaw: U256): AccountTokenInfo | undefined {
-    return this.tokens.find(x => x.chain === chain && x.addressRaw.eq(addressRaw));
+  getToken(chain: string, address: U256 | string): AccountTokenInfo | undefined {
+    if (typeof address === 'string') {
+      const ret = ChainHelper.addressToRaw(chain, address);
+      if (ret.error || !ret.raw) return undefined;
+      address = ret.raw;
+    }
+    return this.tokens.find(x => x.chain === chain && x.addressRaw.eq(address));
   }
 
 }

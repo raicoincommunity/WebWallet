@@ -8,6 +8,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { AliasService } from './services/alias.service';
 import { AutoReceiveService } from './services/auto-receive.service';
+import { TokenService } from './services/token.service';
 
 @Component({
   selector: 'app-root',
@@ -34,6 +35,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private server: ServerService,
     private alias: AliasService,
     private autoReceive: AutoReceiveService,
+    private token: TokenService,
     private notification: NotificationService){
   }
 
@@ -116,6 +118,13 @@ export class AppComponent implements OnInit, OnDestroy {
     return account.receivable();
   }
 
+  receivableTxns(): string {
+    const txns = this.wallets.receivables().length + this.token.receivables().length;
+    if (txns === 0) return '';
+    if (txns >= 100) return '100+';
+    return `${txns}`;
+  }
+
   connected(): boolean {
     return this.state === ServerState.CONNECTED;
   }
@@ -137,7 +146,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   synchronizing(): boolean {
-    return this.wallets.synchronizing();
+    return this.wallets.synchronizing() || !this.token.synced();
   }
 
   hasAlias(): boolean {

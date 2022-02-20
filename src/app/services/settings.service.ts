@@ -11,6 +11,7 @@ export class SettingsService {
   private autoReceiveSetting = new AutoReceiveSetting();
   private lockMimutes = 30;
   private lang = '';
+  private assets: {[account: string]: AssetSetting[]} = {};
 
   private globalSubject = new Subject<any>();
   public globalSettingChange$ = this.globalSubject.asObservable();
@@ -29,6 +30,7 @@ export class SettingsService {
       // only set checked translations by default
       translate.use(browserLang.match(/en|id|vi|zh/) ? browserLang : 'en');
     }
+    this.loadAssetsSetting();
     this.storage.changes$.subscribe(event => this.processStorageEvent(event));
   }
 
@@ -54,6 +56,32 @@ export class SettingsService {
     this.lang = lang;
     this.translate.use(lang);
     this.saveGlobalSetting();
+  }
+
+  addAsset(account: string, asset: AssetSetting) {
+    if (!this.assets[account]) {
+      this.assets[account] = [];
+    }
+    const index = this.assets[account].findIndex(x => asset.eq(x));
+    if (index !== -1) {
+      this.assets[account][index] = asset;
+    } else {
+      this.assets[account].push(asset);
+    }
+    this.saveAssetsSetting();
+  }
+
+  getAssets(account: string): AssetSetting[] {
+    if (!this.assets[account]) {
+      return [];
+    }
+    return this.assets[account];
+  }
+
+  hasAsset(account: string, chain: string, address: string): boolean {
+    const assets = this.assets[account];
+    if (!assets) return false;
+    return assets.findIndex(x => x.chain === chain && x.address === address) !== -1;
   }
 
   loadGlobalSetting() {
@@ -85,6 +113,16 @@ export class SettingsService {
     this.storage.set(StorageKey.GLOBAL_SETTINGS, settings);
   }
 
+  loadAssetsSetting() {
+    let assets = this.storage.get(StorageKey.ASSETS);
+    if (!assets) return;
+    this.assets = assets;
+  }
+
+  saveAssetsSetting() {
+    this.storage.set(StorageKey.ASSETS, this.assets);
+  }
+
   private processStorageEvent(event: AppStorageEvent) {
     if (event.self) return;
     if (event.key === StorageKey.GLOBAL_SETTINGS) {
@@ -99,4 +137,25 @@ export class SettingsService {
 export class AutoReceiveSetting {
   enable: boolean = true;
   minimum: U128 = U128.RAI().idiv(10);
+}
+
+export class AssetSetting {
+  chain: string = '';
+  address: string = '';
+  name: string = '';
+  symbol: string = '';
+  decimals: string = '';
+
+  constructor(_chain: string, _address: string, _name: string, _symbol: string, _decimals: string) {
+    this.chain = _chain;
+    this.address = _address;
+    this.name = _name;
+    this.symbol = _symbol;
+    this.decimals = _decimals;
+  }
+
+  eq(other: AssetSetting): boolean {
+    return this.chain === other.chain && this.address === other.address;
+  }
+
 }

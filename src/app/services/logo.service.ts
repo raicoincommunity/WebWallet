@@ -8,14 +8,24 @@ export class LogoService {
   readonly PATH_PREFIX = './assets/logos/';
   readonly DEFAULT_LOGO = 'default.png';
 
-  constructor() { }
+  private tokenLogos: {[chainAddress: string]: string} = {};
+
+  constructor() { 
+    for (let i of tokenLogoMaps) {
+      const key = `${i[0]}_${i[1]}`;
+      this.tokenLogos[key] = i[2];
+    }
+  }
 
   getTokenLogo(chain: Chain | string, address: string): string {
     if (typeof chain === 'string') {
       chain = ChainHelper.toChain(chain);
     }
-    const map = tokenLogoMaps.find(x => chain === x[0] && address === x[1]);
-    const logo = map ? map[2] : this.DEFAULT_LOGO;
+    const key = `${chain}_${address}`;
+    let logo = this.tokenLogos[key];
+    if (!logo) {
+      logo = this.DEFAULT_LOGO;
+    }
     if (logo.startsWith('http')) {
       return logo;
     }
@@ -32,6 +42,14 @@ export class LogoService {
       return logo;
     }
     return this.PATH_PREFIX + logo;
+  }
+
+  hasLogo(chain: Chain | string, address: string): boolean {
+    if (typeof chain === 'string') {
+      chain = ChainHelper.toChain(chain);
+    }
+    const key = `${chain}_${address}`;
+    return !!this.tokenLogos[key];
   }
 
 }
