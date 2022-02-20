@@ -518,6 +518,7 @@ export class WalletsService implements OnDestroy {
 
     this.saveWallets();
     this.updateUnlockedInstances(wallet);
+    this.addAccountSubject.next(account.address());
 
     return {
       errorCode,

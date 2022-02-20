@@ -10,7 +10,7 @@
             <div class="uk-width-1-6 uk-padding-remove-left" style="padding-top: 15px;">
               <span class="uk-text-danger" uk-icon="icon: warning;" *ngIf="disconnected()" uk-tooltip title="{{ 'Unable to connect to wallet server.' | translate }} {{ 'Your balances may be wrong!' | translate }}"></span>
               <div uk-spinner="ratio: 0.6;" *ngIf="connecting()" uk-tooltip title="{{ 'Attempting to connect to wallet server' | translate }}"></div>
-              <div uk-spinner="ratio: 0.6;" *ngIf="connected() && synchronizing()" uk-tooltip title="{{ 'Synchronizing data with wallet server' | translate }}"></div>
+              <div uk-spinner="ratio: 0.6;" *ngIf="configured() && connected() && synchronizing()" uk-tooltip title="{{ 'Synchronizing data with wallet server' | translate }}"></div>
             </div>
           </div>
 
@@ -47,7 +47,7 @@
 
       <ul class="uk-nav uk-nav-default uk-nav-parent-icon left-nav" uk-nav>
         <li><a routerLink="/send" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Send' | translate }}</a></li>
-        <li><a routerLink="/receive" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Receive' | translate }}</a></li>
+        <li><a routerLink="/receive" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Receive' | translate }}  <span *ngIf="receivableTxns()" class="uk-badge uk-alert-warning" style="font-size: 14px; padding-bottom: 2px; background:#fff6ee; color: #faa05a">{{receivableTxns()}}</span></a></li>
         <li><a routerLink="/assets" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Assets' | translate }}</a></li>
         <li class="uk-parent">
           <a href="#" class="uk-margin-left">{{ 'Apps' | translate }}</a>
@@ -119,7 +119,7 @@
               <div class="uk-width-1-6 uk-padding-remove-left" style="padding-top: 15px;">
                 <span class="uk-text-danger" uk-icon="icon: warning;" *ngIf="disconnected()" uk-tooltip title="{{ 'Unable to connect to wallet server.' | translate }} {{ 'Your balances may be wrong!' | translate }}"></span>
                 <div uk-spinner="ratio: 0.6;" *ngIf="connecting()" uk-tooltip title="{{ 'Attempting to connect to wallet server' | translate }}"></div>
-                <div uk-spinner="ratio: 0.6;" *ngIf="connected() && synchronizing()" uk-tooltip title="{{ 'Synchronizing data with wallet server' | translate }}"></div>
+                <div uk-spinner="ratio: 0.6;" *ngIf="configured() && connected() && synchronizing()" uk-tooltip title="{{ 'Synchronizing data with wallet server' | translate }}"></div>
               </div>
             </div>
   
@@ -154,7 +154,9 @@
         <app-wallet-widget></app-wallet-widget>
         <ul class="uk-nav uk-nav-default uk-nav-parent-icon left-nav" uk-nav>
           <li><a routerLink="/send" routerLinkActive="active" class="uk-margin-left">{{ 'Send' | translate }}</a></li>
-          <li><a routerLink="/receive" routerLinkActive="active" class="uk-margin-left">{{ 'Receive' | translate }}</a></li>
+          <li>
+            <a routerLink="/receive" routerLinkActive="active" class="uk-margin-left">{{ 'Receive' | translate }} <span *ngIf="receivableTxns()" class="uk-badge uk-alert-warning" style="font-size: 14px; padding-bottom: 2px; background:#fff6ee; color: #faa05a">{{receivableTxns()}}</span></a>
+          </li>
           <li><a routerLink="/assets" routerLinkActive="active" class="uk-margin-left">{{ 'Assets' | translate }}</a></li>
           <li class="uk-parent">
             <a href="#" class="uk-margin-left">{{ 'Apps' | translate }}</a>

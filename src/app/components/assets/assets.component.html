@@ -13,6 +13,16 @@
           </div>
         </div>
       </div>
+
+      <div *ngIf="activePanel === 'asset_details'" class="uk-width-1-2 uk-text-right">
+        <div uk-grid>
+          <div class="uk-width-1-1">
+            <button class="uk-button uk-button-secondary" (click)="activePanel = ''">
+              {{ 'Back' | translate }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <app-account-widget raiTitle="{{ 'Your account' | translate }}"></app-account-widget>
@@ -27,7 +37,7 @@
           </tr>
           </thead>
           <tbody>
-          <tr *ngFor="let token of tokens()">
+          <tr *ngFor="let token of tokens()" (mouseup)="showDetails(token)" (touchend)="showDetails(token)" >
             <td class="uk-text-left uk-text-truncate" >
               <img [src]="token.tokenLogo" width="20" height="20" style="vertical-align: text-top;" /> {{ token.asset }}
             </td>
@@ -35,7 +45,7 @@
               {{ token.balance }}
             </td>
             <td class="uk-text-right uk-text-truncate">
-              <img *ngIf="token.chain !== ''" [src]="token.chainLogo" width="20" height="20" style="vertical-align: text-top;" /> {{ token.chain }}
+              <img *ngIf="token.chain !== ''" [src]="token.chainLogo" width="20" height="20" style="vertical-align: text-top;" /> {{ token.chainShown }}
             </td>
           </tr>
   
@@ -94,13 +104,20 @@
             </div>
           </div>
 
+          <div *ngIf="tokenAddressStatus === 1 && tokenDomain()" class="uk-margin">
+            <label class="uk-form-label" for="form-input-token-domain">{{ 'Issuer Site' | translate }}</label>
+            <div class="uk-form-controls">
+              <input [value]="tokenDomain()" class="uk-input" disabled id="form-input-token-domain" type="text">
+            </div>
+          </div>
+
         </div>
       </div>
 
       <div class="uk-card-footer uk-text-right">
         <div uk-grid>
           <div class="uk-width-1-2@s">
-            <button (click)="activePanel = ''" class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate }}</button>
+            <button (click)="cancel()" class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate }}</button>
           </div>
           <div class="uk-width-1-2@s">
             <button class="uk-button uk-button-primary uk-width-1-1" (click)="addAsset()">{{ 'Add' | translate }}</button>
@@ -110,6 +127,186 @@
 
     </div>
 
+    <!-- Asset Details Panel-->
+    <div *ngIf="activePanel === 'asset_details'" class="uk-card uk-card-default uk-margin">
+      <div class="uk-card-header">
+        <h3 class="uk-card-title">{{ 'Asset Details' | translate }}</h3>
+      </div>
+
+      <div class="uk-card-body uk-padding-remove uk-form-horizontal">
+        <div class="uk-padding-small" uk-grid>
+          <div class="uk-width-1-1">
+            <div uk-grid>
+
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Original Chain' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left uk-text-truncate">
+                    {{ chainShown() }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Token Address' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    <div uk-grid>
+                      <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">{{ tokenAddress() }} </div>
+                      <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left"><a ngxClipboard [cbContent]="tokenAddress()" (cbOnSuccess)="tokenAddressCopied()" uk-icon="icon: copy" title="{{ 'Copy Token Address' | translate }}" uk-tooltip></a></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="tokenDetailDomain()" class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Issuer Site' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left uk-text-truncate">
+                    {{ tokenDetailDomain() }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Name' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left uk-text-truncate">
+                    {{ name() }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Symbol' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ symbol() }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Balance' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ balance() }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Type' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ typeShown() }}
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="type() === '20'" class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Decimals' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ decimals() }}
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="type() === '721'" class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Base URI' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left uk-text-break">
+                    {{ baseUri() }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1">
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left">
+                    {{ 'Circulating Supply' | translate }}
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    {{ totalSupply() }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="uk-width-1-1" >
+                <div uk-grid>
+                  <div class="uk-width-2-5 uk-text-left uk-text-break">
+                    {{ 'Circulable' | translate }} <span uk-icon="icon: info; ratio: 0.8;" uk-tooltip
+                    title="{{ 'If disabled, holders are only allowed to transfer or swap the token with the issuer.' | translate }}"></span>
+                  </div>
+                  <div class="uk-width-3-5 uk-text-left">
+                    <div uk-grid>
+                      <div class="uk-width-expand uk-text-truncate ">
+                        {{ circulable() }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div uk-grid *ngIf="type() === '721'" style="margin-top: 25px;">
+          <div class="uk-width-1-1">
+            <h3 class="uk-heading-divider uk-text-center" style="margin-bottom: 0;">{{ 'Token IDs' | translate }}</h3>
+            <table class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
+              <thead>
+              <tr>
+                <th class="uk-width-1-3 uk-text-center">{{ 'ID' | translate }}</th>
+                <th class="uk-width-2-3 uk-text-left">{{ 'URI' | translate }}</th>
+              </tr>
+              </thead>
+              <tbody>
+
+              <tr *ngFor="let info of tokenIds()" >
+                <td class="uk-text-center">{{ info.id }}</td>
+                <td class="uk-text-left">
+                    {{ info.uri }}
+                    <a *ngIf="info.uri" ngxClipboard [cbContent]="info.uri" (cbOnSuccess)="tokenIdUriCopied()" uk-icon="icon: copy" ></a>
+                </td>
+              </tr>
+              <tr *ngIf="tokenIds().length === 0">
+                <td colspan="2" style="text-align: center;">{{ 'No token IDs yet' | translate }}</td>
+              </tr>
+              <tr *ngIf="hasMoreTokenIds()">
+                <td colspan="2" style="text-align: center;">
+                  <a (click)="loadMoreTokenIds()" class="uk-link-text">{{ 'Load More Results' | translate }}</a>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
 
     <!-- End -->
   </div>

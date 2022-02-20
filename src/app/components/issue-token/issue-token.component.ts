@@ -483,8 +483,7 @@ export class IssueTokenComponent implements OnInit {
 
     if (info.type === TokenType._20) {
       this.syncBurnAmount();
-      if (this.mintAmountStatus !== 1) return;
-
+      if (this.burnAmountStatus !== 1) return;
     } else if (info.type === TokenType._721) {
       const error = this.syncBurnTokenId();
       if (error) return;

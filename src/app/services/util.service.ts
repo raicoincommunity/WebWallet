@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import * as blake from 'blakejs';
 import { BigNumber } from 'bignumber.js'
 import { environment } from '../../environments/environment';
+import { rawListeners } from 'process';
 
 const nacl = window['nacl'];
 const account_letters = '13456789abcdefghijkmnopqrstuwxyz'.split('');
@@ -1095,6 +1096,47 @@ export class ChainHelper {
     if (!crossChainStrs[currentChain]) return [];
     return crossChainStrs[currentChain];
   }
+
+  static tokenTypeShown(chain: string, type: TokenTypeStr): string {
+    switch (chain) {
+      case ChainStr.RAICOIN:
+      case ChainStr.RAICOIN_TEST:
+      {
+        return `RAI-${type}`;
+      }
+      case ChainStr.ETHEREUM:
+      case ChainStr.ETHEREUM_TEST_ROPSTEN:
+      case ChainStr.ETHEREUM_TEST_ROPSTEN:
+      case ChainStr.ETHEREUM_TEST_KOVAN:
+      case ChainStr.ETHEREUM_TEST_RINKEBY:
+      case ChainStr.ETHEREUM_TEST_GOERLI:
+      {
+        return `ERC-${type}`;
+      }
+      case ChainStr.BINANCE_SMART_CHAIN:
+      case ChainStr.BINANCE_SMART_CHAIN_TEST:
+      {
+        return `BEP-${type}`;
+      }
+      // todo:
+      default:
+        return '';
+    }
+  }
+
+  static isNative(chain: string, address: string | U256): boolean {
+    if (typeof address === 'string') {
+      const ret = ChainHelper.addressToRaw(chain, address);
+      if (ret.error || !ret.raw) return false;
+      address = ret.raw;
+    }
+    return address.isNativeTokenAddress();
+  }
+
+  static isRaicoin(chain: string): boolean {
+    return chain === ChainStr.RAICOIN || chain === ChainStr.RAICOIN_TEST;
+  }
+
 }
 
 interface ExtensionTokenCodec {

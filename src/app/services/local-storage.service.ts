@@ -99,6 +99,7 @@ export enum StorageKey {
   UNLOCKED = 'unlocked',
   WALLETS = 'wallets',
   GLOBAL_SETTINGS = 'global_settings',
+  ASSETS = 'assets',
   WALLETCONNECT_DEEPLINK_CHOICE = 'WALLETCONNECT_DEEPLINK_CHOICE',
   WALLET_CONNECT = 'walletconnect',
   WEB3_CONNECT_CACHED_PROVIDER = 'WEB3_CONNECT_CACHED_PROVIDER'
