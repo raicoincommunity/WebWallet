@@ -8,6 +8,7 @@ import { BigNumber } from 'bignumber.js';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { TokenType } from '../../services/util.service';
+import { TimeoutError } from 'rxjs';
 
 @Component({
   selector: 'app-asset-widget',
@@ -20,7 +21,6 @@ export class AssetWidgetComponent implements OnInit {
   @ViewChild('assetInput') assetInput! : ElementRef;
   @ViewChild('assetSelect') assetSelect! : ElementRef;
 
-  debugCount2: number = 0;
   @HostListener('document:click', ['$event'])
   onClick(event: MouseEvent) {
     if (this.assetInput
@@ -204,20 +204,27 @@ export class AssetWidgetComponent implements OnInit {
     }
   }
 
-  check(): boolean {
+  checkAsset(): boolean {
     if (this.assetStatus() !== 1 || !this.selectedAsset
       || this.selectedAsset.textFormat() !== this.assetInputText) {
+      return true;
+    }
+    return false;
+  }
+
+  check(): boolean {
+    if (this.checkAsset()) {
       if (!this.assetInputText) {
         this.assetInput.nativeElement.focus();
       }
       return true;
     }
 
-    if (this.selectedAsset.type === TokenTypeStr._20) {
+    if (this.selectedAsset!.type === TokenTypeStr._20) {
       this.syncAmount();
       if (this.amountStatus !== 1) return true;
     }
-    else if (this.selectedAsset.type === TokenTypeStr._721) {
+    else if (this.selectedAsset!.type === TokenTypeStr._721) {
       if (this.syncTokenId()) return true;
     } else {
       return true;
@@ -276,6 +283,18 @@ export class AssetWidgetComponent implements OnInit {
     const info = this.token.accountTokenInfo(asset.chain, asset.address);
     if (!info) return '';
     return info.balance.toBalanceStr(info.decimals, true) + ' ' + info.symbol;
+  }
+
+  transferable(from: string, to: string): boolean {
+    if (this.checkAsset()) return false;
+    if (this.selectedAsset!.isRaicoin) return true;
+    if (!ChainHelper.isRaicoin(this.selectedAsset!.chain)) return true;
+    const info = this.token.accountTokenInfo(this.selectedAsset!.chain,
+                                             this.selectedAsset!.address);
+    if (!info) return false;
+    if (info.circulable) return true;
+    if (from === info.address || to === info.address) return true;
+    return false;
   }
 
   private makeAssetItem(token: AccountTokenInfo): AssetItem {

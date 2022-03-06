@@ -1030,6 +1030,7 @@ export class TokenService implements OnDestroy {
   private shouldReceive(account: string, chain: string, address: string): boolean {
     const info = this.accounts[account];
     if (!info) return false;
+    if (this.isRaicoin(chain) && account === address) return true;
     if (info.getToken(chain, address)) return true;
     if (this.settings.hasAsset(account, chain, address)) return true;
     if (this.tokenVerified(chain, address)) return true;
@@ -1055,6 +1056,7 @@ export class AccountTokenInfo {
   balanceFormatted: string = '';
   headHeight: U64 = U64.max();
   tokenBlockCount: U64 = new U64();
+  circulable: boolean = true;
 
   //local data
   expectedRecentBlocks: number = 10;
@@ -1107,6 +1109,7 @@ export class AccountTokenInfo {
       this.balanceFormatted = json.balance_formatted;
       this.headHeight = new U64(json.head_height);
       this.tokenBlockCount = new U64(json.token_block_count);
+      this.circulable = json.token.circulable === 'true';
       return false;
     }
     catch (e) {

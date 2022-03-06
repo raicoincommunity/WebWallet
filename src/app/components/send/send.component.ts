@@ -224,7 +224,17 @@ export class SendComponent implements OnInit {
     }
 
     let account = new U256();
-    return account.fromAccountAddress(this.destinationAccount) ? 2 : 1;
+    if (account.fromAccountAddress(this.destinationAccount)) {
+      return 2;
+    }
+
+    if (this.assetWidget && !this.assetWidget.checkAsset()) {
+      if (!this.assetWidget.transferable(this.selectedAccountAddress(), this.destinationAccount)) {
+        return 2;
+      }
+    }
+
+    return 1;
   }
 
   destinationFocus() {
