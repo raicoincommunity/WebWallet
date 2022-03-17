@@ -17,6 +17,8 @@ import { LiquidityRewardComponent } from './components/liquidity-reward/liquidit
 import { FaucetComponent } from './components/faucet/faucet.component';
 import { IssueTokenComponent } from './components/issue-token/issue-token.component';
 import { AssetsComponent } from './components/assets/assets.component';
+import { P2pComponent } from './components/p2p/p2p.component';
+
 
 const routes: Routes = [
   { path: '', component: WelcomeComponent },
@@ -35,6 +37,7 @@ const routes: Routes = [
   { path: 'faucet', component: FaucetComponent },
   { path: 'issue-token', component: IssueTokenComponent },
   { path: 'assets', component: AssetsComponent },
+  { path: 'p2p', component: P2pComponent },
 ];
 
 @NgModule({

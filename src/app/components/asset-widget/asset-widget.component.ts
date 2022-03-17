@@ -8,7 +8,6 @@ import { BigNumber } from 'bignumber.js';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { TokenType } from '../../services/util.service';
-import { TimeoutError } from 'rxjs';
 
 @Component({
   selector: 'app-asset-widget',

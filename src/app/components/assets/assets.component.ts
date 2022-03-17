@@ -137,13 +137,7 @@ export class AssetsComponent implements OnInit {
   }
 
   chains(): string[] {
-    const arr = ChainHelper.crossChainStrs(environment.current_chain);
-    if (environment.current_chain === ChainStr.RAICOIN) {
-      arr.splice(0, 0, ChainStr.RAICOIN);
-    } else {
-      arr.splice(0, 0, ChainStr.RAICOIN_TEST);
-    }
-    return arr;
+    return ChainHelper.crossChainStrs(environment.current_chain);
   }
 
   showChain(chain: string): string {

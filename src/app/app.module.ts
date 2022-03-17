@@ -34,7 +34,9 @@ import { FaucetComponent } from './components/faucet/faucet.component';
 import { AccountWidgetComponent } from './components/account-widget/account-widget.component';
 import { IssueTokenComponent } from './components/issue-token/issue-token.component';
 import { AssetsComponent } from './components/assets/assets.component';
-import { AssetWidgetComponent } from './components/asset-widget/asset-widget.component'
+import { AssetWidgetComponent } from './components/asset-widget/asset-widget.component';
+import { P2pComponent } from './components/p2p/p2p.component';
+import { TokenWidgetComponent } from './components/token-widget/token-widget.component'
 
 const providerOptions = {
   walletconnect: {
@@ -79,7 +81,9 @@ const providerOptions = {
     AccountWidgetComponent,
     IssueTokenComponent,
     AssetsComponent,
-    AssetWidgetComponent
+    AssetWidgetComponent,
+    P2pComponent,
+    TokenWidgetComponent
   ],
   imports: [
     BrowserModule,
