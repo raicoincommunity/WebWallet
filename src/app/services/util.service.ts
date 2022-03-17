@@ -272,6 +272,13 @@ function shortAddress(addr: string, reserve: number = 5): string {
   return addr;
 }
 
+function shortEthAddress(addr: string, reserve: number = 5): string {
+  if (addr.startsWith('0x') && addr.length  == 42) {
+    return addr.substr(0, reserve + 2) + '...' + addr.substr(-reserve);
+  }
+  return addr;
+}
+
 export type Uall = U8 | U16 | U32 | U64 | U128 | U256 | U512;
 export type UintFrom = number | string | BigNumber | Uall;
 
@@ -1009,21 +1016,22 @@ const chainMaps: ChainMap[] = [
 
 const crossChains: {[current: string]: Chain[]} = {
   'raicoin': [
+    Chain.RAICOIN
     // todo:
   ],
 
   'raicoin test': [
-    // todo:
+    Chain.RAICOIN_TEST
   ]
 }
 
 const crossChainStrs: {[current: string]: ChainStr[]} = {
   'raicoin': [
-    // todo:
+    ChainStr.RAICOIN
   ],
 
   'raicoin test': [
-    // todo:
+    ChainStr.RAICOIN_TEST
   ]
 }
 
@@ -1080,6 +1088,16 @@ export class ChainHelper {
       case ChainStr.RAICOIN_TEST:
       {
         return shortAddress(address, reserve);
+      }
+      case ChainStr.ETHEREUM:
+      case ChainStr.ETHEREUM_TEST_GOERLI:
+      case ChainStr.ETHEREUM_TEST_KOVAN:
+      case ChainStr.ETHEREUM_TEST_RINKEBY:
+      case ChainStr.ETHEREUM_TEST_ROPSTEN:
+      case ChainStr.BINANCE_SMART_CHAIN:
+      case ChainStr.BINANCE_SMART_CHAIN_TEST:
+      {
+        return shortEthAddress(address, reserve);
       }
       // todo:
       default:

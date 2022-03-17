@@ -1,0 +1,87 @@
+<div class="uk-animation-slide-left-small" uk-grid>
+  <div class="uk-width-1-1">
+    <div uk-grid class="uk-margin-small-bottom">
+      <div class="uk-width-1-2">
+        <h2>{{ 'P2P Market' | translate }}</h2>
+      </div>
+      <div *ngIf="activePanel === ''" class="uk-width-1-2 uk-text-right">
+        <div uk-grid>
+          <div class="uk-width-1-1">
+            <button class="uk-button uk-button-secondary" (click)="activePanel = 'place_order'">
+              {{ 'Place Order' | translate }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="activePanel === 'order_details'" class="uk-width-1-2 uk-text-right">
+        <div uk-grid>
+          <div class="uk-width-1-1">
+            <button class="uk-button uk-button-secondary" (click)="activePanel = ''">
+              {{ 'Back' | translate }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p>
+      {{ 'The fully Decentralized P2P exchange market built on Raicoin network!' | translate }}
+    </p>
+  
+    <!-- Search Order Panel-->
+    <div [hidden]="activePanel !== ''" class="uk-card uk-card-default uk-margin">
+      <div class="uk-card-header">
+        <h3 class="uk-card-title">{{ 'Search Order' | translate }}</h3>
+      </div>
+
+      <div class="uk-card-body">
+        <div class="uk-form-horizontal">
+
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-select-search-by">{{ 'Search By' | translate }} *</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <select class="uk-select" [(ngModel)]="selectedSearchBy" id="form-select-search-by">
+                  <option *ngFor="let option of searchByOptions()" [value]="option" >{{ showSearchByOption(option) }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="selectedSearchBy === 'id'" class="uk-margin">
+            <label class="uk-form-label" for="form-input-token-address">{{ 'Order ID' | translate }} *</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <input [(ngModel)]="inputSearchOrderId" class="uk-input" id="form-input-search-order-id" type="text"  [ngClass]="{ 'uk-form-success': searchOrderIdStatus() === 1, 'uk-form-danger': searchOrderIdStatus() === 2 }">
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="selectedSearchBy === 'pair'" class="uk-margin">
+            <app-token-widget raiLabel="{{'You pay'}}" #fromTokenWidget></app-token-widget>
+          </div>
+
+          <div *ngIf="selectedSearchBy === 'pair'" class="uk-margin">
+            <app-token-widget raiLabel="{{'You got'}}" #toTokenWidget></app-token-widget>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="uk-card-footer uk-text-right">
+        <div uk-grid>
+          <div class="uk-width-1-2@s">
+            <button (click)="search()" class="uk-button uk-button-secondary uk-width-1-1">+ {{ 'Custom Token' | translate }}</button>
+          </div>
+          <div class="uk-width-1-2@s">
+            <button class="uk-button uk-button-primary uk-width-1-1" (click)="search()">{{ 'Search' | translate }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- End --> 
+  </div>
+</div>

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Chain, ChainHelper } from './util.service'
+import { Chain, ChainHelper, TokenType } from './util.service'
 
 @Injectable({
   providedIn: 'root'
@@ -32,6 +32,10 @@ export class LogoService {
     return this.PATH_PREFIX + logo;
   }
 
+  getTokenLogos(): TokenLogoMap[] {
+    return tokenLogoMaps;
+  }
+
   getChainLogo(chain: Chain | string): string {
     if (typeof chain === 'string') {
       chain = ChainHelper.toChain(chain);
@@ -58,16 +62,23 @@ type ChainLogoMap = [Chain, string];
 const chainLogoMaps: ChainLogoMap[] = [
   [Chain.RAICOIN, 'raicoin.png'],
   [Chain.ETHEREUM, 'ethereum.png'],
+  [Chain.BINANCE_SMART_CHAIN, 'binance-smart-chain.png'],
 
   [Chain.RAICOIN_TEST, 'raicoin.png'],
+  [Chain.BINANCE_SMART_CHAIN_TEST, 'binance-smart-chain.png'],
 ]
 
 // upload logo.png in src/assets/logos/ and 
-type TokenLogoMap = [Chain, string, string];
+export type TokenLogoMap = [Chain, string, string];
 const tokenLogoMaps: TokenLogoMap[] = [
   [Chain.RAICOIN, '', 'raicoin.png'],
   [Chain.ETHEREUM, '', 'ethereum.png'],
 
+  // testnet
   [Chain.RAICOIN_TEST, '', 'raicoin.png'],
   [Chain.RAICOIN_TEST, 'rai_3uejbias6jjryyh6uqydfjxyce1uqk8b666hazu9tb6owjg6b363hhwifiuz', 'bitcoin.png'],
+  [Chain.BINANCE_SMART_CHAIN_TEST, '', 'binance-coin.png'],
+  [Chain.BINANCE_SMART_CHAIN_TEST, '0x6ce8dA28E2f864420840cF74474eFf5fD80E65B8', 'bitcoin.png'],
+  [Chain.BINANCE_SMART_CHAIN_TEST, '0xd66c6B4F0be8CE5b39D52E0Fd1344c389929B378', 'ethereum.png'],
+  [Chain.BINANCE_SMART_CHAIN_TEST, '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd', 'usdt.png'],
 ]
