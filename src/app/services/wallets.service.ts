@@ -471,6 +471,19 @@ export class WalletsService implements OnDestroy {
     return this.wallet.account.storage.address;
   }
 
+  mainAccountAddress(): string {
+    if (!this.wallet) return '';
+    const account = this.wallet.findAccount({index: 0});
+    if (!account) return '';
+    return account.address();
+  }
+
+  mainAccountSelected(): boolean {
+    const main = this.mainAccountAddress();
+    if (!main) return false;
+    return main === this.selectedAccountAddress();
+  }
+
   createWallet(password: string = '', seedHex?: string): WalletOpResult {
     let seed: Uint8Array;
     let errorCode = WalletErrorCode.SUCCESS;

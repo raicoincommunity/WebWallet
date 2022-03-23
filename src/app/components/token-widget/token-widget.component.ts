@@ -1,4 +1,4 @@
-import { Component, OnInit, Input, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, Input, ViewChild, ElementRef, HostListener, Output, EventEmitter } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { WalletsService } from '../../services/wallets.service';
 import { LogoService } from '../../services/logo.service';
@@ -12,8 +12,9 @@ import { ChainHelper, TokenHelper, TokenTypeStr } from '../../services/util.serv
   styleUrls: ['./token-widget.component.css']
 })
 export class TokenWidgetComponent implements OnInit {
-  @Input('raiLabel')
-  label: string = '';
+  @Input('raiLabel') label: string = '';
+
+  @Output("raiChange") eventTokenSelected = new EventEmitter<TokenItem | undefined>();
 
   @ViewChild('tokenDropdown') tokenDropdown! : ElementRef;
   @ViewChild('tokenInput') tokenInput! : ElementRef;
@@ -50,6 +51,7 @@ export class TokenWidgetComponent implements OnInit {
   clear() {
     this.tokenInputText = '';
     this.selectedToken = undefined;
+    this.eventTokenSelected.emit(this.selectedToken);
   }
 
   onRemove() {
@@ -68,6 +70,7 @@ export class TokenWidgetComponent implements OnInit {
   onChange() {
     if (this.selectedToken && this.selectedToken.textFormat() !== this.tokenInputText) {
       this.selectedToken = undefined;
+      this.eventTokenSelected.emit(this.selectedToken);
     }
   }
 
@@ -91,6 +94,7 @@ export class TokenWidgetComponent implements OnInit {
     this.selectedToken = token;
     this.tokenInputText = token.textFormat();
     this.hideSearchResult();
+    this.eventTokenSelected.emit(this.selectedToken);
   }
 
   style(): string {
@@ -146,6 +150,15 @@ export class TokenWidgetComponent implements OnInit {
       });
   }
 
+  check(): boolean {
+    if (!this.selectedToken) {
+      this.tokenInput.nativeElement.focus();
+      return true;
+    }
+
+    return false;
+  }
+
 }
 
 class TokenItem {
@@ -168,4 +181,15 @@ class TokenItem {
       return `${this.symbol} <${this.shortAddress}>`;
     }
   }
+
+  shortTextFormat(): string {
+    if (this.address) {
+      let tokenType = ChainHelper.tokenTypeShown(this.chain, this.type as TokenTypeStr);
+      tokenType = tokenType.replace('-', '');
+      return `${this.symbol} <${tokenType}>`; 
+    } else {
+      return `${this.symbol} <${this.shortAddress}>`;
+    }
+  }
+
 }

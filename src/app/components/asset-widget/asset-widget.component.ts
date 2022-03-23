@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, HostListener, Output, EventEmitter } from '@angular/core';
 import { WalletsService } from '../../services/wallets.service';
 import { LogoService } from '../../services/logo.service';
 import { ChainHelper, U256, U8, TokenTypeStr, TokenHelper } from '../../services/util.service';
@@ -8,6 +8,7 @@ import { BigNumber } from 'bignumber.js';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { TokenType } from '../../services/util.service';
+import { VerifiedTokensService } from '../../services/verified-tokens.service';
 
 @Component({
   selector: 'app-asset-widget',
@@ -15,6 +16,7 @@ import { TokenType } from '../../services/util.service';
   styleUrls: ['./asset-widget.component.css']
 })
 export class AssetWidgetComponent implements OnInit {
+  @Output("raiChange") eventAssetSelected = new EventEmitter<AssetItem | undefined>();
 
   @ViewChild('assetDropdown') assetDropdown! : ElementRef;
   @ViewChild('assetInput') assetInput! : ElementRef;
@@ -44,6 +46,7 @@ export class AssetWidgetComponent implements OnInit {
     private wallets: WalletsService,
     private logo: LogoService,
     private token: TokenService,
+    private verified: VerifiedTokensService,
     private translate: TranslateService
   ) { 
   }
@@ -67,6 +70,7 @@ export class AssetWidgetComponent implements OnInit {
   onChange() {
     if (this.selectedAsset && this.selectedAsset.textFormat() !== this.assetInputText) {
       this.selectedAsset = undefined;
+      this.eventAssetSelected.emit(this.selectedAsset);
     }
   }
 
@@ -116,6 +120,7 @@ export class AssetWidgetComponent implements OnInit {
     this.hideSearchResult();
     this.syncAmount();
     this.selectedTokenId = '';
+    this.eventAssetSelected.emit(this.selectedAsset);
   }
 
   assetStatus(): number {
@@ -195,7 +200,7 @@ export class AssetWidgetComponent implements OnInit {
       this.translate.get(msg).subscribe(res => msg = res);
       return msg;
     } else {
-      let max = marker(`Max`);
+      let max = marker(`Balance`);
       this.translate.get(max).subscribe(res => max = res);
       const asset = this.selectedAsset;
       const balance = asset.balance.toBalanceStr(asset.decimals, false);
@@ -238,6 +243,7 @@ export class AssetWidgetComponent implements OnInit {
     this.amountInputText = '';
     this.amountStatus = 0;
     this.amount = new U256();
+    this.eventAssetSelected.emit(this.selectedAsset);
   }
 
   tokenIds(): string[] {
@@ -302,8 +308,12 @@ export class AssetWidgetComponent implements OnInit {
     item.address = token.address;
     item.addressRaw = token.addressRaw;
     item.type = TokenHelper.toTypeStr(token.type);
-    if (token.addressRaw.isNativeTokenAddress()) {
-      item.shortAddress = ChainHelper.toChainShown(item.chain);
+    item.isNative = token.addressRaw.isNativeTokenAddress();
+    if (item.isNative) {
+      const verified = this.verified.getNativeToken(environment.current_chain, item.chain);
+      if (verified) {
+        item.shortAddress = verified.name;
+      }
       item.tokenLogo = this.logo.getTokenLogo(item.chain, '');
     } else {
       item.shortAddress = ChainHelper.toShortAddress(item.chain, item.address);
@@ -328,6 +338,7 @@ export class AssetWidgetComponent implements OnInit {
     item.decimals = new U8(9);
     item.balance = new U256(this.wallets.balance().value);
     item.isRaicoin = true;
+    item.isNative = true;
     return item;
   }
 
@@ -345,8 +356,26 @@ class AssetItem {
   decimals: U8 = new U8();
   balance: U256 = new U256();
   isRaicoin: boolean = false;
+  isNative: boolean = false;
 
   textFormat(): string {
-    return `${this.symbol} <${this.shortAddress}>`;
+    if (!this.isNative) {
+      let tokenType = ChainHelper.tokenTypeShown(this.chain, this.type as TokenTypeStr);
+      tokenType = tokenType.replace('-', '');
+      return `${this.symbol} <${tokenType}: ${this.shortAddress}>`; 
+    } else {
+      return `${this.symbol} <${this.shortAddress}>`;
+    }
   }
+
+  shortTextFormat(): string {
+    if (!this.isNative) {
+      let tokenType = ChainHelper.tokenTypeShown(this.chain, this.type as TokenTypeStr);
+      tokenType = tokenType.replace('-', '');
+      return `${this.symbol} <${tokenType}>`; 
+    } else {
+      return `${this.symbol} <${this.shortAddress}>`;
+    }
+  }
+
 }

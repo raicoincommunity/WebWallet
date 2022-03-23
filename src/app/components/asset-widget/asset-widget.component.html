@@ -1,5 +1,4 @@
-<div uk-grid >
-  <div class="uk-width-1-1">
+  <div class="uk-margin">
     <label class="uk-form-label" for="input-asset">
       {{ 'Asset' | translate }} *
     </label>
@@ -24,27 +23,23 @@
       </div>
     </div>
   </div>
-</div>
 
 
-<div uk-grid *ngIf="!selectedAsset || selectedAsset.type === '20'">
-  <div class="uk-width-1-1">
+  <div *ngIf="!selectedAsset || selectedAsset.type === '20'" class="uk-margin">
     <label class="uk-form-label" for="form-input-amount">{{ 'Amount' | translate }} *</label>
     <div class="uk-form-controls">
       <div uk-grid>
         <div class="uk-width-1-1">
           <div class="uk-inline uk-width-1-1">
-            <a class="uk-form-icon uk-form-icon-flip" (click)="setMaxAmount()" style="padding-right: 7px;" uk-tooltip title="{{ 'Set Maximum Amount' | translate }}">{{ 'Max' | translate }}</a>
+            <a class="uk-form-icon uk-form-icon-flip" (click)="setMaxAmount()" style="padding-right: 7px; width: auto;" uk-tooltip title="{{ 'Set Maximum Amount' | translate }}">{{ 'Max' | translate }}</a>
             <input (change)="syncAmount()" (keyup)="syncAmount()" [(ngModel)]="amountInputText" class="uk-input" id="form-input-amount" type="text" [placeholder]="amountHint()" [ngClass]="{ 'uk-form-success': amountStatus === 1, 'uk-form-danger': amountStatus === 2 }">
           </div>
         </div>
       </div>
     </div>
   </div>
-</div>
 
-<div uk-grid *ngIf="selectedAsset && selectedAsset.type === '721'">
-  <div class="uk-width-1-1">
+  <div *ngIf="selectedAsset && selectedAsset.type === '721'" class="uk-margin">
     <label class="uk-form-label" for="form-select-token-id">{{ 'Token ID' | translate }} *</label>
     <div class="uk-form-controls">
       <div uk-grid>
@@ -59,4 +54,3 @@
       </div>
     </div>
   </div>
-</div>

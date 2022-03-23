@@ -272,7 +272,7 @@ function shortAddress(addr: string, reserve: number = 5): string {
   return addr;
 }
 
-function shortEthAddress(addr: string, reserve: number = 5): string {
+function shortEthAddress(addr: string, reserve: number = 4): string {
   if (addr.startsWith('0x') && addr.length  == 42) {
     return addr.substr(0, reserve + 2) + '...' + addr.substr(-reserve);
   }
@@ -628,6 +628,14 @@ export class U64 extends Uint {
     return super.minus(other, base) as U64;
   }
 
+  idiv(other: UintFrom, base?: number): U64 {
+    return super.idiv(other, base) as U64;
+  }
+
+  mod(other: UintFrom, base?: number): U64 {
+    return super.mod(other, base) as U64;
+  }
+
   sameDay(other: UintFrom): boolean {
     let a = this.toBigNumber();
     let b = new U64(other).toBigNumber();
@@ -705,6 +713,12 @@ export class U256 extends Uint {
     return U256._MAX;
   }
 
+  static gcd(a: U256, b: U256): U256 {
+    if (b.eq(0)) return a;
+    if (a.eq(0)) return b;
+    return U256.gcd(b, a.mod(b));
+  }
+
   readonly size = U256.SIZE;
   constructor(from: UintFrom = 0, base?: number, check: boolean = true) {
     super(from, base, U256.SIZE, check);
@@ -724,6 +738,10 @@ export class U256 extends Uint {
 
   minus(other: UintFrom, base?: number): U256 {
     return super.minus(other, base) as U256;
+  }
+
+  mod(other: UintFrom, base?: number): U256 {
+    return super.mod(other, base) as U256;
   }
 
   toAccountAddress(): string {
@@ -785,6 +803,15 @@ export class U512 extends Uint {
   constructor(from: UintFrom = 0, base?: number, check: boolean = true) {
     super(from, base, U512.SIZE, check);
   }
+
+  mul(other: UintFrom, base?: number): U512 {
+    return super.mul(other, base) as U512;
+  }
+
+  idiv(other: UintFrom, base?: number): U512 {
+    return super.idiv(other, base) as U512;
+  }
+
 }
 
 
@@ -1082,7 +1109,7 @@ export class ChainHelper {
     }
   }
 
-  static toShortAddress(chain: string, address: string, reserve: number = 5): string {
+  static toShortAddress(chain: string, address: string, reserve: number = 4): string {
     switch (chain) {
       case ChainStr.RAICOIN:
       case ChainStr.RAICOIN_TEST:
@@ -1151,8 +1178,12 @@ export class ChainHelper {
     return address.isNativeTokenAddress();
   }
 
-  static isRaicoin(chain: string): boolean {
-    return chain === ChainStr.RAICOIN || chain === ChainStr.RAICOIN_TEST;
+  static isRaicoin(chain: string | Chain): boolean {
+    if (typeof chain === 'string') {
+      return chain === ChainStr.RAICOIN || chain === ChainStr.RAICOIN_TEST;
+    } else {
+      return chain === Chain.RAICOIN || chain === Chain.RAICOIN_TEST;
+    }
   }
 
 }

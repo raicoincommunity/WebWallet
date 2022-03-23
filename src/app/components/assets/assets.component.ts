@@ -5,7 +5,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { TokenService, TokenInfo, AccountTokenInfo } from '../../services/token.service';
 import { WalletsService } from '../../services/wallets.service';
 import { environment } from '../../../environments/environment';
-import { U8, U256, ChainHelper, ChainStr, TokenType, TokenHelper, TokenTypeStr } from '../../services/util.service';
+import { U8, U256, ChainHelper, TokenType, TokenHelper, TokenTypeStr } from '../../services/util.service';
 import { LogoService } from '../../services/logo.service';
 import { AssetSetting, SettingsService } from '../../services/settings.service'
 import { TranslateService } from '@ngx-translate/core';
@@ -19,6 +19,7 @@ import { AliasService } from '../../services/alias.service';
   styleUrls: ['./assets.component.css']
 })
 export class AssetsComponent implements OnInit {
+
   activePanel = '';
   selectedChain = environment.current_chain;
   tokenAddressStatus = 0;
