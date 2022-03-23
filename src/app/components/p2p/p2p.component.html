@@ -14,7 +14,7 @@
         </div>
       </div>
 
-      <div *ngIf="activePanel === 'order_details'" class="uk-width-1-2 uk-text-right">
+      <div *ngIf="shouldShowBackButton()" class="uk-width-1-2 uk-text-right">
         <div uk-grid>
           <div class="uk-width-1-1">
             <button class="uk-button uk-button-secondary" (click)="activePanel = ''">
@@ -28,14 +28,26 @@
     <p>
       {{ 'The fully Decentralized P2P exchange market built on Raicoin network!' | translate }}
     </p>
+
+    <app-account-widget raiTitle="{{ 'Your account' | translate }}"></app-account-widget>
   
     <!-- Search Order Panel-->
     <div [hidden]="activePanel !== ''" class="uk-card uk-card-default uk-margin">
       <div class="uk-card-header">
-        <h3 class="uk-card-title">{{ 'Search Order' | translate }}</h3>
+        <div uk-grid>
+          <div class="uk-width-2-3">
+            <h3 class="uk-card-title">{{ 'Search Order' | translate }}</h3>
+          </div>
+          <div *ngIf="searchOrderCollapsed" (click)="searchOrderCollapsed = false" class="uk-width-1-3 uk-text-right">
+            <span uk-icon="icon: plus-circle"></span>
+          </div>
+          <div *ngIf="!searchOrderCollapsed" (click)="searchOrderCollapsed = true" class="uk-width-1-3 uk-text-right">
+            <span uk-icon="icon: minus-circle"></span>
+          </div>
+        </div>
       </div>
 
-      <div class="uk-card-body">
+      <div [hidden]="searchOrderCollapsed" class="uk-card-body">
         <div class="uk-form-horizontal">
 
           <div class="uk-margin">
@@ -59,17 +71,17 @@
           </div>
 
           <div *ngIf="selectedSearchBy === 'pair'" class="uk-margin">
-            <app-token-widget raiLabel="{{'You pay'}}" #fromTokenWidget></app-token-widget>
+            <app-token-widget raiLabel="{{'You pay'}}" #searchToTokenWidget></app-token-widget>
           </div>
 
           <div *ngIf="selectedSearchBy === 'pair'" class="uk-margin">
-            <app-token-widget raiLabel="{{'You got'}}" #toTokenWidget></app-token-widget>
+            <app-token-widget raiLabel="{{'You get'}}" #seachFromTokenWidget></app-token-widget>
           </div>
 
         </div>
       </div>
 
-      <div class="uk-card-footer uk-text-right">
+      <div [hidden]="searchOrderCollapsed" class="uk-card-footer uk-text-right">
         <div uk-grid>
           <div class="uk-width-1-2@s">
             <button (click)="search()" class="uk-button uk-button-secondary uk-width-1-1">+ {{ 'Custom Token' | translate }}</button>
@@ -81,6 +93,211 @@
       </div>
     </div>
 
+
+    <!-- Place Order Panel-->
+    <div *ngIf="shoulShowMainAccountTips()" class="uk-alert-warning" uk-alert>
+      <p><b>{{ 'Tips' | translate }}:</b> {{ 'The main acccount (#1 account of a wallet) is reserved for Raicoin P2P protocol, please add or switch to a secondary account to place order.' | translate }}</p>
+    </div>
+    <div [hidden]="activePanel !== 'place_order'" class="uk-card uk-card-default uk-margin">
+      <div class="uk-card-header">
+        <div uk-grid>
+          <div class="uk-width-2-3">
+            <h3 class="uk-card-title">{{ 'Place Order' | translate }}</h3>
+          </div>
+          <div *ngIf="placeOrderCollapsed" (click)="placeOrderCollapsed = false" class="uk-width-1-3 uk-text-right">
+            <span uk-icon="icon: plus-circle"></span>
+          </div>
+          <div *ngIf="!placeOrderCollapsed" (click)="placeOrderCollapsed = true" class="uk-width-1-3 uk-text-right">
+            <span uk-icon="icon: minus-circle"></span>
+          </div>
+        </div>
+      </div>
+
+      <div [hidden]="placeOrderCollapsed" class="uk-card-body">
+        <div class="uk-form-horizontal">
+          <app-asset-widget #placeAssetWidget (raiChange)="syncPrice()" ></app-asset-widget>
+
+          <div class="uk-margin">
+            <app-token-widget raiLabel="{{'Exchange For'}}" (raiChange)="syncPrice()" #placeToTokenWidget></app-token-widget>
+          </div>
+
+          <div *ngIf="shouldShowPrice()" class="uk-margin">
+            <label class="uk-form-label" for="form-input-price">{{ 'Price' | translate }} *<br/> <b>1 {{showPriceBase()}} = ?</b></label>
+            <div class="uk-form-controls">
+              <div uk-grid>
+                <div class="uk-width-1-1">
+                  <div class="uk-inline uk-width-1-1">
+                    <a class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px; width: auto; text-align: right;" >{{showPriceQuote()}}</a>
+                    <a class="uk-form-icon" (click)="changePriceBase()" style="padding-right: 7px;" >⇄</a>
+                    <input [(ngModel)]="priceInputText" (keyup)="syncPrice()" (blur)="syncPrice()" (change)="syncPrice()" class="uk-input" id="form-input-price" type="text" [ngClass]="{ 'uk-form-success': priceStatus === 1, 'uk-form-danger': priceStatus === 2 }">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="shouldShowPrice()" class="uk-margin">
+            <label class="uk-form-label" for="form-select-min-trade">{{ 'Minimum Trade Size' | translate }} *</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <select class="uk-select" [(ngModel)]="selectedMinTrade" id="form-select-min-trade">
+                  <option *ngFor="let option of minTradeOptions" [value]="option" >{{ option }}%</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="shouldShowTargetTokenAmount()" class="uk-margin">
+            <label class="uk-form-label" for="form-input-target-token-amount">{{ 'Target Token Amount' | translate }} *</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <a class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px; width: auto; text-align: right;" >{{targetTokenSymbol()}}</a>
+                <input [(ngModel)]="targetTokenAmountInputText" (keyup)="syncTargetTokenAmount()" (blur)="syncTargetTokenAmount()" (change)="syncTargetTokenAmount()" class="uk-input" id="form-input-target-token-amount" type="text" [ngClass]="{ 'uk-form-success': targetTokenAmountSatus === 1, 'uk-form-danger': targetTokenAmountSatus === 2 }">
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="shouldShowTargetTokenId()" class="uk-margin">
+            <label class="uk-form-label" for="form-input-target-token-id">{{ 'Target Token ID' | translate }} *</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <input [(ngModel)]="targetTokenIdInputText" (keyup)="syncTargetTokenId()" (blur)="syncTargetTokenId()" (change)="syncTargetTokenId()" class="uk-input" id="form-input-target-token-id" type="text" [ngClass]="{ 'uk-form-success': targetTokenIdStatus === 1, 'uk-form-danger': targetTokenIdStatus === 2 }">
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-margin">
+            <label class="uk-form-label" for="form-select-expire">{{ 'Expire' | translate }} *</label>
+            <div class="uk-form-controls">
+              <div class="uk-inline uk-width-1-1">
+                <select class="uk-select" [(ngModel)]="selectedExpire" id="form-select-expire">
+                  <option *ngFor="let expire of expireOptions" [value]="expire" >{{ showExpire(expire) }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div [hidden]="placeOrderCollapsed" class="uk-card-footer uk-text-right">
+        <div class="uk-width-1-1">
+          <button *ngIf="!mainAccountSelected()" class="uk-button uk-button-primary" (click)="place()">{{ 'Place Order' | translate }}</button>
+          <button *ngIf="mainAccountSelected()" class="uk-button uk-disabled" >{{ 'Place Order' | translate }}</button>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- Confirm Place Order Panel-->
+    <div *ngIf="activePanel === 'confirm_place_order'" uk-grid class="uk-margin" >
+      <div class="uk-width-1-1">
+        <div class="uk-card uk-card-default uk-text-center uk-text-warning" >
+          <span style="display:block; font-size: 32px;">{{ 'Please confirm the order details' | translate }}</span>
+        </div>
+        <br />
+
+        <div uk-grid>
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title">{{ confirmPlaceOrderFromToken() }}</span>
+                    <span class="confirm-subtitle">{{ 'From Token' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+    
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title">{{ confirmPlaceOrderToToken() }}</span>
+                    <span class="confirm-subtitle">{{ 'To Token' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title uk-text-truncate">{{ confirmPlaceOrderFromAmount() }}</span>
+                    <span class="confirm-subtitle">{{ 'You Pay' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+    
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-break">
+                  <div>
+                    <span class="confirm-title">{{ confirmPlaceOrderToAmount() }}</span>
+                    <span class="confirm-subtitle">{{ 'You Get' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="shouldShowPrice()" class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-break">
+                  <div>
+                    <span class="confirm-title">{{ selectedMinTrade }}%</span>
+                    <span class="confirm-subtitle">{{ 'Minimum Trade Size' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-break">
+                  <div>
+                    <span class="confirm-title">{{ showExpire(+selectedExpire) }}</span>
+                    <span class="confirm-subtitle">{{ 'Expire' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+    
+        <div uk-grid>
+          <div class="uk-width-1-2@s ">
+            <button (click)="activePanel = 'place_order'"
+              class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate }}</button>
+          </div>
+          <div class="uk-width-1-2@s">
+            <button class="uk-button uk-button-primary uk-width-1-1"
+              (click)="confirmPlaceOrder()">{{ 'Confirm' | translate }}</button>
+          </div>
+        </div>
+    
+      </div>
+    </div>
 
     <!-- End --> 
   </div>

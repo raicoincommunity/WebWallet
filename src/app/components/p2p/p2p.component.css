@@ -1,0 +1,33 @@
+a:link { text-decoration: none; }
+a:visited { text-decoration: none; }
+a:hover { text-decoration: none; }
+a:active { text-decoration: none; }
+
+.confirm-title {
+  font-weight: bolder;
+  display: block;
+  font-size: 24px;
+}
+
+.confirm-currency {
+  font-weight: bolder;
+  display: block;
+  font-size: 20px;
+}
+
+.confirm-subtitle {
+  display: block;
+  font-size: 10px;
+}
+
+@media (max-width: 12450px) {
+  .br-spacer {
+    display: block;
+  }
+}
+
+@media (max-width: 959px) {
+  .br-spacer {
+    display: none;
+  }
+}

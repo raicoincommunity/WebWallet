@@ -193,7 +193,7 @@
   "Token symbol, such as BTC": "代币符号，例如 BTC",
   "Initial Supply": "初始供应",
   "Cap Supply": "上限供应",
-  "Set to 0 or leave it blank as no limit": "设置为 0 或将其留空，因为没有限制",
+  "Set to 0 or leave it blank as no limit": "设置为0或留空表示无限制",
   "Mintable": "可铸币",
   "Allow the issuer to mint additional tokens after creation.": "允许发行人在创建后铸造额外的代币。",
   "Burnable": "可燃烧",
