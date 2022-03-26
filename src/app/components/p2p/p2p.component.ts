@@ -446,6 +446,8 @@ export class P2pComponent implements OnInit {
       return;
     }
 
+    // todo: set main account
+
     const fromToken = this.placeAssetWidget.selectedAsset!;
     const toToken = this.placeToTokenWidget.selectedToken!;
     if (fromToken.type === TokenTypeStr._20 && toToken.type === TokenTypeStr._20) {

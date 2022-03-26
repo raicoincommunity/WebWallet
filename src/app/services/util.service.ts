@@ -882,6 +882,49 @@ const tokenOpMaps: TokenOpMap[] = [
   [ExtensionTokenOp.WRAP, ExtensionTokenOpStr.WRAP],
 ]
 
+export enum TokenSwapSubOp {
+  INVALID     = 0,
+  CONFIG      = 1,
+  MAKE        = 2,
+  INQUIRY     = 3,
+  INQUIRY_ACK = 4,
+  TAKE        = 5,
+  TAKE_ACK    = 6,
+  TAKE_NACK   = 7,
+  CANCEL      = 8,
+  PING        = 9,
+  PONG        = 10,
+}
+
+export enum TokenSwapSubOpStr {
+  INVALID     = "invalid",
+  CONFIG      = "config",
+  MAKE        = "make",
+  INQUIRY     = "inquiry",
+  INQUIRY_ACK = "inquiry_ack",
+  TAKE        = "take",
+  TAKE_ACK    = "take_ack",
+  TAKE_NACK   = "take_nack",
+  CANCEL      = "cancel",
+  PING        = "ping",
+  PONG        = "pong",
+}
+
+type TokenSwapSubOpMap = [TokenSwapSubOp, TokenSwapSubOpStr];
+const tokenSwapSubOpMaps: TokenSwapSubOpMap[] = [
+  [TokenSwapSubOp.INVALID, TokenSwapSubOpStr.INVALID],
+  [TokenSwapSubOp.CONFIG, TokenSwapSubOpStr.CONFIG],
+  [TokenSwapSubOp.MAKE, TokenSwapSubOpStr.MAKE],
+  [TokenSwapSubOp.INQUIRY, TokenSwapSubOpStr.INQUIRY],
+  [TokenSwapSubOp.INQUIRY_ACK, TokenSwapSubOpStr.INQUIRY_ACK],
+  [TokenSwapSubOp.TAKE, TokenSwapSubOpStr.TAKE],
+  [TokenSwapSubOp.TAKE_ACK, TokenSwapSubOpStr.TAKE_ACK],
+  [TokenSwapSubOp.TAKE_NACK, TokenSwapSubOpStr.TAKE_NACK],
+  [TokenSwapSubOp.CANCEL, TokenSwapSubOpStr.CANCEL],
+  [TokenSwapSubOp.PING, TokenSwapSubOpStr.PING],
+  [TokenSwapSubOp.PONG, TokenSwapSubOpStr.PONG],
+]
+
 export enum TokenType {
   INVALID = 0,
   _20     = 1,
@@ -965,6 +1008,18 @@ export class TokenHelper {
 
   static toOpStr(op: ExtensionTokenOp): string {
     const map = tokenOpMaps.find(x => op === x[0]);
+    if (map) return map[1];
+    return '';
+  }
+
+  static toSwapSubOp(str: string): TokenSwapSubOp {
+    const map = tokenSwapSubOpMaps.find(x => str  === x[1]);
+    if (map) return map[0];
+    return TokenSwapSubOp.INVALID;
+  }
+
+  static toSwapSubOpStr(op: TokenSwapSubOp): string {
+    const map = tokenSwapSubOpMaps.find(x => op === x[0]);
     if (map) return map[1];
     return '';
   }
@@ -1187,6 +1242,663 @@ export class ChainHelper {
   }
 
 }
+
+interface ExtensionTokenSwapCodec {
+  encode(value: any): Uint8Array;
+  decode(array: Uint8Array, value: {[key: string]: string}): void;
+}
+
+const tokenSwapExtensionCodecs: {[op: string]: ExtensionTokenSwapCodec} = {
+  config: {
+    encode : (value: any) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      buffer.set([ExtensionTokenOp.SWAP], count);
+      count += 1;
+
+      buffer.set([TokenSwapSubOp.CONFIG], count);
+      count += 1;
+
+      if (!value.main_account || typeof value.main_account !== 'string') {
+        throw new Error(`ExtensionHelper.token.swap.config.encode: invalid main_account=${value.main_account}`);
+      }
+      const mainAccount = new U256();
+      const error = mainAccount.fromAccountAddress(value.main_account);
+      if (error) {
+        throw new Error(`ExtensionHelper.token.swap.config.encode: invalid main_account=${value.main_account}`);
+      }
+      buffer.set(mainAccount.bytes, count);
+      count += mainAccount.size;
+
+      return buffer.slice(0, count);
+    },
+
+    decode: (array: Uint8Array, value: {[key: string]: string}) => {
+      const streamError = new Error(`ExtensionHelper.token.swap.config.decode: invalid stream`);
+      let offset = 0;
+
+      const mainAccount = new U256();
+      let error = mainAccount.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += mainAccount.size;
+      value.main_account = mainAccount.toAccountAddress();
+      if (offset !== array.length) throw streamError;
+    }
+  },
+
+  make: {
+    encode : (value: any) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      buffer.set([ExtensionTokenOp.SWAP], count);
+      count += 1;
+
+      buffer.set([TokenSwapSubOp.MAKE], count);
+      count += 1;
+
+      if (!value.token_offer || typeof value.token_offer !== 'object') {
+        throw new Error(`ExtensionHelper.token.swap.make.encode: invalid token_offer=${value.token_offer}`);
+      }
+      const offer = value.token_offer;
+
+      let chain = ChainHelper.toChain(offer.chain);
+      if (chain === Chain.INVALID) {
+        throw new Error(`ExtensionHelper.token.swap.make.encode: invalid token_offer.chain=${offer.chain}`);
+      }
+      buffer.set((new U32(chain)).bytes, count);
+      count += 4;
+
+      let type = TokenHelper.toType(offer.type);
+      if (type === TokenType.INVALID) {
+        throw new Error(`ExtensionHelper.token.swap.make.encode: invalid token_offer.type=${offer.type}`);
+      }
+      buffer.set([type], count);
+      count += 1;
+
+      let address = new U256(offer.address_raw, 16);
+      buffer.set(address.bytes, count);
+      count += address.size;
+
+      if (!value.token_want || typeof value.token_want !== 'object') {
+        throw new Error(`ExtensionHelper.token.swap.make.encode: invalid token_want=${value.token_want}`);
+      }
+      const want = value.token_want;
+
+      chain = ChainHelper.toChain(want.chain);
+      if (chain === Chain.INVALID) {
+        throw new Error(`ExtensionHelper.token.swap.make.encode: invalid token_want.chain=${want.chain}`);
+      }
+      buffer.set((new U32(chain)).bytes, count);
+      count += 4;
+
+      type = TokenHelper.toType(want.type);
+      if (type === TokenType.INVALID) {
+        throw new Error(`ExtensionHelper.token.swap.make.encode: invalid token_want.type=${want.type}`);
+      }
+      buffer.set([type], count);
+      count += 1;
+
+      address = new U256(want.address_raw, 16);
+      buffer.set(address.bytes, count);
+      count += address.size;
+
+      if (!value.value_offer || typeof value.value_offer !== 'string') {
+        throw new Error(`ExtensionHelper.token.swap.make.encode: invalid value_offer=${value.value_offer}`);
+      }
+      const valueOffer = new U256(value.value_offer);
+      buffer.set(valueOffer.bytes, count);
+      count += valueOffer.size;
+
+      if (!value.value_want || typeof value.value_want !== 'string') {
+        throw new Error(`ExtensionHelper.token.swap.make.encode: invalid value_want=${value.value_want}`);
+      }
+      const valueWant = new U256(value.value_want);
+      buffer.set(valueWant.bytes, count);
+      count += valueWant.size;
+
+      if (offer.type === TokenTypeStr._20 && want.type === TokenTypeStr._20) {
+        if (!value.min_offer || typeof value.min_offer !== 'string') {
+          throw new Error(`ExtensionHelper.token.swap.make.encode: invalid min_offer=${value.min_offer}`);
+        }
+        const minOffer = new U256(value.min_offer);
+        buffer.set(minOffer.bytes, count);
+        count += minOffer.size;
+  
+        if (!value.max_offer || typeof value.max_offer !== 'string') {
+          throw new Error(`ExtensionHelper.token.swap.make.encode: invalid max_offer=${value.max_offer}`);
+        }
+        const maxOffer = new U256(value.max_offer);
+        buffer.set(maxOffer.bytes, count);
+        count += maxOffer.size;
+      }
+
+      const timeout = new U64(value.timeout);
+      buffer.set(timeout.bytes, count);
+      count += timeout.size;
+
+      return buffer.slice(0, count);
+    },
+
+    decode: (array: Uint8Array, value: {[key: string]: string}) => {
+      const streamError = new Error(`ExtensionHelper.token.swap.make.decode: invalid stream`);
+      const length = array.length;
+      let offset = 0;
+
+      // token_offer
+      let chain = new U32();
+      let error = chain.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += chain.size;
+      const offer: any = {};
+      offer.chain = ChainHelper.toChainStr(chain.toNumber());
+      if (!offer.chain) {
+        throw new Error(`ExtensionHelper.token.swap.make.decode: invalid chain=${chain.toNumber()}`);
+      }
+      if (offset + 1 > length) {
+        throw streamError;
+      }
+      let type = array[offset];
+      offset += 1;
+      offer.type = TokenHelper.toTypeStr(type);
+      if (!offer.type) {
+        throw new Error(`ExtensionHelper.token.swap.make.decode: invalid type=${type}`);
+      }
+      let address = new U256();
+      error = address.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += address.size;
+      offer.address_raw = address.toHex();
+      let ret = ChainHelper.rawToAddress(offer.chain, address);
+      if (ret.error || !ret.address) {
+        throw new Error(`ExtensionHelper.token.swap.make.decode: invalid address=${offer.address_raw}`);
+      }
+      offer.address = ret.address;
+      value.token_offer = offer;
+
+      // token_want
+      chain = new U32();
+      error = chain.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += chain.size;
+      const want: any = {};
+      want.chain = ChainHelper.toChainStr(chain.toNumber());
+      if (!want.chain) {
+        throw new Error(`ExtensionHelper.token.swap.make.decode: invalid chain=${chain.toNumber()}`);
+      }
+      if (offset + 1 > length) {
+        throw streamError;
+      }
+      type = array[offset];
+      offset += 1;
+      want.type = TokenHelper.toTypeStr(type);
+      if (!want.type) {
+        throw new Error(`ExtensionHelper.token.swap.make.decode: invalid type=${type}`);
+      }
+      address = new U256();
+      error = address.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += address.size;
+      want.address_raw = address.toHex();
+      ret = ChainHelper.rawToAddress(want.chain, address);
+      if (ret.error || !ret.address) {
+        throw new Error(`ExtensionHelper.token.swap.make.decode: invalid address=${want.address_raw}`);
+      }
+      want.address = ret.address;
+      value.token_want = want;
+
+      const valueOffer = new U256();
+      error = valueOffer.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += valueOffer.size;
+      value.value_offer = valueOffer.toDec();
+
+      const valueWant = new U256();
+      error = valueWant.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += valueWant.size;
+      value.value_want = valueWant.toDec();
+
+      if (offer.type === TokenTypeStr._20 && want.type === TokenTypeStr._20) {
+        const minOffer = new U256();
+        error = minOffer.fromArray(array, offset);
+        if (error) throw streamError;
+        offset += minOffer.size;
+        value.min_offer = minOffer.toDec();
+
+        const maxOffer = new U256();
+        error = maxOffer.fromArray(array, offset);
+        if (error) throw streamError;
+        offset += maxOffer.size;
+        value.max_offer = maxOffer.toDec();
+      }
+
+      const timeout = new U64();
+      error = timeout.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += timeout.size;
+      value.timeout = timeout.toDec();
+
+      if (offset !== array.length) throw streamError;
+    }
+  },
+
+  inquiry: {
+    encode : (value: any) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      buffer.set([ExtensionTokenOp.SWAP], count);
+      count += 1;
+
+      buffer.set([TokenSwapSubOp.INQUIRY], count);
+      count += 1;
+
+      if (!value.maker || typeof value.maker !== 'string') {
+        throw new Error(`ExtensionHelper.token.swap.inquiry.encode: invalid maker=${value.maker}`);
+      }
+      const maker = new U256();
+      const error = maker.fromAccountAddress(value.maker);
+      if (error) {
+        throw new Error(`ExtensionHelper.token.swap.inquiry.encode: invalid maker=${value.maker}`);
+      }
+      buffer.set(maker.bytes, count);
+      count += maker.size;
+
+      const orderHeight = new U64(value.order_height);
+      buffer.set(orderHeight.bytes, count);
+      count += orderHeight.size;
+
+      const ackHeight = new U64(value.ack_height);
+      buffer.set(ackHeight.bytes, count);
+      count += ackHeight.size;
+
+      const timeout = new U64(value.timeout);
+      buffer.set(timeout.bytes, count);
+      count += timeout.size;
+
+      if (!value.value || typeof value.value !== 'string') {
+        throw new Error(`ExtensionHelper.token.make.inquiry.encode: invalid value=${value.value}`);
+      }
+      const tokenValue = new U256(value.value);
+      buffer.set(tokenValue.bytes, count);
+      count += tokenValue.size;
+
+      if (!value.share || typeof value.share !== 'string') {
+        throw new Error(`ExtensionHelper.token.make.inquiry.encode: invalid value=${value.share}`);
+      }
+      const share = new U256(value.share, 16);
+      buffer.set(share.bytes, count);
+      count += share.size;
+
+      return buffer.slice(0, count);
+    },
+
+    decode: (array: Uint8Array, value: {[key: string]: string}) => {
+      const streamError = new Error(`ExtensionHelper.token.swap.inquiry.decode: invalid stream`);
+      let offset = 0;
+
+      const maker = new U256();
+      let error = maker.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += maker.size;
+      value.maker = maker.toAccountAddress();
+
+      const orderHeight = new U64();
+      error = orderHeight.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += orderHeight.size;
+      value.order_height = orderHeight.toDec();
+
+      const ackHeight = new U64();
+      error = ackHeight.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += ackHeight.size;
+      value.ack_height = ackHeight.toDec();
+
+      const timeout = new U64();
+      error = timeout.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += timeout.size;
+      value.timeout = timeout.toDec();
+
+      const tokenValue = new U256();
+      error = tokenValue.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += tokenValue.size;
+      value.value = tokenValue.toDec();
+
+      const share = new U256();
+      error = share.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += share.size;
+      value.share = share.toHex();
+
+      if (offset !== array.length) throw streamError;
+    }
+  },
+
+  inquiry_ack: {
+    encode : (value: any) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      buffer.set([ExtensionTokenOp.SWAP], count);
+      count += 1;
+
+      buffer.set([TokenSwapSubOp.INQUIRY_ACK], count);
+      count += 1;
+
+      if (!value.taker || typeof value.taker !== 'string') {
+        throw new Error(`ExtensionHelper.token.swap.inquiry_ack.encode: invalid taker=${value.taker}`);
+      }
+      const taker = new U256();
+      const error = taker.fromAccountAddress(value.taker);
+      if (error) {
+        throw new Error(`ExtensionHelper.token.swap.inquiry_ack.encode: invalid taker=${value.taker}`);
+      }
+      buffer.set(taker.bytes, count);
+      count += taker.size;
+
+      const inquiryHeight = new U64(value.inquiry_height);
+      buffer.set(inquiryHeight.bytes, count);
+      count += inquiryHeight.size;
+
+      const tradeHeight = new U64(value.trade_height);
+      buffer.set(tradeHeight.bytes, count);
+      count += tradeHeight.size;
+
+      if (!value.share || typeof value.share !== 'string') {
+        throw new Error(`ExtensionHelper.token.make.inquiry_ack.encode: invalid value=${value.share}`);
+      }
+      const share = new U256(value.share, 16);
+      buffer.set(share.bytes, count);
+      count += share.size;
+
+      if (!value.signature || typeof value.signature !== 'string') {
+        throw new Error(`ExtensionHelper.token.make.inquiry_ack.encode: invalid signature=${value.signature}`);
+      }
+      const signature = new U512(value.signature, 16);
+      buffer.set(signature.bytes, count);
+      count += signature.size;
+
+      return buffer.slice(0, count);
+    },
+
+    decode: (array: Uint8Array, value: {[key: string]: string}) => {
+      const streamError = new Error(`ExtensionHelper.token.swap.inquiry.decode: invalid stream`);
+      let offset = 0;
+
+      const taker = new U256();
+      let error = taker.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += taker.size;
+      value.taker = taker.toAccountAddress();
+
+      const inquiryHeight = new U64();
+      error = inquiryHeight.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += inquiryHeight.size;
+      value.inquiry_height = inquiryHeight.toDec();
+
+      const tradeHeight = new U64();
+      error = tradeHeight.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += tradeHeight.size;
+      value.trade_height = tradeHeight.toDec();
+
+      const share = new U256();
+      error = share.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += share.size;
+      value.share = share.toHex();
+
+      const signature = new U512();
+      error = signature.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += signature.size;
+      value.signature = signature.toHex();
+
+      if (offset !== array.length) throw streamError;
+    }
+  },
+
+  take: {
+    encode: (value: any) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      buffer.set([ExtensionTokenOp.SWAP], count);
+      count += 1;
+
+      buffer.set([TokenSwapSubOp.TAKE], count);
+      count += 1;
+
+      const inquiryHeight = new U64(value.inquiry_height);
+      buffer.set(inquiryHeight.bytes, count);
+      count += inquiryHeight.size;
+
+      return buffer.slice(0, count);
+    },
+
+    decode: (array: Uint8Array, value: {[key: string]: string}) => {
+      const streamError = new Error(`ExtensionHelper.token.swap.take.decode: invalid stream`);
+      let offset = 0;
+
+      const inquiryHeight = new U64();
+      let error = inquiryHeight.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += inquiryHeight.size;
+      value.inquiry_height = inquiryHeight.toDec();
+
+      if (offset !== array.length) throw streamError;
+    }
+  },
+
+  take_ack: {
+    encode: (value: any) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      buffer.set([ExtensionTokenOp.SWAP], count);
+      count += 1;
+
+      buffer.set([TokenSwapSubOp.TAKE_ACK], count);
+      count += 1;
+
+      if (!value.taker || typeof value.taker !== 'string') {
+        throw new Error(`ExtensionHelper.token.swap.take_ack.encode: invalid taker=${value.taker}`);
+      }
+      const taker = new U256();
+      let error = taker.fromAccountAddress(value.taker);
+      if (error) {
+        throw new Error(`ExtensionHelper.token.swap.take_ack.encode: invalid taker=${value.taker}`);
+      }
+      buffer.set(taker.bytes, count);
+      count += taker.size;
+
+      const inquiryHeight = new U64(value.inquiry_height);
+      buffer.set(inquiryHeight.bytes, count);
+      count += inquiryHeight.size;
+
+      const takeHeight = new U64(value.take_height);
+      buffer.set(takeHeight.bytes, count);
+      count += takeHeight.size;
+
+      if (!value.value || typeof value.value !== 'string') {
+        throw new Error(`ExtensionHelper.token.make.take_ack.encode: invalid value=${value.value}`);
+      }
+      const tokenValue = new U256(value.value);
+      buffer.set(tokenValue.bytes, count);
+      count += tokenValue.size;
+
+      return buffer.slice(0, count);
+    },
+
+    decode: (array: Uint8Array, value: {[key: string]: string}) => {
+      const streamError = new Error(`ExtensionHelper.token.swap.take_ack.decode: invalid stream`);
+      let offset = 0;
+
+      const taker = new U256();
+      let error = taker.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += taker.size;
+      value.taker = taker.toAccountAddress();
+
+      const inquiryHeight = new U64();
+      error = inquiryHeight.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += inquiryHeight.size;
+      value.inquiry_height = inquiryHeight.toDec();
+
+      const takeHeight = new U64();
+      error = takeHeight.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += takeHeight.size;
+      value.inquiry_height = takeHeight.toDec();
+
+      const tokenValue = new U256();
+      error = tokenValue.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += tokenValue.size;
+      value.value = tokenValue.toDec();
+
+      if (offset !== array.length) throw streamError;
+    }
+  },
+
+  take_nack: {
+    encode: (value: any) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      buffer.set([ExtensionTokenOp.SWAP], count);
+      count += 1;
+
+      buffer.set([TokenSwapSubOp.TAKE_NACK], count);
+      count += 1;
+
+      if (!value.taker || typeof value.taker !== 'string') {
+        throw new Error(`ExtensionHelper.token.swap.take_nack.encode: invalid taker=${value.taker}`);
+      }
+      const taker = new U256();
+      let error = taker.fromAccountAddress(value.taker);
+      if (error) {
+        throw new Error(`ExtensionHelper.token.swap.take_nack.encode: invalid taker=${value.taker}`);
+      }
+      buffer.set(taker.bytes, count);
+      count += taker.size;
+
+      const inquiryHeight = new U64(value.inquiry_height);
+      buffer.set(inquiryHeight.bytes, count);
+      count += inquiryHeight.size;
+
+      return buffer.slice(0, count);
+    },
+
+    decode: (array: Uint8Array, value: {[key: string]: string}) => {
+      const streamError = new Error(`ExtensionHelper.token.swap.take_nack.decode: invalid stream`);
+      let offset = 0;
+
+      const taker = new U256();
+      let error = taker.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += taker.size;
+      value.taker = taker.toAccountAddress();
+
+      const inquiryHeight = new U64();
+      error = inquiryHeight.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += inquiryHeight.size;
+      value.inquiry_height = inquiryHeight.toDec();
+
+      if (offset !== array.length) throw streamError;
+    }
+  },
+
+  cancel: {
+    encode: (value: any) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      buffer.set([ExtensionTokenOp.SWAP], count);
+      count += 1;
+
+      buffer.set([TokenSwapSubOp.CANCEL], count);
+      count += 1;
+
+      const orderHeight = new U64(value.order_height);
+      buffer.set(orderHeight.bytes, count);
+      count += orderHeight.size;
+
+      return buffer.slice(0, count);
+    },
+
+    decode:  (array: Uint8Array, value: {[key: string]: string}) => {
+      const streamError = new Error(`ExtensionHelper.token.swap.cancel.decode: invalid stream`);
+      let offset = 0;
+
+      const orderHeight = new U64();
+      let error = orderHeight.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += orderHeight.size;
+      value.order_height = orderHeight.toDec();
+
+      if (offset !== array.length) throw streamError;
+    }
+  },
+
+  ping: {
+    encode: (value: any) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      buffer.set([ExtensionTokenOp.SWAP], count);
+      count += 1;
+
+      buffer.set([TokenSwapSubOp.PING], count);
+      count += 1;
+
+      if (!value.maker || typeof value.maker !== 'string') {
+        throw new Error(`ExtensionHelper.token.swap.ping.encode: invalid maker=${value.maker}`);
+      }
+      const maker = new U256();
+      let error = maker.fromAccountAddress(value.maker);
+      if (error) {
+        throw new Error(`ExtensionHelper.token.swap.ping.encode: invalid maker=${value.maker}`);
+      }
+      buffer.set(maker.bytes, count);
+      count += maker.size;
+
+      return buffer.slice(0, count);
+    },
+
+    decode:  (array: Uint8Array, value: {[key: string]: string}) => {
+      const streamError = new Error(`ExtensionHelper.token.swap.ping.decode: invalid stream`);
+      let offset = 0;
+
+      const maker = new U256();
+      let error = maker.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += maker.size;
+      value.maker = maker.toAccountAddress();
+
+      if (offset !== array.length) throw streamError;
+    }
+  },
+
+  pong: {
+    encode: (value: any) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      buffer.set([ExtensionTokenOp.SWAP], count);
+      count += 1;
+
+      buffer.set([TokenSwapSubOp.PONG], count);
+      count += 1;
+
+      return buffer.slice(0, count);
+    },
+
+    decode:  (array: Uint8Array, value: {[key: string]: string}) => {
+      const streamError = new Error(`ExtensionHelper.token.swap.pong.decode: invalid stream`);
+      if (0 !== array.length) throw streamError;
+    }
+  }
+}
+
 
 interface ExtensionTokenCodec {
   encode(value: any): Uint8Array;
@@ -1821,6 +2533,36 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
       value.from = ret.address;
 
       if (offset !== array.length) throw streamError;
+    }
+  },
+
+  swap: {
+    encode : (value: any) => {
+      if (!value.sub_op || typeof value.sub_op !== 'string') {
+        throw new Error(`ExtensionHelper.token.swap.encode: invalid sub_op=${value.sub_op}`);
+      }
+
+      if (!tokenSwapExtensionCodecs[value.sub_op]) {
+        throw new Error(`ExtensionHelper.token.swap.encode: codec missing, sub_op=${value.sub_op}`);
+      }
+
+      return tokenSwapExtensionCodecs[value.sub_op].encode(value);
+    },
+
+    decode: (array: Uint8Array, value: {[key: string]: string}) => {
+      if (array.length < 1) {
+        throw new Error(`ExtensionHelper.token.swap.decode: bad length`);
+      }
+      value.sub_op = TokenHelper.toSwapSubOpStr(array[0]);
+      if (!value.sub_op) {
+        throw new Error(`ExtensionHelper.token.swap.decode: unknown sub_op=${array[0]}`);
+      }
+
+      if (!tokenSwapExtensionCodecs[value.sub_op]) {
+        throw new Error(`ExtensionHelper.token.swap.decode: codec missing, sub_op=${value.sub_op}`);
+      }
+
+      tokenSwapExtensionCodecs[value.sub_op].decode(array.slice(1), value);
     }
   },
 
