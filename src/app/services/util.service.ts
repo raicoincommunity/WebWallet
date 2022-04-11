@@ -2,7 +2,9 @@ import { Injectable } from '@angular/core';
 import * as blake from 'blakejs';
 import { BigNumber } from 'bignumber.js'
 import { environment } from '../../environments/environment';
-import { rawListeners } from 'process';
+import { toChecksumAddress } from 'web3-utils'
+import { sharedKey} from '@stablelib/x25519'
+import * as CryptoJS from 'crypto-js';
 
 const nacl = window['nacl'];
 const account_letters = '13456789abcdefghijkmnopqrstuwxyz'.split('');
@@ -40,6 +42,7 @@ export class UtilService {
     generatePrivateKey: generatePrivateKey,
     generateAccountKeyPair: generateAccountKeyPair,
     generateAddress: generateAddress,
+    generateShareKey: generateShareKey,
     sign: sign,
     verify: verify
   };
@@ -231,6 +234,16 @@ function generateAddress(publicKey: Uint8Array, prefix: string = 'rai') {
   const checksum = uint5ToString(uint4ToUint5(uint8ToUint4(checksumUint8)));
 
   return `${prefix}_${raw}${checksum}`;
+}
+
+function generateShareKey(privateKey: Uint8Array, height: U64): Uint8Array {
+  let ctx = blake.blake2bInit(32);
+  blake.blake2bUpdate(ctx, privateKey);
+  blake.blake2bUpdate(ctx, height.bytes);
+  const first = blake.blake2bFinal(ctx);
+  ctx = blake.blake2bInit(32);
+  blake.blake2bUpdate(ctx, first);
+  return blake.blake2bFinal(ctx);
 }
 
 function sign(privateKey: Uint8Array, hash: Uint8Array): Uint8Array {
@@ -632,6 +645,10 @@ export class U64 extends Uint {
     return super.idiv(other, base) as U64;
   }
 
+  mul(other: UintFrom, base?: number): U64 {
+    return super.mul(other, base) as U64;
+  }
+
   mod(other: UintFrom, base?: number): U64 {
     return super.mod(other, base) as U64;
   }
@@ -748,6 +765,10 @@ export class U256 extends Uint {
     return generateAddress(this.bytes);
   }
 
+  toEthAddress(): string {
+    return toChecksumAddress(this.toHex().substr(24));
+  }
+
   fromAccountAddress(str: string): boolean {
     if (str.length !== 64) return true;
     if(!str.startsWith('rai_1') && !str.startsWith('rai_3')) {
@@ -767,6 +788,43 @@ export class U256 extends Uint {
 
     this.bytes = key_array;
     return false;
+  }
+
+  fromEthAddress(str: string): boolean {
+    if(!/^(0x)?[0-9a-f]{40}$/i.test(str)) return true;
+    str = str.replace(/^0x/i,'');
+    this.bytes = new U256(str, 16).bytes;
+    return false;
+  }
+
+  fromShare(priKey: U256 | string | Uint8Array, pubKey: U256 | string | Uint8Array): boolean {
+    let a: Uint8Array;
+    let b: Uint8Array;
+    if (typeof priKey === 'string') {
+      priKey = new U256(priKey, 16);
+      a = priKey.bytes;
+    } else if (priKey instanceof U256) {
+      a = priKey.bytes;
+    } else {
+      a = priKey;
+    }
+
+    if (typeof pubKey === 'string') {
+      pubKey = new U256(pubKey, 16);
+      b = pubKey.bytes;
+    } else if (pubKey instanceof U256) {
+      b = pubKey.bytes;
+    } else {
+      b = pubKey;
+    }
+
+    try {
+      this.bytes = sharedKey(a, b, true);
+      return false;
+    } catch (e) {
+      console.log(e);
+      return true;
+    }
   }
 
   toBalanceStr(decimals: U8, format: boolean = true): string {
@@ -810,6 +868,41 @@ export class U512 extends Uint {
 
   idiv(other: UintFrom, base?: number): U512 {
     return super.idiv(other, base) as U512;
+  }
+
+  encrypt(share: U256 | Uint8Array) {
+    if (share instanceof U256) {
+      share = share.bytes;
+    }
+    const key = CryptoJS.enc.Hex.parse(uint8ToHex(share.slice(0, 16)));
+    const iv = CryptoJS.enc.Hex.parse(uint8ToHex(share.slice(16)));
+    const cfg = {
+      mode: CryptoJS.mode.CTR,
+      iv: iv,
+      padding: CryptoJS.pad.NoPadding,
+      format: CryptoJS.format.Hex
+    };
+    const data = CryptoJS.enc.Hex.parse(this.toHex());
+    const result = CryptoJS.AES.encrypt(data, key, cfg);
+    this.bytes = new U512(result.ciphertext, 16).bytes;
+  }
+
+  decrypt(share: U256 | Uint8Array) {
+    if (share instanceof U256) {
+      share = share.bytes;
+    }
+    const key = CryptoJS.enc.Hex.parse(uint8ToHex(share.slice(0, 16)));
+    const iv = CryptoJS.enc.Hex.parse(uint8ToHex(share.slice(16)));
+    const cfg = {
+      mode: CryptoJS.mode.CTR,
+      iv: iv,
+      padding: CryptoJS.pad.NoPadding,
+      format: CryptoJS.format.Hex
+    };
+    const result = CryptoJS.AES.decrypt(this.toHex(), key, cfg);
+    // debug
+    console.log(result.toString());
+    this.bytes = new U512(result.toString(), 16).bytes;
   }
 
 }
@@ -1137,12 +1230,28 @@ export class ChainHelper {
   }
 
   static addressToRaw(chain: string, address: string): {error: boolean, raw?: U256} {
+    if (address === '') {
+      return { error: false, raw: new U256(1) };
+    }
+
     switch (chain) {
       case ChainStr.RAICOIN:
       case ChainStr.RAICOIN_TEST:
       {
         const raw = new U256();
         const error = raw.fromAccountAddress(address);
+        return { error, raw };
+      }
+      case ChainStr.BINANCE_SMART_CHAIN:
+      case ChainStr.BINANCE_SMART_CHAIN_TEST:
+      case ChainStr.ETHEREUM:
+      case ChainStr.ETHEREUM_TEST_GOERLI:
+      case ChainStr.ETHEREUM_TEST_KOVAN:
+      case ChainStr.ETHEREUM_TEST_RINKEBY:
+      case ChainStr.ETHEREUM_TEST_ROPSTEN:
+      {
+        const raw = new U256();
+        const error = raw.fromEthAddress(address);
         return { error, raw };
       }
       // todo:
