@@ -115,7 +115,7 @@
 
       <div [hidden]="placeOrderCollapsed" class="uk-card-body">
         <div class="uk-form-horizontal">
-          <app-asset-widget #placeAssetWidget (raiChange)="syncPrice()" ></app-asset-widget>
+          <app-asset-widget #placeAssetWidget (raiChange)="onPlaceAssetChanged()" ></app-asset-widget>
 
           <div class="uk-margin">
             <app-token-widget raiLabel="{{'Exchange For'}}" (raiChange)="syncPrice()" #placeToTokenWidget></app-token-widget>

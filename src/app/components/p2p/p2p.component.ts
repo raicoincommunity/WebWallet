@@ -6,7 +6,9 @@ import { TokenWidgetComponent } from '../token-widget/token-widget.component';
 import { NotificationService } from '../../services/notification.service';
 import { AssetWidgetComponent } from '../asset-widget/asset-widget.component';
 import { BigNumber } from 'bignumber.js';
-import { WalletsService } from '../../services/wallets.service';
+import { WalletsService, WalletErrorCode } from '../../services/wallets.service';
+import { TokenService } from '../../services/token.service';
+import { ServerService } from '../../services/server.service'
 
 @Component({
   selector: 'app-p2p',
@@ -48,10 +50,24 @@ export class P2pComponent implements OnInit {
   constructor(
     private notification: NotificationService,
     private wallets: WalletsService,
+    private token: TokenService,
+    private server: ServerService,
     private translate: TranslateService
   ) { }
 
   ngOnInit(): void {
+  }
+
+  onPlaceAssetChanged() {
+    if (this.placeAssetWidget) {
+      const asset = this.placeAssetWidget.selectedAsset;
+      if (asset) {
+        this.placeToTokenWidget.filtToken({chain: asset.chain, addressRaw: asset.addressRaw});
+      } else {
+        this.placeToTokenWidget.filtToken(undefined);
+      }
+    }
+    this.syncPrice();
   }
 
   mainAccountSelected(): boolean {
@@ -400,7 +416,12 @@ export class P2pComponent implements OnInit {
     }
   }
 
-  check(): boolean {
+  address(): string {
+    return this.wallets.selectedAccountAddress();
+  }
+
+  placeCheck(): boolean {
+    if (this.wallets.mainAccountSelected()) return true;
     if (!this.placeAssetWidget) return true;
     if (this.placeAssetWidget.check()) return true;
     if (!this.placeToTokenWidget) return true;
@@ -408,6 +429,7 @@ export class P2pComponent implements OnInit {
 
     const fromToken = this.placeAssetWidget.selectedAsset!;
     const toToken = this.placeToTokenWidget.selectedToken!;
+
     if (fromToken.type === TokenTypeStr._20 && toToken.type === TokenTypeStr._20) {
       if (this.syncPrice() != 1) return true;
     } else if (toToken.type === TokenTypeStr._20) {
@@ -422,7 +444,7 @@ export class P2pComponent implements OnInit {
   }
 
   place() {
-    if (this.check()) return;
+    if (this.placeCheck()) return;
 
     const wallet = this.wallets.selectedWallet()
     if (!wallet) {
@@ -441,24 +463,79 @@ export class P2pComponent implements OnInit {
   }
 
   confirmPlaceOrder() {
-    if (this.check()) {
+    if (this.placeCheck()) {
       this.activePanel = Panel.PLACE_ORDER;
       return;
     }
 
-    // todo: set main account
+    if (!this.token.ready())
+    {
+      let msg = marker(`The account is synchronizing, please try later`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    }
+
+    if (!this.token.mainAccountSet()) {
+      const result = this.token.setMainAccount(this.address(), this.wallets.mainAccountAddress());
+      if (result.errorCode !== WalletErrorCode.SUCCESS) {
+        let msg = result.errorCode;
+        this.translate.get(msg).subscribe(res => msg = res);
+        this.notification.sendError(msg);
+        this.activePanel = Panel.PLACE_ORDER;
+        return;
+      }
+    }
 
     const fromToken = this.placeAssetWidget.selectedAsset!;
     const toToken = this.placeToTokenWidget.selectedToken!;
+    const timeout = new U64(this.selectedExpire).mul(3600).plus(this.server.getTimestamp());
+    const value: any = {
+      token_offer: {
+        chain: fromToken.chain,
+        type: fromToken.type,
+        address_raw: fromToken.addressRaw.toHex()
+      },
+      token_want: {
+        chain: toToken.chain,
+        type: toToken.type,
+        address_raw: toToken.addressRaw.toHex()
+      },
+      timeout: timeout.toDec()
+    };
     if (fromToken.type === TokenTypeStr._20 && toToken.type === TokenTypeStr._20) {
-      // todo:
-    } else if (toToken.type === TokenTypeStr._20) {
-      // todo:
+      value.value_offer = this.placeActualAmount.toDec();
+      value.value_want = this.placeActualTargetAmount.toDec();
+      const minOffer = new U512(this.placeActualAmount).mul(this.selectedMinTrade).idiv(100);
+      value.min_offer = minOffer.toDec();
+      value.max_offer = this.placeActualAmount.toDec();
+    } else if (fromToken.type === TokenTypeStr._20 && toToken.type === TokenTypeStr._721) {
+      value.value_offer = this.placeAssetWidget.amount.toDec();
+      value.value_want = this.targetTokenId.toDec();
+    } else if (fromToken.type === TokenTypeStr._721 && toToken.type === TokenTypeStr._20) {
+      value.value_offer = this.placeAssetWidget.tokenId.toDec();
+      value.value_want = this.targetTokenAmount.toDec();
+    } else if (fromToken.type === TokenTypeStr._721 && toToken.type === TokenTypeStr._721) {
+      value.value_offer = this.placeAssetWidget.tokenId.toDec();
+      value.value_want = this.targetTokenId.toDec();
     } else {
-      // todo:
+      console.error(`confirmPlaceOrder: unexpected pair`);
+      this.activePanel = Panel.PLACE_ORDER;
+      return;
     }
-    // todo:
-  }
+
+    const result = this.token.makeOrder(this.address(), value);
+    if (result.errorCode !== WalletErrorCode.SUCCESS) {
+      let msg = result.errorCode;
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    }
+
+    let msg = marker(`Successfully sent order placing block!`);
+    this.translate.get(msg).subscribe(res => msg = res);    
+    this.notification.sendSuccess(msg);  
+}
 
   private showPriceSymbol(toggle: boolean): string {
     if (toggle) {

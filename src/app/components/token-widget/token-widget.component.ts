@@ -4,7 +4,7 @@ import { WalletsService } from '../../services/wallets.service';
 import { LogoService } from '../../services/logo.service';
 import { VerifiedTokensService } from '../../services/verified-tokens.service';
 import { environment } from '../../../environments/environment';
-import { ChainHelper, TokenHelper, TokenTypeStr } from '../../services/util.service';
+import { ChainHelper, TokenHelper, TokenTypeStr, U256 } from '../../services/util.service';
 
 @Component({
   selector: 'app-token-widget',
@@ -34,6 +34,8 @@ export class TokenWidgetComponent implements OnInit {
   tokenFocused: boolean = false;
   searchResultShown: boolean = false;
 
+  private filtedToken: {chain: string, addressRaw: U256} | undefined;
+
   constructor(
     private wallets: WalletsService,
     private logo: LogoService,
@@ -52,6 +54,10 @@ export class TokenWidgetComponent implements OnInit {
     this.tokenInputText = '';
     this.selectedToken = undefined;
     this.eventTokenSelected.emit(this.selectedToken);
+  }
+
+  filtToken(token: {chain: string, addressRaw: U256} | undefined) {
+    this.filtedToken = token;
   }
 
   onRemove() {
@@ -107,6 +113,11 @@ export class TokenWidgetComponent implements OnInit {
 
   tokenStatus(): number {
     if (!this.tokenInputText) return 0;
+    if (this.filtedToken && this.selectedToken) {
+      if (this.filtedToken.chain === this.selectedToken.chain && this.filtedToken.addressRaw.eq(this.selectedToken.addressRaw)) {
+        return 2;
+      }
+    }
     for (let token of this.tokens()) {
       if (this.tokenInputText === token.textFormat()) {
         return 1;
@@ -126,6 +137,12 @@ export class TokenWidgetComponent implements OnInit {
       const item = new TokenItem();
       item.chain = chain;
       item.address = i.address;
+      const ret = ChainHelper.addressToRaw(chain, i.address);
+      if (ret.error) {
+        console.error(`Failed to get raw address, chain=${chain}, address=${i.address}`);
+        continue;
+      }
+      item.addressRaw = ret.raw!;
       item.type = TokenHelper.toTypeStr(i.type);
       if (i.address) {
         item.shortAddress = ChainHelper.toShortAddress(chain, i.address);
@@ -151,7 +168,7 @@ export class TokenWidgetComponent implements OnInit {
   }
 
   check(): boolean {
-    if (!this.selectedToken) {
+    if (!this.selectedToken || this.tokenStatus() !== 1) {
       this.tokenInput.nativeElement.focus();
       return true;
     }
@@ -164,6 +181,7 @@ export class TokenWidgetComponent implements OnInit {
 class TokenItem {
   chain: string = '';
   address: string = '';
+  addressRaw: U256 = new U256(0);
   type: string = '';
   shortAddress: string = '';
   chainLogo: string = '';

@@ -8,6 +8,8 @@ import { ServerService, ServerState } from './server.service';
 import { BlocksService, Receivable, Block, Amount, BlockInfo, TxBlock } from './blocks.service';
 import { environment } from '../../environments/environment';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
+import { generateKeyPairFromSeed } from '@stablelib/x25519'
+
 
 export { Amount } from './blocks.service';
 
@@ -679,6 +681,40 @@ export class WalletsService implements OnDestroy {
     this.wallets.forEach(w => w.accounts.forEach(a => callback(a, w)));
   }
 
+  sharePriKey(height: string | U64, account?: Account, wallet?: Wallet): Uint8Array {
+    if (typeof height === 'string') {
+      height = new U64(height);
+    }
+
+    if (!account) {
+      account = this.selectedAccount();
+    }
+
+    if (!wallet) {
+      wallet = this.wallet;
+    }
+
+    if (!account || !wallet) {
+      return new Uint8Array(0);
+    }
+
+    if (wallet.locked()) {
+      return new Uint8Array(0);
+    }
+
+    const privateKey = this.getPrivateKey(wallet.raw_seed, account.index());
+    return this.getShareKey(privateKey, height)
+  }
+
+  sharePubkey(height: string | U64, account?: Account, wallet?: Wallet): Uint8Array {
+    const priKey = this.sharePriKey(height, account, wallet);
+    if (priKey.length === 0) {
+      return new Uint8Array(0);
+    }
+    const pair = generateKeyPairFromSeed(priKey);
+    return pair.publicKey;
+  }
+
   private loadWallets() {
     let storage: WalletsStorage = this.storage.get(StorageKey.WALLETS);
     if (!storage) {
@@ -819,9 +855,13 @@ export class WalletsService implements OnDestroy {
     return this.util.account.generateAccountKeyPair(privateKey).publicKey;
   }
 
-  private getAddress(seed: Uint8Array, index: number) {
+  private getAddress(seed: Uint8Array, index: number): string {
     let publicKey = this.getPublicKey(this.getPrivateKey(seed, index));
     return this.util.account.generateAddress(publicKey);
+  }
+
+  private getShareKey(privateKey: Uint8Array, height: U64): Uint8Array {
+    return this.util.account.generateShareKey(privateKey, height);
   }
 
   private encrypt(data: Uint8Array, password: string): string {
@@ -1986,7 +2026,7 @@ export enum WalletErrorCode {
   UNSYNCED = 'The account is synchronizing, please try later',
   IGNORED = 'The operation is ignored',
   TIMESTAMP = 'Invalid timestamp',
-  CREDIT = 'Account daily transactions limit exceeded',
+  CREDIT = 'The account\'s credit is not enough, please increase it in \'Settings -> Account Settings\'',
   RESTRICTED = 'The account is restricted',
   ACCOUNT_TYPE = 'Unsupported account type',
   UNEXPECTED = 'Unexpected error',
@@ -1995,7 +2035,8 @@ export enum WalletErrorCode {
   BALANCE = 'Not enough balance',
   CREDIT_MAX = 'Account\'s max allowed daily transactions limit is 1310700',
   NOT_ACTIVATED = 'The account is not activated, please deposit some Raicoin to activate it',
-  CONSTRUCT_BLOCK = 'Failed to contruct block'
+  CONSTRUCT_BLOCK = 'Failed to contruct block',
+  PENDING_SWAP = 'There is a pending swap, please wait for it to complete',
 }
 marker('Success');
 marker('Invalid seed');
@@ -2006,7 +2047,7 @@ marker('Invalid password');
 marker('The account is synchronizing, please try later');
 marker('The operation is ignored');
 marker('Invalid timestamp');
-marker('Account daily transactions limit exceeded');
+marker('The account\'s credit is not enough, please increase it in \'Settings -> Account Settings\'');
 marker('The account is restricted');
 marker('Unsupported account type');
 marker('Unexpected error');
@@ -2015,6 +2056,7 @@ marker('Not connected to server yet');
 marker('Not enough balance');
 marker('Account\'s max allowed daily transactions limit is 1310700');
 marker('The account is not activated, please deposit some Raicoin to activate it');
+marker('There is a pending swap, please wait for it to complete');
 
 export enum BlockStatus {
   PENDING = 'pending',
