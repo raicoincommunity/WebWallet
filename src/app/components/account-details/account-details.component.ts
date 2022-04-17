@@ -8,7 +8,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { AliasService } from '../../services/alias.service';
 import { TokenService } from '../../services/token.service';
-import { U128, U256, U8, TokenType, TokenHelper, ExtensionTokenOp } from '../../services/util.service';
+import { U128, U256, U8, TokenType, TokenHelper, ExtensionTokenOp, ExtensionTokenOpStr } from '../../services/util.service';
 
 @Component({
   selector: 'app-account-details',
@@ -103,7 +103,8 @@ export class AccountDetailsComponent implements OnInit {
         if (!tokenExtension || !tokenExtension.op) return result;
         const op = TokenHelper.toOp(tokenExtension.op);
         if (op === ExtensionTokenOp.MINT || op === ExtensionTokenOp.SWAP) {
-          const value = new U256(tokenExtension.value);
+          const value = new U256(tokenExtension.value || tokenExtension.max_offer
+                                 || tokenExtension.value_offer);
           result.amount = this.formatAmount(type, value, decimals, symbol);
         } else if (op === ExtensionTokenOp.CREATE) {
           if (tokenBlock.type === TokenType._20) {
@@ -140,7 +141,11 @@ export class AccountDetailsComponent implements OnInit {
     } else {
       const tokenExtension = tokenBlock.getExtension();
       if (!tokenExtension || !tokenExtension.op) return 'change';
-      return tokenExtension.op;
+      if (tokenExtension.op !== ExtensionTokenOpStr.SWAP) {
+        return tokenExtension.op;
+      } else {
+        return `${tokenExtension.op} ${tokenExtension.sub_op}`;
+      }
     }
   }
 
