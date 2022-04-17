@@ -1260,12 +1260,26 @@ export class ChainHelper {
     }
   }
 
-  static rawToAddress(chain: string, raw: U256): {error: boolean, address?: string} {
+  static rawToAddress(chain: string, raw: U256 | string): {error: boolean, address?: string} {
+    if (typeof raw === 'string') {
+      raw = new U256(raw, 16);
+    }
+    
     switch (chain) {
       case ChainStr.RAICOIN:
       case ChainStr.RAICOIN_TEST:
       {
         return { error: false, address: raw.toAccountAddress() };
+      }
+      case ChainStr.BINANCE_SMART_CHAIN:
+      case ChainStr.BINANCE_SMART_CHAIN_TEST:
+      case ChainStr.ETHEREUM:
+      case ChainStr.ETHEREUM_TEST_GOERLI:
+      case ChainStr.ETHEREUM_TEST_KOVAN:
+      case ChainStr.ETHEREUM_TEST_RINKEBY:
+      case ChainStr.ETHEREUM_TEST_ROPSTEN:
+      {
+        return { error: false, address: raw.toEthAddress() };
       }
       // todo:
       default:
@@ -2821,7 +2835,7 @@ export class ExtensionHelper {
       e.value = codec.decode(array.slice(value_offset, value_offset + length.toNumber()));
     }
     catch (err) {
-      console.log(`ExtensionHelper.deocde: exception=${err}`)
+      console.log(`ExtensionHelper.decode: exception=${err}`)
       return {...e, error: ExtensionError.VALUE};
     }
     

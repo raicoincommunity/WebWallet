@@ -6,7 +6,6 @@ import { environment } from '../../environments/environment';
 import { Subject } from 'rxjs';
 import { SettingsService } from './settings.service';
 import { LogoService } from './logo.service';
-import { THIS_EXPR } from '@angular/compiler/src/output/output_ast';
 
 @Injectable({
   providedIn: 'root'
@@ -26,12 +25,14 @@ export class TokenService implements OnDestroy {
   private tokenInfoSubject = new Subject<{ chain: string, address: string, existing: boolean,
                                            info?: TokenInfo }>();
   private accountSwapInfoSubject = new Subject<AccountSwapInfo>();
+  private orderInfoSubject = new Subject<OrderInfo>();
 
   public issuer$ = this.issuerSubject.asObservable();
   public tokenId$ = this.tokenIdSubject.asObservable();
   public accountSynced$ = this.accountSyncedSubject.asObservable();
   public tokenInfo$ = this.tokenInfoSubject.asObservable();
   public accountSwapInfo$ = this.accountSwapInfoSubject.asObservable();
+  public orderInfo$ = this.orderInfoSubject.asObservable();
 
   constructor(
     private server: ServerService,
@@ -153,10 +154,36 @@ export class TokenService implements OnDestroy {
     this.queryTokenReceivablesSummary(account);
   }
 
+  change(address: string, extensions: {[key: string]: any}[], wallet?: Wallet): WalletOpResult  {
+    const ignored = { errorCode: WalletErrorCode.IGNORED };
+    const info = this.accounts[address];
+    if (!info) return ignored;
+    if (info.swapping()) {
+      return { errorCode: WalletErrorCode.PENDING_SWAP };
+    }
+
+    if (!wallet) {
+      wallet = this.wallets.selectedWallet();
+    }
+    if (!wallet) {
+      return {errorCode: WalletErrorCode.UNEXPECTED};
+    }
+
+    const account = wallet.findAccount({address});
+    if (!account) {
+      return {errorCode: WalletErrorCode.UNEXPECTED};
+    }
+    return this.wallets.changeExtensions(extensions, account, wallet);
+  }
+
   receive(address: string, key: string, account?: Account, wallet?: Wallet): WalletOpResult {
     const ignored = { errorCode: WalletErrorCode.IGNORED };
     const info = this.accounts[address];
     if (!info) return ignored;
+    if (info.swapping()) {
+      return { errorCode: WalletErrorCode.PENDING_SWAP };
+    }
+
     const index = info.receivables.findIndex(x => x.key() === key);
     if (index === -1) return ignored;
     const receivable = info.receivables[index];
@@ -190,6 +217,10 @@ export class TokenService implements OnDestroy {
     const info = this.accounts[address];
     if (!info) return ignored;
 
+    if (info.swapping()) {
+      return { errorCode: WalletErrorCode.PENDING_SWAP };
+    }
+
     if (!wallet) {
       wallet = this.wallets.selectedWallet();
     }
@@ -217,6 +248,10 @@ export class TokenService implements OnDestroy {
     const info = this.accounts[address];
     if (!info) return ignored;
 
+    if (info.swapping()) {
+      return { errorCode: WalletErrorCode.PENDING_SWAP };
+    }
+
     if (info.orderLimited()) {
       return { errorCode: WalletErrorCode.CREDIT }
     }
@@ -240,12 +275,46 @@ export class TokenService implements OnDestroy {
     return this.wallets.changeExtensions(extensions, account, wallet);
   }
 
+  cancelOrder(address: string, height: U64, wallet?: Wallet): WalletOpResult {
+    const ignored = { errorCode: WalletErrorCode.IGNORED };
+    const info = this.accounts[address];
+    if (!info) return ignored;
+
+    const order = info.getOrder(height);
+    if (!order || order.order.finished()) return ignored;
+
+    if (info.swapping()) {
+      return { errorCode: WalletErrorCode.PENDING_SWAP }
+    }
+
+    if (!wallet) {
+      wallet = this.wallets.selectedWallet();
+    }
+    if (!wallet) {
+      return {errorCode: WalletErrorCode.UNEXPECTED};
+    }
+
+    const account = wallet.findAccount({address});
+    if (!account) {
+      return {errorCode: WalletErrorCode.UNEXPECTED};
+    }
+
+    const value = {
+      op: ExtensionTokenOpStr.SWAP,
+      sub_op: TokenSwapSubOpStr.CANCEL,
+      order_height: height.toDec()
+    };
+
+    const extensions = [ { type: ExtensionTypeStr.TOKEN, value } ];
+    return this.wallets.changeExtensions(extensions, account, wallet);
+  }
+
   swapInquiry(address: string, value: {[key: string]: string}, wallet?: Wallet): WalletOpResult {
     const ignored = { errorCode: WalletErrorCode.IGNORED };
     const info = this.accounts[address];
     if (!info) return ignored;
 
-    if (info.hasActiveSwaps()) {
+    if (info.swapping()) {
       return { errorCode: WalletErrorCode.PENDING_SWAP };
     }
 
@@ -347,6 +416,25 @@ export class TokenService implements OnDestroy {
     this.queryAccountSwapInfo(account);
   }
 
+  orders(account?: string): OrderSwapInfo[] {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return [];
+    return info.orders;
+  }
+
+  orderCancelling(account: string, height: U64): boolean {
+    const info = this.accounts[account];
+    if (!info) return false;
+    return info.orderCancelling(height);
+  }
+
+  swapping(account: string): boolean {
+    const info = this.accounts[account];
+    if (!info) return false;
+    return info.swapping();
+  }
+
   private processServerState(state: ServerState) {
     if (state === ServerState.CONNECTED) {
       this.ongoingSync(true);
@@ -422,6 +510,12 @@ export class TokenService implements OnDestroy {
       message.address_raw = address.toHex();
     } else {
       message.address = address;
+      const ret = ChainHelper.addressToRaw(chain, address);
+      if (ret.error) { 
+        console.error(`queryTokenInfo: convert address to raw failed, chain=${chain}, address=${address}`);
+        return;
+      }
+      message.address_raw = ret.raw!.toHex();
     }
     this.server.send(message);
   }
@@ -594,6 +688,7 @@ export class TokenService implements OnDestroy {
       const error = order.fromJson(i);
       if (error) continue;
       existing = info.updateOrder(order, false);
+      this.orderInfoSubject.next(order);
       if (!existing) {
         this.queryOrderSwaps(message.account, order.orderHeight)
       }
@@ -858,16 +953,25 @@ export class TokenService implements OnDestroy {
   }
 
   private processTokenInfoQueryAck(message: any) {
-    if (!message.chain || !message.address || !message.address_raw) return;
+    if (!message.chain || !message.address_raw) return;
     const chain = message.chain;
-    const address = message.address;
+    let address = message.address;
+    if (!address) {
+      const ret = ChainHelper.rawToAddress(chain, message.address_raw);
+      if (ret.error) {
+        console.error(`processTokenInfoQueryAck: convert raw to address failed, chain: ${chain}, raw: ${message.address_raw}`);
+        return;
+      }
+      address = ret.address;
+    }
+
     if (message.error) {
       if (message.error === "The token doesn't exist") {
         if (!this.isRaicoin(message.chain)) return;
-        const info = this.accounts[message.address];
+        const info = this.accounts[address];
         if (!info) return;
         info.issuerInfo.queried = true;
-        this.issuerSubject.next({account: message.address, created: info.issuerInfo.created});
+        this.issuerSubject.next({account: address, created: info.issuerInfo.created});
         this.tokenInfoSubject.next({chain, address, existing: false});
       }
       return;
@@ -879,14 +983,14 @@ export class TokenService implements OnDestroy {
     this.putTokenInfo(tokenInfo.chain, tokenInfo.addressRaw, tokenInfo);
 
     if (this.isRaicoin(tokenInfo.chain)) {
-      const info = this.accounts[message.address];
+      const info = this.accounts[address];
       if (info) {
         if (tokenInfo.type === TokenType._721) {
-          this.queryTokenMaxId(message.address);
+          this.queryTokenMaxId(address);
         }
         info.issuerInfo.queried = true;
         info.issuerInfo.created = true;
-        this.issuerSubject.next({account: message.address, created: info.issuerInfo.created});  
+        this.issuerSubject.next({account: address, created: info.issuerInfo.created});  
       }
     }
     this.tokenInfoSubject.next({chain, address, existing: true, info: tokenInfo});
@@ -904,7 +1008,16 @@ export class TokenService implements OnDestroy {
     const account = message.account;
     const tokens: {chain: string, address_raw: string}[] = [];
     for (let i of message.tokens) {
-      if (this.shouldReceive(account, i.chain, i.address)) {
+      let address = i.address;
+      if (!address) {
+        const ret = ChainHelper.rawToAddress(i.chain, i.address_raw);
+        if (ret.error) {
+          console.error(`processTokenReceivablesSummaryQueryAck: convert raw to address failed, chain: ${i.chain}, raw: ${i.address_raw}`);
+          continue;
+        }
+        address = ret.address;
+      }
+      if (this.shouldReceive(account, i.chain, address)) {
         tokens.push({chain: i.chain, address_raw: i.address_raw});
       }
     }
@@ -929,6 +1042,7 @@ export class TokenService implements OnDestroy {
     const info = this.accounts[account];
     if (!info) return;
     info.updateOrder(order);
+    this.orderInfoSubject.next(order);
   }
 
   private processSwapInfoNotify(message: any) {
@@ -966,17 +1080,18 @@ export class TokenService implements OnDestroy {
     if (error) return;
     this.putTokenInfo(tokenInfo.chain, tokenInfo.addressRaw, tokenInfo);
 
+    const address = tokenInfo.address;
     if (this.isRaicoin(tokenInfo.chain)) {
-      const info = this.accounts[message.address];
+      const info = this.accounts[address];
       if (!info) return;
       if (tokenInfo.type === TokenType._721) {
-        this.queryTokenMaxId(message.address);
+        this.queryTokenMaxId(address);
       }
       info.issuerInfo.queried = true;
       info.issuerInfo.created = true;
-      this.issuerSubject.next({account: message.address, created: info.issuerInfo.created});
+      this.issuerSubject.next({account: address, created: info.issuerInfo.created});
     }
-    this.tokenInfoSubject.next({chain: tokenInfo.chain, address: tokenInfo.address,
+    this.tokenInfoSubject.next({chain: tokenInfo.chain, address: address,
                                 existing: true, info: tokenInfo});
   }
 
@@ -986,15 +1101,25 @@ export class TokenService implements OnDestroy {
   }
 
   private processTokenMaxIdQueryAck(message: any) {
-    if (!message.chain || !message.address) return;
+    if (!message.chain || !message.address_raw) return;
     if (message.chain !== environment.current_chain) return;
+    let address = message.address;
+    if (!address) {
+      const ret = ChainHelper.rawToAddress(message.chain, message.address_raw);
+      if (ret.error) {
+        console.error(`processTokenMaxIdQueryAck: convert raw to address failed, chain: ${message.chain}, raw: ${message.address_raw}`);
+        return;
+      }
+      address = ret.address;
+    }
+
     if (message.error) {
       if (message.error !== 'missing') return;
-      this.updateMaxTokenId(message.address);
+      this.updateMaxTokenId(address);
     } else {
       try {
         const id = new U256(message.token_id);
-        this.updateMaxTokenId(message.address, id);
+        this.updateMaxTokenId(address, id);
       }
       catch (e) {
         console.log(`TokenService.processTokenMaxIdQueryAck: failed to parse message=`, message);
@@ -1004,9 +1129,18 @@ export class TokenService implements OnDestroy {
 
   private processTokenIdInfoQueryAck(message: any)
   {
-    if (!message.chain || !message.address || !message.token_id) return;
+    if (!message.chain || !message.address_raw || !message.token_id) return;
     const chain = message.chain;
-    const address = message.address;
+    let address = message.address;
+    if (!address) {
+      const ret = ChainHelper.rawToAddress(message.chain, message.address_raw);
+      if (ret.error) {
+        console.error(`processTokenIdInfoQueryAck: convert raw to address failed, chain: ${message.chain}, raw: ${message.address_raw}`);
+        return;
+      }
+      address = ret.address;
+    }
+
     try {
       const id = new U256(message.token_id);
       if (message.error) {
@@ -1015,9 +1149,9 @@ export class TokenService implements OnDestroy {
         }
       } else {
         if (!message.burned) return;
-        const maxId = this.maxTokenIds[message.address];
+        const maxId = this.maxTokenIds[address];
         if (maxId && maxId.valid) {
-          this.updateMaxTokenId(message.address, id);
+          this.updateMaxTokenId(address, id);
         }
         this.tokenIdSubject.next({ chain, address, id, existing: message.burned !== 'true' });
       }
@@ -1033,7 +1167,17 @@ export class TokenService implements OnDestroy {
 
   private processTokenReceivedNotify(message: any) {
     try {
-      const key = `${message.to}_${message.token.chain}_${message.token.address}_${message.chain}_${message.tx_hash}`;
+      let address = message.token.address;
+      if (!address) {
+        const ret = ChainHelper.rawToAddress(message.token.chain, message.token.address_raw);
+        if (ret.error) {
+          console.error(`processTokenReceivedNotify: convert raw to address failed, chain: ${message.token.chain}, raw: ${message.token.address_raw}`);
+          return;
+        }
+        address = ret.address;
+      }
+
+      const key = `${message.to}_${message.token.chain}_${address}_${message.chain}_${message.tx_hash}`;
 
       if (this.receivings[key]) {
         delete this.receivings[key];
@@ -1052,16 +1196,25 @@ export class TokenService implements OnDestroy {
   }
 
   private processTokenIdInfoNotify(message: any) {
-    if (!message.chain || !message.address || !message.token_id) return;
+    if (!message.chain || !message.address_raw || !message.token_id) return;   
     const chain = message.chain;
-    const address = message.address;
+    let address = message.address;
+    if (!address) {
+      const ret = ChainHelper.rawToAddress(chain, message.address_raw);
+      if (ret.error) {
+        console.error(`processTokenIdInfoNotify: convert raw to address failed, chain: ${message.chain}, raw: ${message.address_raw}`);
+        return;
+      }
+      address = ret.address;
+    }
+
     try {
       const id = new U256(message.token_id);
-      const maxId = this.maxTokenIds[message.address];
+      const maxId = this.maxTokenIds[address];
       if (maxId && maxId.valid) {
-        this.updateMaxTokenId(message.address, id);
+        this.updateMaxTokenId(address, id);
       } else {
-        this.queryTokenMaxId(message.address);
+        this.queryTokenMaxId(address);
       }
       this.tokenIdSubject.next({ chain, address, id, existing: true });
     }
@@ -1495,6 +1648,15 @@ export class AccountTokenInfo {
       this.chainShown = ChainHelper.toChainShown(this.chain);
       this.address = json.token.address;
       this.addressRaw = new U256(json.token.address_raw, 16);
+      if (!this.address) {
+        const ret = ChainHelper.rawToAddress(this.chain, this.addressRaw);
+        if (ret.error) {
+          console.error(`AccountTokenInfo.fromJson: convert raw to address failed, chain=${this.chain}, address_raw=${json.token.address_raw}`);
+          return true;
+        }
+        this.address = ret.address!;
+      }
+
       this.name = json.token.name;
       this.symbol = json.token.symbol;
       this.type = TokenHelper.toType(json.token.type);
@@ -1538,7 +1700,7 @@ class AccountTokensInfo {
   orders: OrderSwapInfo[] = [];
   moreOrders: boolean = true;
   minOrderHeight: U64 = U64.max();
-  swaps: SwapFullInfo[] = [];
+  activeSwaps: SwapFullInfo[] = [];
 
   tokenBlockLinks: TokenBlockLinks = new TokenBlockLinks();
 
@@ -1583,26 +1745,22 @@ class AccountTokensInfo {
   }
 
   updateActiveSwap(swap: SwapFullInfo, timestamp: number) {
-    const index = this.swaps.findIndex(x => x.eq(swap));
+    const index = this.activeSwaps.findIndex(x => x.eq(swap));
     if (index === -1) {
-      if (this.swaps[index].swap.finished()) return;
-      swap.copyLocalData(this.swaps[index]);
+      if (this.activeSwaps[index].swap.finished()) return;
+      swap.copyLocalData(this.activeSwaps[index]);
       swap.last_update = timestamp;
-      this.swaps[index] = swap;
+      this.activeSwaps[index] = swap;
     } else {
       if (swap.swap.finished()) return;
       swap.last_update = timestamp;
-      this.swaps.push(swap);
+      this.activeSwaps.push(swap);
     }
   }
 
   purgeActiveSwaps(cutoff: number) {
     // todo:
-    this.swaps = this.swaps.filter(x => x.last_update >= cutoff || !x.swap.finished());
-  }
-
-  hasActiveSwaps(): boolean {
-    return this.swaps.length > 0;
+    this.activeSwaps = this.activeSwaps.filter(x => x.last_update >= cutoff || !x.swap.finished());
   }
 
   sortTokens() {
@@ -1659,12 +1817,30 @@ class AccountTokensInfo {
 
   orderLimited(): boolean {
     if (!this.swapInfo) return false;
-    if (!this.swapInfo.credit.eq(0)) return false;
+    if (this.swapInfo.credit.eq(0)) return false;
     if (this.swapInfo.activeOrders.gte(this.swapInfo.credit)) return true;
     return false;
   }
 
+  orderCancelling(height: U64): boolean {
+    const order = this.getOrder(height);
+    if (!order) return false;
+    if (order.order.finished()) return false;
+    return order.cancelSent;
+    // todo: set cancelSent flag
+  }
+
+  swapping(): boolean {
+    const index = this.activeSwaps.findIndex(x => {
+      if (x.swap.maker !== this.address) return false;
+      if (x.swap.status === SwapStatus.INQUIRY_ACK || x.swap.status === SwapStatus.TAKE) return true;
+      return false;
+    });
+    return index !== -1;
+  }
 }
+
+
 
 class TokenBlock {
   status: string = '';
@@ -1692,6 +1868,15 @@ class TokenBlock {
       this.chain = json.chain;
       this.address = json.address;
       this.addressRaw = new U256(json.address_raw, 16);
+      if (!this.address && this.chain !== 'invalid') {
+        const ret = ChainHelper.rawToAddress(this.chain, this.addressRaw);
+        if (ret.error) {
+          console.error(`TokenBlock.fromJson: convert raw to address failed, chain: ${this.chain}, raw: ${this.addressRaw.toHex()}`);
+          return true;
+        }
+        this.address = ret.address!;
+      }
+    
       if (this.chain !== 'invalid' && !this.addressRaw.eq(0)) {
         this.name = json.name;
         this.symbol = json.symbol;
@@ -1821,6 +2006,14 @@ export class TokenInfo {
       this.chain = json.chain;
       this.address = json.address;
       this.addressRaw = new U256(json.address_raw, 16);
+      if (!this.address) {
+        const ret = ChainHelper.rawToAddress(this.chain, this.addressRaw);
+        if (ret.error) {
+          console.error(`TokenInfo.fromJson: convert raw to address failed, chain: ${this.chain}, raw: ${this.addressRaw.toHex()}`);
+          return true;
+        }
+        this.address = ret.address!;
+      }
       this.type = TokenHelper.toType(json.type);
       this.symbol = json.symbol;
       this.name = json.name;
@@ -1886,6 +2079,14 @@ export class TokenReceivableTokenInfo {
       this.chain =  json.chain;
       this.address = json.address;
       this.addressRaw = new U256(json.address_raw, 16);
+      if (!this.address) {
+        const ret = ChainHelper.rawToAddress(this.chain, this.addressRaw);
+        if (ret.error) {
+          console.error(`TokenReceivableTokenInfo.fromJson: convert raw to address failed, chain: ${this.chain}, raw: ${this.addressRaw.toHex()}`);
+          return true;
+        }
+        this.address = ret.address!;
+      }
       this.type = json.type;
       this.name = json.name;
       this.symbol = json.symbol;
@@ -1992,6 +2193,11 @@ export class TokenKey {
       this.address = json.address;
       this.addressRaw = new U256(json.address_raw, 16);
       this.type = json.type;
+      if (!this.address) {
+        const ret = ChainHelper.rawToAddress(this.chain, this.addressRaw);
+        if (ret.error) return true;
+        this.address = ret.address!;
+      }
       return false;
     }
     catch (e) {
@@ -2017,9 +2223,42 @@ export class OrderInfo {
   finishedBy: string = '';
   finishedHeight: U64 = U64.max();
   hash: U256 = new U256(0);
+  createdAt: U64 = new U64(0);
+
+  eq(other: OrderInfo): boolean {
+    return this.hash.eq(other.hash);
+  }
+
+  fillRate(): number {
+    if (this.fulfilled()) {
+      return 100;
+    }
+
+    if (!this.fungiblePair()) {
+      return 0;
+    }
+
+    if (this.maxOffer.eq(0)) {
+      return 0;
+    }
+
+    return new U512(this.maxOffer).minus(this.leftOffer).mul(100).idiv(this.maxOffer).toNumber();
+  }
 
   finished(): boolean {
     return this.finishedBy === 'cancel' || this.finishedBy === 'fulfill';
+  }
+
+  fulfilled(): boolean {
+    return this.finishedBy === 'fulfill';
+  }
+
+  cancelled(): boolean {
+    return this.finishedBy === 'cancel';
+  }
+
+  fungiblePair(): boolean {
+    return this.tokenOffer.type === TokenTypeStr._20 && this.tokenWant.type === TokenTypeStr._20;
   }
 
   fromJson(json: any): boolean {
@@ -2041,6 +2280,7 @@ export class OrderInfo {
       this.finishedBy = json.finished_by;
       this.finishedHeight = new U64(json.finished_height);
       this.hash = new U256(json.hash, 16);
+      this.createdAt = new U64(json.created_at);
       return false;
     }
     catch (e) {
@@ -2110,7 +2350,7 @@ export class SwapInfo {
   }
 }
 
-class OrderSwapInfo {
+export class OrderSwapInfo {
   order: OrderInfo = new OrderInfo();
   swaps: SwapInfo[] = [];
 
@@ -2119,6 +2359,7 @@ class OrderSwapInfo {
   synced: boolean = false;
   finalSync: boolean = false;
   moreSwaps: boolean = true;
+  cancelSent: boolean = false;
 
   minTradeHeigt(): U64 {
     if (this.swaps.length === 0) return U64.max();

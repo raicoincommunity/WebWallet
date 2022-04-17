@@ -10,6 +10,7 @@ import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { AliasService } from '../../services/alias.service';
 import { AssetWidgetComponent } from '../asset-widget/asset-widget.component';
 import { ExtensionTokenOpStr, TokenTypeStr, ExtensionTypeStr } from '../../services/util.service';
+import { TokenService } from '../../services/token.service';
 
 @Component({
   selector: 'app-send',
@@ -46,6 +47,7 @@ export class SendComponent implements OnInit {
   constructor(
     private translate: TranslateService,
     private wallets: WalletsService,
+    private token: TokenService,
     private notification: NotificationService,
     private alias: AliasService,
     private util: UtilService,
@@ -134,7 +136,7 @@ export class SendComponent implements OnInit {
         extensions.push(extension);
       }
   
-      const result = this.wallets.changeExtensions(extensions);
+      const result = this.token.change(this.selectedAccountAddress(), extensions);
       if (result.errorCode !== WalletErrorCode.SUCCESS) {
         let msg = result.errorCode;
         this.translate.get(msg).subscribe(res => msg = res);

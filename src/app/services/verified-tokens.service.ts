@@ -1,14 +1,28 @@
 import { Injectable } from '@angular/core';
 import { Chain, TokenType, ChainStr, ChainHelper} from './util.service';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class VerifiedTokensService {
 
+  verifiedTokensDict: {[chain: string]: {[address: string]: VerifiedToken}} = {};
+  testVerifiedTokensDict: {[chain: string]: {[address: string]: VerifiedToken}} = {};
+
   constructor() {
     verifiedTokens.sort((lhs, rhs) => this.compare(lhs, rhs));
     testVerifiedTokens.sort((lhs, rhs) => this.compare(lhs, rhs));
+    for (let token of verifiedTokens) {
+      const chain = ChainHelper.toChainStr(token.chain);
+      this.verifiedTokensDict[chain] = this.verifiedTokensDict[chain] || {};
+      this.verifiedTokensDict[chain][token.address] = token;
+    }
+    for (let token of testVerifiedTokens) {
+      const chain = ChainHelper.toChainStr(token.chain);
+      this.testVerifiedTokensDict[chain] = this.testVerifiedTokensDict[chain] || {};
+      this.testVerifiedTokensDict[chain][token.address] = token;
+    }
    }
 
   shouldPin(token: VerifiedToken): boolean {
@@ -39,6 +53,16 @@ export class VerifiedTokensService {
       return testVerifiedTokens;
     } else {
       return [];
+    }
+  }
+
+  token(chain: string, address: string): VerifiedToken | undefined {
+    if (environment.current_chain === ChainStr.RAICOIN) {
+      return this.verifiedTokensDict[chain]?.[address];
+    } else if (environment.current_chain === ChainStr.RAICOIN_TEST) {
+      return this.testVerifiedTokensDict[chain]?.[address];
+    } else {
+      return undefined;
     }
   }
 
@@ -80,20 +104,32 @@ const verifiedTokens: VerifiedToken[] = [
 
 const testVerifiedTokens: VerifiedToken[] = [
   {
-    chain: Chain.BINANCE_SMART_CHAIN_TEST,
-    address:'',
-    type:TokenType._20,
-    name:'Binance coin',
-    symbol:'BNB',
-    decimals: 18
-  },
-  {
     chain: Chain.RAICOIN_TEST,
     address:'rai_3uejbias6jjryyh6uqydfjxyce1uqk8b666hazu9tb6owjg6b363hhwifiuz',
     type:TokenType._20,
     name:'Bitcoin',
     symbol:'BTC',
     decimals: 8
+  },
+  {
+    chain: Chain.RAICOIN_TEST,
+    address:'rai_38ssase4ppphh4qio8bucsuobp5khgmm6zig5fm9rx46okrfk1h3azip3pjr',
+    type:TokenType._20,
+    name:'Tether USDT',
+    symbol:'USDT',
+    decimals: 6
+  },
+  
+  /* Raicoin Testnet End*/
+
+
+  {
+    chain: Chain.BINANCE_SMART_CHAIN_TEST,
+    address:'',
+    type:TokenType._20,
+    name:'Binance coin',
+    symbol:'BNB',
+    decimals: 18
   },
   {
     chain: Chain.BINANCE_SMART_CHAIN_TEST,
@@ -127,4 +163,7 @@ const testVerifiedTokens: VerifiedToken[] = [
     symbol:'PRB',
     decimals: 0
   },
+
+  /* end of Binance Smart Chain Testnet */
+  
 ]

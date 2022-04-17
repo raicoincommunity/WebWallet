@@ -74,9 +74,12 @@ const tokenLogoMaps: TokenLogoMap[] = [
   [Chain.RAICOIN, '', 'raicoin.png'],
   [Chain.ETHEREUM, '', 'ethereum.png'],
 
-  // testnet
+  /* testnet */
   [Chain.RAICOIN_TEST, '', 'raicoin.png'],
   [Chain.RAICOIN_TEST, 'rai_3uejbias6jjryyh6uqydfjxyce1uqk8b666hazu9tb6owjg6b363hhwifiuz', 'bitcoin.png'],
+  [Chain.RAICOIN_TEST, 'rai_38ssase4ppphh4qio8bucsuobp5khgmm6zig5fm9rx46okrfk1h3azip3pjr', 'usdt.png'],
+  /* Raicoin Testnet End */
+
   [Chain.BINANCE_SMART_CHAIN_TEST, '', 'binance-coin.png'],
   [Chain.BINANCE_SMART_CHAIN_TEST, '0x6ce8dA28E2f864420840cF74474eFf5fD80E65B8', 'bitcoin.png'],
   [Chain.BINANCE_SMART_CHAIN_TEST, '0xd66c6B4F0be8CE5b39D52E0Fd1344c389929B378', 'ethereum.png'],
