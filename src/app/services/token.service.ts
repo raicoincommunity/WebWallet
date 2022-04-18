@@ -5,7 +5,7 @@ import { U64, U256, TokenType, U8, TokenHelper, U32, ChainHelper, Chain, ChainSt
 import { environment } from '../../environments/environment';
 import { Subject } from 'rxjs';
 import { SettingsService } from './settings.service';
-import { LogoService } from './logo.service';
+import { VerifiedTokensService } from './verified-tokens.service';
 
 @Injectable({
   providedIn: 'root'
@@ -19,6 +19,7 @@ export class TokenService implements OnDestroy {
   private maxTokenIds: {[account: string]: MaxTokenId} = {};
   private receivings: {[key: string]: boolean} = {};
   private timerSync: any = null;
+  private tokenInfoQueries: {[chainAddress: string]: number} = {};
   private issuerSubject = new Subject<{account: string, created: boolean}>();
   private tokenIdSubject = new Subject<{ chain: string, address: string, id: U256, existing: boolean }>();
   private accountSyncedSubject = new Subject<{account: string, synced: boolean}>();
@@ -26,6 +27,7 @@ export class TokenService implements OnDestroy {
                                            info?: TokenInfo }>();
   private accountSwapInfoSubject = new Subject<AccountSwapInfo>();
   private orderInfoSubject = new Subject<OrderInfo>();
+  private searchOrderSubject = new Subject<{by: string, hash?: U256, fromToken?: TokenKey, toToken?: TokenKey, limitBy?: SearchLimitBy, limitValue?: U256, orders: OrderInfo[]}>();
 
   public issuer$ = this.issuerSubject.asObservable();
   public tokenId$ = this.tokenIdSubject.asObservable();
@@ -33,12 +35,13 @@ export class TokenService implements OnDestroy {
   public tokenInfo$ = this.tokenInfoSubject.asObservable();
   public accountSwapInfo$ = this.accountSwapInfoSubject.asObservable();
   public orderInfo$ = this.orderInfoSubject.asObservable();
+  public searchOrder$ = this.searchOrderSubject.asObservable();
 
   constructor(
     private server: ServerService,
     private wallets: WalletsService,
     private settings: SettingsService,
-    private logo: LogoService
+    private verified: VerifiedTokensService
   ) {
     this.server.state$.subscribe(state => this.processServerState(state));
     this.server.message$.subscribe(message => this.processMessage(message));
@@ -435,6 +438,25 @@ export class TokenService implements OnDestroy {
     return info.swapping();
   }
 
+  searchOrderById(hash: U256) {
+    const params: any = {
+      by: 'id',
+      hash: hash.toHex()
+    }
+    this.searchOrder(params);
+  }
+
+  searchOrderByPair(fromToken: TokenKey, toToken: TokenKey, limitBy?: SearchLimitBy, limitValue?: U256) {
+    const params: any = {
+      by: 'pair',
+      from_token: fromToken.toJson(),
+      to_token: toToken.toJson()
+    }
+    if (limitBy) params.limit_by = limitBy;
+    if (limitValue) params.limit_value = limitValue.toDec();
+    this.searchOrder(params);
+  }
+
   private processServerState(state: ServerState) {
     if (state === ServerState.CONNECTED) {
       this.ongoingSync(true);
@@ -500,23 +522,42 @@ export class TokenService implements OnDestroy {
     this.server.send(message);
   }
 
-  queryTokenInfo(chain: string, address: string | U256) {
-    const message: any = {
-      action: 'token_info',
-      service: this.SERVICE,
-      chain
-    };
+  queryTokenInfo(chain: string, address: string | U256, force: boolean = true) {
+    let addressRaw;
+    let addressEncoded;
     if (address instanceof U256) {
-      message.address_raw = address.toHex();
+      const ret = ChainHelper.rawToAddress(chain, address);
+      if (ret.error) {
+        console.error(`queryTokenInfo: convert raw to address failed, chain=${chain}, raw=${address.toHex()}`);
+        return;
+      }
+      addressRaw = address.toHex();
+      addressEncoded = ret.address;
     } else {
-      message.address = address;
       const ret = ChainHelper.addressToRaw(chain, address);
       if (ret.error) { 
         console.error(`queryTokenInfo: convert address to raw failed, chain=${chain}, address=${address}`);
         return;
       }
-      message.address_raw = ret.raw!.toHex();
+      addressRaw = ret.raw!.toHex();
+      addressEncoded = address;
     }
+
+    if (!force) {
+      const key = `${chain}_${addressRaw}`;
+      const lastQuery = this.tokenInfoQueries[key];
+      if (lastQuery && lastQuery > (this.server.getTimestamp() - 300)) return;
+      this.tokenInfoQueries[key] = this.server.getTimestamp();
+    }
+
+    const message: any = {
+      action: 'token_info',
+      service: this.SERVICE,
+      chain,
+      address: addressEncoded,
+      address_raw: addressRaw,
+    };
+
     this.server.send(message);
   }
 
@@ -584,6 +625,9 @@ export class TokenService implements OnDestroy {
           break;
         case 'token_id_info':
           this.processTokenIdInfoQueryAck(message);
+          break;
+        case 'search_orders':
+          this.processSearchOrdersAck(message);
           break;
         default:
           break;
@@ -1161,6 +1205,49 @@ export class TokenService implements OnDestroy {
     }
   }
 
+  private processSearchOrdersAck(message: any) {  
+    if (!message.by) return;
+    const by = message.by;
+    let hash: U256;
+    let fromToken: TokenKey;
+    let toToken: TokenKey;
+    let limitBy: SearchLimitBy | undefined;
+    let limitValue: U256 | undefined;
+    const orders: OrderInfo[] = [];
+
+    if (message.orders) {
+      for (const order of message.orders) {
+        const info = new OrderInfo();
+        const error = info.fromJson(order);
+        if (error) return;
+        orders.push(info);
+      }
+    }
+
+    if (by === 'id') {
+      if (!message.hash) return;
+      hash = new U256(message.hash, 16);
+      this.searchOrderSubject.next({by, hash, orders});
+    } else if (by === 'hash') { 
+      if (!message.from_token || !message.to_token) return;
+      fromToken = new TokenKey();
+      let error = fromToken.fromJson(message.from_token);
+      if (error) return;
+      toToken = new TokenKey();
+      error = toToken.fromJson(message.to_token);
+      if (error) return;
+      if (message.limit_by) {
+        limitBy = message.limit_by;
+      }
+      if (message.limit_value) {
+        limitValue = new U256(message.limit_value);
+      }
+      this.searchOrderSubject.next({by, fromToken, toToken, limitBy, limitValue, orders});
+    } else {
+      return;
+    }
+  }
+
   private processTokenReceivableNotify(message: any) {
     this.updateReceivable(message);
   }
@@ -1276,6 +1363,7 @@ export class TokenService implements OnDestroy {
     if (!info) return;
     this.queryAccountOrders(account);
     for (let order of info.orders) {
+      if (order.expectedRecentSwaps === 0) continue;
       if (!order.synced || order.swaps.length === 0) {
         order.finalSync = order.order.finished();
         this.queryOrderSwaps(account, order.order.orderHeight, U64.max());
@@ -1585,7 +1673,17 @@ export class TokenService implements OnDestroy {
   }
 
   private tokenVerified(chain: string, address: string): boolean {
-    return this.logo.hasLogo(chain, address);
+    if (ChainHelper.isNative(chain, address)) {
+      return this.verified.hasToken(chain, '');
+    } else {
+      return this.verified.hasToken(chain, address);
+    }
+  }
+
+  private searchOrder(message: any) {
+    message.action = 'search_orders';
+    message.service = this.SERVICE;
+    this.server.send(message);
   }
 
 }
@@ -2187,6 +2285,24 @@ export class TokenKey {
   addressRaw: U256 = new U256(0);
   type: string = '';
 
+  fromParams(chain: string, addressRaw: U256, type: string): boolean {
+    this.chain = chain;
+    this.addressRaw = addressRaw;
+    this.type = type;
+    const ret = ChainHelper.rawToAddress(this.chain, this.addressRaw);
+    if (!ret.error) {
+      this.address = ret.address!;
+      console.error(`TokenKey.constructor: convert raw to address failed, chain: ${this.chain}, raw: ${this.addressRaw.toHex()}`);
+      return true;
+    }
+    return false;
+  }
+
+  eq(other: TokenKey): boolean {
+    return this.chain === other.chain && this.addressRaw.eq(other.addressRaw)
+      && this.type === other.type;
+  }
+
   fromJson(json: any): boolean {
     try {
       this.chain = json.chain;
@@ -2204,6 +2320,15 @@ export class TokenKey {
       console.log(`TokenKey.fromJson: failed to parse json=${json}`);
       return true;
     }
+  }
+
+  toJson(): any {
+    return {
+      chain: this.chain,
+      address: this.address,
+      address_raw: this.addressRaw.toHex(),
+      type: this.type
+    };
   }
 
 }
@@ -2355,7 +2480,7 @@ export class OrderSwapInfo {
   swaps: SwapInfo[] = [];
 
   //local data
-  expectedRecentSwaps: number = 10;
+  expectedRecentSwaps: number = 0;
   synced: boolean = false;
   finalSync: boolean = false;
   moreSwaps: boolean = true;
@@ -2445,4 +2570,10 @@ export class SwapFullInfo {
       return true;
     }
   }
+}
+
+export enum SearchLimitBy {
+  NONE = '',
+  FROM_TOKEN = 'from_token',
+  TO_TOKEN = 'to_token',
 }

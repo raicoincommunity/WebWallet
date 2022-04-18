@@ -103,22 +103,22 @@
         <table class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
           <thead>
             <tr>
-              <th class="uk-width-1-4 uk-text-left">{{ 'Maker' | translate }}</th>
-              <th class="uk-width-1-4 uk-text-left">{{ 'Price' | translate }}</th>
-              <th class="uk-width-1-4 uk-text-center">{{ 'Available' | translate }}</th>
-              <th class="uk-width-1-6@m uk-width-1-5 uk-text-center"></th>
+              <th class="uk-width-1-6 uk-text-left">{{ 'Maker' | translate }}</th>
+              <th class="uk-width-1-3 uk-text-center">{{ 'Price' | translate }}</th>
+              <th class="uk-width-1-3 uk-text-center">{{ 'Available' | translate }}</th>
+              <th class="uk-width-1-6 uk-text-center"></th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let order of orders()">
-              <td (click)="selectOrder(order)" class="uk-text-truncate">{{ orderHash(order) }}</td>
-              <td (click)="selectOrder(order)" class="uk-text-center">{{ orderFromTokenShort(order) }}</td>
-              <td (click)="selectOrder(order)" class="uk-text-center">{{ orderToTokenShort(order) }}</td>
-              <td class="uk-text-center uk-visible@m"><a uk-icon="icon: copy;" title="{{ 'Copy order ID' | translate }}"
-                  uk-tooltip></a>&nbsp;&nbsp;<a (click)="selectOrder(order)" uk-icon="icon: more;" title="{{ 'Show order details' | translate }}"
+            <tr *ngFor="let order of searchResults">
+              <td (click)="selectOrder(order)" class="uk-text-left uk-text-truncate">{{ orderMaker(order) }}</td>
+              <td (click)="selectOrder(order)" class="uk-text-center">{{ orderFromValue(order) }}<span *ngIf="pairWithSameSymbol(order).same" style="font-size: 12px;"> {{orderFromTokenType(order)}}</span> = {{orderToValue(order)}}<span *ngIf="pairWithSameSymbol(order).same" style="font-size: 12px;"> {{orderToTokenType(order)}}</span></td>
+              <td (click)="selectOrder(order)" class="uk-text-center">{{ orderAvailable(order) }}<span *ngIf="pairWithSameSymbol(order).same" style="font-size: 12px;"> {{orderFromTokenType(order)}}</span></td>
+              <td class="uk-text-center uk-visible@m"><a ngxClipboard
+                [cbContent]="orderHash(order) " (cbOnSuccess)="orderIdCopied()" uk-icon="icon: copy" title="{{ 'Copy Order ID' | translate }}" uk-tooltip></a>&nbsp;&nbsp;<a (click)="selectOrder(order)" uk-icon="icon: more;" title="{{ 'Show order details' | translate }}"
                   uk-tooltip></a></td>
-              <td class="uk-text-center uk-hidden@m"><a uk-icon="icon: copy;" title="{{ 'Copy order ID' | translate }}"
-                  uk-tooltip></a><a (click)="selectOrder(order)" uk-icon="icon: more;" title="{{ 'Show order details' | translate }}" uk-tooltip></a>
+              <td class="uk-text-center uk-hidden@m"><a ngxClipboard
+                [cbContent]="orderHash(order) " (cbOnSuccess)="orderIdCopied()" uk-icon="icon: copy" title="{{ 'Copy Order ID' | translate }}" uk-tooltip></a><a (click)="selectOrder(order)" uk-icon="icon: more;" title="{{ 'Show order details' | translate }}" uk-tooltip></a>
               </td>
             </tr>
           </tbody>
@@ -242,25 +242,25 @@
           <thead>
             <tr>
               <th class="uk-width-1-6@m uk-visible@m  uk-text-left">{{ 'Creation Date' | translate }}</th>
-              <th class="uk-width-1-6@m uk-width-1-5 uk-text-left">{{ 'Order ID' | translate }}</th>
-              <th class="uk-width-1-6@m uk-width-1-5 uk-text-center">{{ 'From Token' | translate }}</th>
-              <th class="uk-width-1-6@m uk-width-1-5 uk-text-center">{{ 'To Token' | translate }}</th>
-              <th class="uk-width-1-6@m uk-width-1-5 uk-text-center">{{ 'Status' | translate }}</th>
-              <th class="uk-width-1-6@m uk-width-1-5 uk-text-center"></th>
+              <th class="uk-width-1-6@m uk-width-1-6 uk-text-left">{{ 'Order ID' | translate }}</th>
+              <th class="uk-width-1-6@m uk-width-1-4 uk-text-center">{{ 'From Token' | translate }}</th>
+              <th class="uk-width-1-6@m uk-width-1-4 uk-text-center">{{ 'To Token' | translate }}</th>
+              <th class="uk-width-1-6@m uk-width-1-6 uk-text-center">{{ 'Status' | translate }}</th>
+              <th class="uk-width-1-6@m uk-width-1-6 uk-text-center"></th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let order of orders()">
               <td (click)="selectOrder(order)" class="uk-visible@m">{{ orderCreatedAt(order) * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}</td>
               <td (click)="selectOrder(order)" class="uk-text-truncate">{{ orderHash(order) }}</td>
-              <td (click)="selectOrder(order)" class="uk-text-center">{{ orderFromTokenShort(order) }}</td>
-              <td (click)="selectOrder(order)" class="uk-text-center">{{ orderToTokenShort(order) }}</td>
-              <td (click)="selectOrder(order)" class="uk-text-center">{{ orderStatus(order) }} ({{ orderFillRate(order) }})</td>
-              <td class="uk-text-center uk-visible@m"><a uk-icon="icon: copy;" title="{{ 'Copy order ID' | translate }}"
-                  uk-tooltip></a>&nbsp;&nbsp;<a (click)="selectOrder(order)" uk-icon="icon: more;" title="{{ 'Show order details' | translate }}"
+              <td (click)="selectOrder(order)" class="uk-text-center">{{ orderFromTokenSymbol(order) }} <span style="font-size: 12px;">{{ orderFromTokenType(order) }}</span></td>
+              <td (click)="selectOrder(order)" class="uk-text-center">{{ orderToTokenSymbol(order) }} <span style="font-size: 12px;">{{ orderToTokenType(order) }}</span></td>
+              <td (click)="selectOrder(order)" class="uk-text-center">{{ orderStatus(order) }} <span style="font-size: 12px;">({{ orderFillRate(order) }})</span></td>
+              <td class="uk-text-center uk-visible@m"><a ngxClipboard
+                [cbContent]="orderHash(order) " (cbOnSuccess)="orderIdCopied()" uk-icon="icon: copy" title="{{ 'Copy Order ID' | translate }}" uk-tooltip></a>&nbsp;&nbsp;<a (click)="selectOrder(order)" uk-icon="icon: more;" title="{{ 'Show order details' | translate }}"
                   uk-tooltip></a></td>
-              <td class="uk-text-center uk-hidden@m"><a uk-icon="icon: copy;" title="{{ 'Copy order ID' | translate }}"
-                  uk-tooltip></a><a (click)="selectOrder(order)" uk-icon="icon: more;" title="{{ 'Show order details' | translate }}" uk-tooltip></a>
+              <td class="uk-text-center uk-hidden@m"><a ngxClipboard
+                [cbContent]="orderHash(order) " (cbOnSuccess)="orderIdCopied()" uk-icon="icon: copy" title="{{ 'Copy Order ID' | translate }}" uk-tooltip></a><a (click)="selectOrder(order)" uk-icon="icon: more;" title="{{ 'Show order details' | translate }}" uk-tooltip></a>
               </td>
             </tr>
           </tbody>
@@ -399,7 +399,7 @@
                   </div>
                   <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
                     <a ngxClipboard
-                      [cbContent]="selectedOrderHash() " (cbOnSuccess)="selectedOrderHashCopied()" uk-icon="icon: copy" title="{{ 'Copy Order ID' | translate }}" uk-tooltip></a>
+                      [cbContent]="selectedOrderHash() " (cbOnSuccess)="orderIdCopied()" uk-icon="icon: copy" title="{{ 'Copy Order ID' | translate }}" uk-tooltip></a>
                   </div>
                 </div>
               </div>
@@ -468,8 +468,11 @@
               </div>
               <div class="uk-width-3-5 uk-text-left">
                 <div uk-grid>
-                  <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
-                    {{ selectedOrderFromToken() }}
+                  <div *ngIf="selectedOrderFromTokenTrusted()" class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                    {{ selectedOrderFromTokenSymbol() }} <span style="font-size: 12px;">{{ selectedOrderFromTokenTypeAddress() }}</span>
+                  </div>
+                  <div *ngIf="!selectedOrderFromTokenTrusted()" class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                    {{ selectedOrderFromTokenSymbol() }} <span style="font-size: 12px;">{{ selectedOrderFromTokenType() }}</span>
                   </div>
                   <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
                     <a ngxClipboard
@@ -499,7 +502,7 @@
               <div class="uk-width-3-5 uk-text-left">
                 <div uk-grid>
                   <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
-                    {{ selectedOrderToToken() }}
+                    {{ selectedOrderToTokenSymbol() }} <span style="font-size: 12px;">{{ selectedOrderToTokenTypeAddress() }}</span>
                   </div>
                   <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
                     <a ngxClipboard
@@ -576,21 +579,19 @@
             </div>
           </div>
 
-
-
         </div>
       </div>
 
       <div class="uk-card-footer uk-text-right">
-        <div uk-grid>
-          <div class="uk-width-1-2@m uk-margin-small-bottom">
+        <div uk-grid id="id-margin-button">
+          <div class="uk-width-1-2@m">
             <button (click)="activePanel='place_order'" class="uk-button uk-button-secondary uk-width-1-1">{{ 'Back' | translate }}</button>
           </div>
-          <div *ngIf="selectedOrderCancelable()" class="uk-width-1-2@m">
+          <div *ngIf="selectedOrderCancelable()" class="uk-width-1-2@m uk-grid-margin">
             <button class="uk-button uk-button-primary uk-width-1-1" (click)="cancelOrder()">{{ 'Cancel Order' | translate }}</button>
           </div>
-          <div *ngIf="!selectedOrderCancelable()" class="uk-width-1-2@m">
-            <button class="uk-button uk-width-1-1 uk-button-disabled" >{{ 'Cancel Order' | translate }}</button>
+          <div *ngIf="!selectedOrderCancelable()" class="uk-width-1-2@m uk-grid-margin">
+            <button class="uk-button uk-button-disabled uk-width-1-1" >{{ 'Cancel Order' | translate }}</button>
           </div>
         </div>
       </div>
@@ -614,7 +615,7 @@
 
                 <span class="confirm-title uk-text-truncate">
                   <div>
-                    <span class="confirm-title uk-text-truncate">{{ selectedOrderFromToken() }}</span>
+                    <span class="confirm-title uk-text-truncate">{{ selectedOrderFromTokenSymbol() }} {{ selectedOrderFromTokenType() }}</span>
                     <span class="confirm-subtitle">{{ 'From Token' | translate }}</span>
                     <br class="br-spacer" />
                   </div>
@@ -636,7 +637,7 @@
               <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
                 <span class="confirm-title uk-text-truncate">
                   <div>
-                    <span class="confirm-title uk-text-truncate">{{ selectedOrderToToken() }}</span>
+                    <span class="confirm-title uk-text-truncate">{{ selectedOrderToTokenSymbol() }} {{ selectedOrderToTokenType() }}</span>
                     <span class="confirm-subtitle">{{ 'To Token' | translate }}</span>
                     <br class="br-spacer" />
                   </div>
