@@ -66,23 +66,29 @@ export class VerifiedTokensService {
     }
   }
 
+  hasToken(chain: string, address: string): boolean {
+    if (environment.current_chain === ChainStr.RAICOIN) {
+      return !!this.verifiedTokensDict[chain]?.[address];
+    } else if (environment.current_chain === ChainStr.RAICOIN_TEST) {
+      return !!this.testVerifiedTokensDict[chain]?.[address];
+    } else {
+      return false;
+    }
+  }
+
   getNativeToken(currentChain: string, destChain: string | Chain): VerifiedToken | undefined {
-    if (typeof destChain === 'string') {
-      destChain = ChainHelper.toChain(destChain);
+    if (typeof destChain !== 'string') {
+      destChain = ChainHelper.toChainStr(destChain);
     }
 
-    const tokens = this.tokens(currentChain);
-    for (let token of tokens) {
-      if (token.address !== '') {
-        return undefined;
-      }
-
-      if (token.chain === destChain) {
-        return token;
-      }
+    if (currentChain === ChainStr.RAICOIN) {
+      return this.verifiedTokensDict[destChain]?.[''];
+    } else if (currentChain === ChainStr.RAICOIN_TEST) { 
+      if (!this.testVerifiedTokensDict) return undefined;
+      return this.testVerifiedTokensDict[destChain]?.[''];
+    } else {
+      return undefined;
     }
-
-    return undefined;
   }
 
 }

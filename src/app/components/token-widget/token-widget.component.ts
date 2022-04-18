@@ -178,7 +178,7 @@ export class TokenWidgetComponent implements OnInit {
 
 }
 
-class TokenItem {
+export class TokenItem {
   chain: string = '';
   address: string = '';
   addressRaw: U256 = new U256(0);
