@@ -155,7 +155,7 @@
                 <td class="uk-text-center">{{ info.block.height().toNumber() }}</td>
                 <td class="uk-text-left">{{ opStr(info) }}</td>
 
-                <td class="uk-text-right">
+                <td class="uk-text-right uk-text-break">
                   <span *ngIf="amountShown(info).sign === 2" class="uk-text-danger">{{ amountShown(info).amount }}</span>
                   <span *ngIf="amountShown(info).sign === 1" class="uk-text-success">{{ amountShown(info).amount }}</span>
                   <span *ngIf="amountShown(info).sign === 0">{{ amountShown(info).amount }}</span>

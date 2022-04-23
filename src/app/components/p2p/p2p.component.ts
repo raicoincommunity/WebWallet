@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, HostListener } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { U256, TokenTypeStr, U512, U8, U64, ChainHelper, TokenHelper } from '../../services/util.service';
@@ -7,10 +7,10 @@ import { NotificationService } from '../../services/notification.service';
 import { AssetWidgetComponent } from '../asset-widget/asset-widget.component';
 import { BigNumber } from 'bignumber.js';
 import { WalletsService, WalletErrorCode } from '../../services/wallets.service';
-import { OrderSwapInfo, TokenService, OrderInfo, TokenKey, SearchLimitBy } from '../../services/token.service';
+import { OrderSwapInfo, TokenService, OrderInfo, TokenKey, SearchLimitBy, SwapInfo } from '../../services/token.service';
 import { ServerService } from '../../services/server.service'
 import { VerifiedTokensService } from '../../services/verified-tokens.service';
-import { threadId } from 'worker_threads';
+import { THIS_EXPR } from '@angular/compiler/src/output/output_ast';
 
 @Component({
   selector: 'app-p2p',
@@ -26,17 +26,28 @@ export class P2pComponent implements OnInit {
   // search orders
   activePanel = '';
   selectedSearchBy = SearchByOption.PAIR;
+  selectedFilterBy = FilterByOption.TO_TOKEN;
   inputSearchOrderId = '';
+  inputSearchFilterAmount = '';
+  inputSearchFilterId = '';
   searchOrderCollapsed = false;
+  searchFilterAmountStatus = 0;
+  searchFilterIdStatus = 0;
+  private searchFilterAmount = new U256(0);
+  private searchFilterId = new U256(0);
 
-  searching: boolean = false;
+
   searchingBy: SearchByOption | undefined;
   searchingOrderId: U256 | undefined;
   searchingFromToken: TokenKey | undefined;
   searchingToToken: TokenKey | undefined;
   searchingLimitBy: SearchLimitBy | undefined;
   searchingLimitValue: U256 | undefined;
+  searchingMore: boolean = false;
+  searchingExpectedResults: number = 10;
   searchResults: OrderInfo[] = [];
+  searchStatus: SearchStatus = SearchStatus.INIT;
+
   
   // place order
   priceInputText = '';
@@ -63,6 +74,12 @@ export class P2pComponent implements OnInit {
   // selected order
   private selectedOrder: OrderInfo | undefined;
 
+  private stopped: boolean = false;
+  private searchSubscription: any;
+  private orderSubscription: any;
+
+  private makerSwapInfos;
+
   constructor(
     private notification: NotificationService,
     private wallets: WalletsService,
@@ -73,28 +90,63 @@ export class P2pComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
-    this.token.orderInfo$.subscribe(order => {
+    this.orderSubscription = this.token.orderInfo$.subscribe(order => {
+      if (this.stopped) return;
       if (!this.selectedOrder) return;
       if (!this.selectedOrder.eq(order)) return;
       this.selectedOrder = order;
     });
 
-    this.token.searchOrder$.subscribe(r => {
+    this.searchSubscription = this.token.searchOrder$.subscribe(r => {
+      if (this.stopped) return;
       if (r.by !== this.searchingBy) return;
+      let more = false;
       if (r.by === SearchByOption.ID) {
         if (!r.hash || !this.searchingOrderId) return;
         if (!r.hash.eq(this.searchingOrderId)) return;
       } else if (r.by === SearchByOption.PAIR) { 
-        if (!r.fromToken || !r.toToken || !this.searchingFromToken || !this.searchingToToken) return;
-        if (!r.fromToken.eq(this.searchingFromToken) || !r.toToken.eq(this.searchingToToken)) return;
+        if (!r.fromToken || !r.toToken || !this.searchingFromToken || !this.searchingToToken) 
+        return;
+        if (!r.fromToken.eq(this.searchingFromToken) || !r.toToken.eq(this.searchingToToken)) 
+        return;
         if (r.limitBy !== this.searchingLimitBy) return;
-        if (r.limitValue !== this.searchingLimitValue) return;
+        if (r.limitValue === this.searchingLimitValue) {
+          // pass
+        } else if (r.limitValue instanceof U256 && this.searchingLimitValue instanceof U256
+          && r.limitValue.eq(this.searchingLimitValue)) {
+          // pass
+        } else {
+          return;
+        }
+        more = r.more!;
       } else {
         return;
       }
-      this.searching = false;
-      this.searchResults = r.orders;
+      this.searchingMore = more;
+      this.searchStatus = SearchStatus.SEARCHED;
+      if (r.orders.length > 0) {
+        for (let order of r.orders) {
+          this.UpdateSearchResults(order, false);
+        }
+        this.sortSearchResults();
+        this.searchMore(r.orders[r.orders.length - 1]);
+      }
     });
+  }
+
+  @HostListener('unloaded')
+  ngOnDestroy() {
+    if (this.orderSubscription) {
+      this.orderSubscription.unsubscribe();
+      this.orderSubscription = null;
+    }
+    if (this.searchSubscription) {
+      this.searchSubscription.unsubscribe();
+      this.searchSubscription = null;
+    }
+    this.searchResults = [];
+
+    this.stopped = true;
   }
 
   onPlaceAssetChanged() {
@@ -123,6 +175,10 @@ export class P2pComponent implements OnInit {
     return ['id', 'pair'];
   }
 
+  filterByOptions(): string[] {
+    return [FilterByOption.TO_TOKEN, FilterByOption.FROM_TOKEN];
+  }
+
   showSearchByOption(option: string): string {
     if (option === SearchByOption.ID) {
       let msg = marker(`Order ID`);
@@ -135,6 +191,124 @@ export class P2pComponent implements OnInit {
     } else {
       return '';
     }
+  }
+
+  showFilterByOption(option: string): string {
+    if (option === FilterByOption.FROM_TOKEN) {
+      let msg = marker(`Token you get`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      return msg;
+    } else if (option == FilterByOption.TO_TOKEN) {
+      let msg = marker(`Token you pay`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      return msg;
+    } else {
+      return '';
+    }
+  }
+
+  getFilterWidget(): TokenWidgetComponent | undefined {
+    if (this.selectedFilterBy === FilterByOption.FROM_TOKEN) {
+      return this.searchFromTokenWidget;
+    } else if (this.selectedFilterBy === FilterByOption.TO_TOKEN) {
+      return this.searchToTokenWidget;
+    }
+    return undefined;
+  }
+
+  searchFilterTokenType(): string {
+    const widget = this.getFilterWidget();
+    if (!widget) return '';
+
+    const token = widget.selectedToken;
+    if (!token) return '';
+
+    return token.type;
+  }
+
+  searchFilterTokenFormat(): string {
+    const widget = this.getFilterWidget();
+    if (!widget) return '';
+    const token = widget.selectedToken;
+    if (!token) return '';
+    return token.shortTextFormat();
+  }
+
+  syncSearchFilterAmount() {
+    if (this.inputSearchFilterAmount === '') {
+      this.searchFilterAmountStatus = 0;
+      return;
+    }
+
+    const widget = this.getFilterWidget();
+    if (!widget || !widget.selectedToken) {
+      this.searchFilterAmountStatus = 0;
+      return;
+    }
+
+    const token = widget.selectedToken;
+    if (token.type != TokenTypeStr._20)
+    {
+      this.searchFilterAmountStatus = 0;
+      return;
+    }
+
+    try {
+      const decimalsValue = new BigNumber(10).pow(token.decimals);
+      this.searchFilterAmount =
+        new U256(new BigNumber(this.inputSearchFilterAmount).mul(decimalsValue));
+      if (this.searchFilterAmount.eq(0)) {
+        this.searchFilterAmountStatus = 2;
+        return;
+      }
+      this.searchFilterAmountStatus = 1;
+    }
+    catch (err) {
+      this.searchFilterAmountStatus = 2;
+    }
+  }
+
+
+  syncSearchFilterId() {
+    if (this.inputSearchFilterId === '') {
+      this.searchFilterIdStatus = 0;
+      return;
+    }
+
+    const widget = this.getFilterWidget();
+    if (!widget || !widget.selectedToken) {
+      this.searchFilterIdStatus = 0;
+      return;
+    }
+
+    const token = widget.selectedToken;
+    if (token.type != TokenTypeStr._721)
+    {
+      this.searchFilterIdStatus = 0;
+      return;
+    }
+
+    try {
+      this.searchFilterId = new U256(this.inputSearchFilterId);
+      this.searchFilterIdStatus = 1;
+    }
+    catch (err) {
+      this.searchFilterIdStatus = 2;
+    }
+  }
+
+  onSearchTokenChange() {
+    this.syncSearchFilterAmount();
+    this.syncSearchFilterId();
+  }
+
+  onSearchFilterByChange() {
+    this.syncSearchFilterAmount();
+    this.syncSearchFilterId();
+  }
+
+  removeInputSearchOrderId() {
+    this.inputSearchOrderId = '';
   }
 
   searchOrderIdStatus(): number {
@@ -178,7 +352,7 @@ export class P2pComponent implements OnInit {
         return;
       }
 
-      let fromToken = this.searchFromTokenWidget.selectedToken;
+      const fromToken = this.searchFromTokenWidget.selectedToken;
       const toToken = this.searchToTokenWidget.selectedToken;
       if (fromToken.chain === toToken.chain && fromToken.address === toToken.address) {
         let msg = marker(`Invalid token pair`);
@@ -192,15 +366,89 @@ export class P2pComponent implements OnInit {
       const toTokenKey = new TokenKey();
       error = toTokenKey.fromParams(toToken.chain, toToken.addressRaw, toToken.type);
       if (error) return;
-      this.token.searchOrderByPair(fromTokenKey, toTokenKey); // todo:
+
+      let limitToken;
+      let limitBy;
+      if (this.selectedFilterBy === FilterByOption.FROM_TOKEN) {
+        limitToken = fromToken;
+        limitBy = SearchLimitBy.FROM_TOKEN;
+      } else if (this.selectedFilterBy === FilterByOption.TO_TOKEN) {
+        limitToken = toToken;
+        limitBy = SearchLimitBy.TO_TOKEN;
+      } else {
+        console.error(`search(): unexpected filter by option: ${this.selectedFilterBy}`);
+        return;
+      }
+
+      let limitValue;
+      if (limitToken.type === TokenTypeStr._20) {
+        this.syncSearchFilterAmount();
+        if (this.searchFilterAmountStatus === 2) {
+          let msg = marker(`Please input a valid amount`);
+          this.translate.get(msg).subscribe(res => msg = res);
+          this.notification.sendError(msg);
+          return;
+        } else if (this.searchFilterAmountStatus === 1) {
+          limitValue = this.searchFilterAmount;
+        }
+      } else if (limitToken.type === TokenTypeStr._721) {
+        this.syncSearchFilterId();
+        if (this.searchFilterIdStatus === 2) {
+          let msg = marker(`Please input a valid token ID`);
+          this.translate.get(msg).subscribe(res => msg = res);
+          this.notification.sendError(msg);
+          return;
+        } else if (this.searchFilterIdStatus === 1) {
+          limitValue = this.searchFilterId;
+        }
+      } else {
+        console.error(`search(): unexpected filter token type: ${limitToken.type}`);
+        return;
+      }
+
+      if (limitValue) {
+        this.token.searchOrderByPair(fromTokenKey, toTokenKey, undefined, limitBy, limitValue);
+        this.searchingLimitBy = limitBy;
+        this.searchingLimitValue = limitValue;
+      } else {
+        this.token.searchOrderByPair(fromTokenKey, toTokenKey);
+        this.searchingLimitBy = undefined;
+        this.searchingLimitValue = undefined;
+      }
       this.searchingFromToken = fromTokenKey;
       this.searchingToToken = toTokenKey;
       this.searchingBy = this.selectedSearchBy;
-      // todo: search limit
+      this.searchingMore = false;
+      this.searchingExpectedResults = 10;
     }
 
-    this.searching = true;
+    this.searchStatus = SearchStatus.SEARCHING;
     this.searchResults = [];
+  }
+
+  searchMore(since?: OrderInfo) {
+    if (this.searchResults.length >= this.searchingExpectedResults) return;
+    if (this.selectedSearchBy !== SearchByOption.PAIR) return;
+    if (!this.searchingFromToken || !this.searchingToToken || !this.searchingMore) {
+      return;
+    }
+
+    if (!since && this.searchResults.length > 0) {
+      since = this.searchResults[this.searchResults.length - 1];
+    }
+
+    let order;
+    if (since) {
+      order = {maker: since.maker.account, orderHeight: since.orderHeight.toDec()}
+    }
+    this.token.searchOrderByPair(this.searchingFromToken, this.searchingToToken,
+      order, this.searchingLimitBy, this.searchingLimitValue);
+      this.searchStatus = SearchStatus.SEARCHING;
+  }
+
+  loadMoreSearchResults() {
+    this.searchingExpectedResults += 10;
+    this.searchMore();
   }
 
   changePriceBase() {
@@ -751,7 +999,7 @@ export class P2pComponent implements OnInit {
     }
 
     let token = order.tokenOffer;
-    return this.formatTokenValue(token.chain, token.address, token.type, order.valueOffer, false);
+    return this.formatTokenValue(token.chain, token.address, token.type, order.valueOffer, false, true);
   }
 
   orderToValue(order: OrderSwapInfo | OrderInfo) : string {
@@ -760,7 +1008,7 @@ export class P2pComponent implements OnInit {
     }
 
     let token = order.tokenWant;
-    return this.formatTokenValue(token.chain, token.address, token.type, order.valueWant, false);
+    return this.formatTokenValue(token.chain, token.address, token.type, order.valueWant, false, true);
   }
 
   orderAvailable(order: OrderSwapInfo | OrderInfo) : string {
@@ -781,9 +1029,9 @@ export class P2pComponent implements OnInit {
       const minFormat = minOffer.toBalanceStr(new U8(metaInfo.decimals));
       const maxFormat = this.formatTokenValue(token.chain, token.address, token.type, maxOffer, false);
       if (!maxFormat) return '';
-      return `${minFormat}~${maxFormat}`;
+      return `${minFormat} ~ ${maxFormat}`;
     } else {
-      return this.formatTokenValue(token.chain, token.address, token.type, order.valueOffer, false);
+      return this.formatTokenValue(token.chain, token.address, token.type, order.valueOffer, false, true);
     }
   }
 
@@ -795,8 +1043,7 @@ export class P2pComponent implements OnInit {
     if (self) {
       this.activePanel = Panel.MY_ORDER_DETAILS;
     } else {  
-      //this.activePanel = Panel.ORDER_DETAILS;
-      // todo:
+      this.activePanel = Panel.ORDER_DETAILS;
     }
   }
 
@@ -1002,6 +1249,15 @@ export class P2pComponent implements OnInit {
     return true;
   }
 
+  selectedOrderPingable(): boolean {
+    const order = this.selectedOrder;
+    if (!order) return false;
+    if (order.maker.account === this.address()) return false;
+    if (order.finished()) return false;
+    // todo:
+    return true;
+  }
+
   cancelOrder() {
     if (!this.selectedOrderCancelable()) return;
 
@@ -1117,7 +1373,7 @@ export class P2pComponent implements OnInit {
   }
 
   private formatTokenValue(chain: string, address: string, type: string, value: U256,
-    showType: boolean = false): string {
+    showType: boolean = false, shortTokenId: boolean = false): string {
     if (type !== TokenTypeStr._20 && type !== TokenTypeStr._721) return '';
 
     const info = this.getTokenMetaInfo(chain, address, type);
@@ -1138,10 +1394,14 @@ export class P2pComponent implements OnInit {
           return value.toBalanceStr(new U8(info.decimals), true) + ` <${shortAddress}>`;
         }
       } else if (type === TokenTypeStr._721) {
+        let tokenId  = value.toDec();
+        if (shortTokenId && tokenId.length >= 12) {
+          tokenId = `${tokenId.substring(0, 4)}...${tokenId.substring(tokenId.length - 4)}`;
+        }
         if (info.trusted) {
-          return `1 ${info.symbol} (${value.toDec()})`;
+          return `1 ${info.symbol} (${tokenId})`;
         } else {
-          return `1 <${shortAddress}> (${value.toDec()})`;
+          return `1 <${shortAddress}> (${tokenId})`;
         }
       } 
     } else {
@@ -1154,10 +1414,14 @@ export class P2pComponent implements OnInit {
           return value.toBalanceStr(new U8(info.decimals), true) + ` <${typeShown}: ${shortAddress}>`;
         }
       } else if (type === TokenTypeStr._721) {
+        let tokenId  = value.toDec();
+        if (shortTokenId && tokenId.length >= 12) {
+          tokenId = `${tokenId.substring(0, 4)}...${tokenId.substring(tokenId.length - 4)}`;
+        }
         if (info.trusted) {
-          return `1 ${info.symbol} (${value.toDec()}) <${typeShown}>`;
+          return `1 ${info.symbol} (${tokenId}) <${typeShown}>`;
         } else {
-          return `1 <${typeShown}: ${shortAddress}> (${value.toDec()})`;
+          return `1 <${typeShown}: ${shortAddress}> (${tokenId})`;
         }
       }
     }
@@ -1224,11 +1488,59 @@ export class P2pComponent implements OnInit {
     return amount.idiv(unit).mul(unit);
   }
 
+  private sortSearchResults() {
+    this.searchResults.sort((lhs, rhs) => {
+      if (lhs.normalizedPrice().lt(rhs.normalizedPrice())) {
+        return -1;
+      }
+      if (lhs.normalizedPrice().gt(rhs.normalizedPrice())) {
+        return 1;
+      }
+      const lhsMaker = new U256();
+      lhsMaker.fromAccountAddress(lhs.maker.account);
+      const rhsMaker = new U256();
+      rhsMaker.fromAccountAddress(rhs.maker.account);
+      if (lhsMaker.lt(rhsMaker)) {
+        return -1;
+      }
+      if (lhsMaker.gt(rhsMaker)) {
+        return 1;
+      }
+      if (lhs.orderHeight.lt(rhs.orderHeight)) {
+        return -1;
+      }
+      if (lhs.orderHeight.gt(rhs.orderHeight)) {
+        return 1;
+      }
+      return 0;
+    });
+  }
+
+  private UpdateSearchResults(order: OrderInfo, sort: boolean = true) {
+    if (this.address() === order.maker.account || this.address() === order.mainAccount) {
+      return;
+    }
+    const index = this.searchResults.findIndex(x => x.eq(order));
+    if (index === -1) {
+      this.searchResults.push(order);
+      if (sort) {
+        this.sortSearchResults();
+      }
+    } else {
+      this.searchResults[index] = order;
+    }
+  }
+
 }
 
 enum SearchByOption {
   ID = 'id',
   PAIR = 'pair',
+}
+
+enum FilterByOption {
+  FROM_TOKEN = 'from_token',
+  TO_TOKEN = 'to_token',
 }
 
 enum Panel {
@@ -1237,6 +1549,7 @@ enum Panel {
   CONFIRM_PLACE_ORDER = 'confirm_place_order',
   MY_ORDER_DETAILS = 'my_order_details',
   CONFIRM_CANCEL_ORDER = 'confirm_cancel_order',
+  ORDER_DETAILS = 'order_details',
 }
 
 class TokenMetaInfo {
@@ -1253,4 +1566,15 @@ class TokenMetaInfo {
     this.decimals = decimals;
     this.trusted = trusted;
   }
+}
+
+enum SearchStatus {
+  INIT = 'init',
+  SEARCHING = 'searching',
+  SEARCHED = 'searched',
+}
+
+class MakerInfo {
+  swapInfo: SwapInfo = new SwapInfo;
+  lastPint: number = 0;
 }

@@ -856,10 +856,25 @@ export class U256 extends Uint {
 
 export class U512 extends Uint {
   static readonly SIZE = 64;
-  
   readonly size = U512.SIZE;
+  static _MAX: U512 | undefined;
+  static max(): U512 {
+    if (!U512._MAX) {
+      U512._MAX = UintHelper.max(U512.SIZE) as U512;
+    }
+    return U512._MAX;
+  }
+
   constructor(from: UintFrom = 0, base?: number, check: boolean = true) {
     super(from, base, U512.SIZE, check);
+  }
+
+  plus(other: UintFrom, base?: number): U512 {
+    return super.plus(other, base) as U512;
+  }
+
+  minus(other: UintFrom, base?: number): U512 {
+    return super.minus(other, base) as U512;
   }
 
   mul(other: UintFrom, base?: number): U512 {
@@ -900,8 +915,6 @@ export class U512 extends Uint {
       format: CryptoJS.format.Hex
     };
     const result = CryptoJS.AES.decrypt(this.toHex(), key, cfg);
-    // debug
-    console.log(result.toString());
     this.bytes = new U512(result.toString(), 16).bytes;
   }
 

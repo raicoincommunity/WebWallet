@@ -125,7 +125,14 @@ const testVerifiedTokens: VerifiedToken[] = [
     symbol:'USDT',
     decimals: 6
   },
-  
+  {
+    chain: Chain.RAICOIN_TEST,
+    address:'rai_1timaah5teuxjjqeu43qby9k3jruyrjp8t8b4jh7z6bkud59g3eyb58oeejh',
+    type:TokenType._721,
+    name:'Ethereum Name Service',
+    symbol:'ENS',
+    decimals: 0
+  },
   /* Raicoin Testnet End*/
 
 
