@@ -27,7 +27,7 @@ export class TokenService implements OnDestroy {
                                            info?: TokenInfo }>();
   private accountSwapInfoSubject = new Subject<AccountSwapInfo>();
   private orderInfoSubject = new Subject<OrderInfo>();
-  private searchOrderSubject = new Subject<{by: string, hash?: U256, fromToken?: TokenKey, toToken?: TokenKey, limitBy?: SearchLimitBy, limitValue?: U256, orders: OrderInfo[]}>();
+  private searchOrderSubject = new Subject<{by: string, hash?: U256, fromToken?: TokenKey, toToken?: TokenKey, limitBy?: SearchLimitBy, limitValue?: U256, more?:boolean, orders: OrderInfo[]}>();
 
   public issuer$ = this.issuerSubject.asObservable();
   public tokenId$ = this.tokenIdSubject.asObservable();
@@ -446,11 +446,16 @@ export class TokenService implements OnDestroy {
     this.searchOrder(params);
   }
 
-  searchOrderByPair(fromToken: TokenKey, toToken: TokenKey, limitBy?: SearchLimitBy, limitValue?: U256) {
+  searchOrderByPair(fromToken: TokenKey, toToken: TokenKey,
+    order?: {maker: string, orderHeight: string}, limitBy?: SearchLimitBy, limitValue?: U256) {
     const params: any = {
       by: 'pair',
       from_token: fromToken.toJson(),
       to_token: toToken.toJson()
+    }
+    if (order) {
+      params.maker = order.maker;
+      params.order_height = order.orderHeight;
     }
     if (limitBy) params.limit_by = limitBy;
     if (limitValue) params.limit_value = limitValue.toDec();
@@ -733,7 +738,7 @@ export class TokenService implements OnDestroy {
       if (error) continue;
       existing = info.updateOrder(order, false);
       this.orderInfoSubject.next(order);
-      if (!existing) {
+      if (!existing && OrderSwapInfo.DEFAULT_EXPECTED_RECENT_SWAPS > 0) {
         this.queryOrderSwaps(message.account, order.orderHeight)
       }
       sort = true;
@@ -1228,7 +1233,7 @@ export class TokenService implements OnDestroy {
       if (!message.hash) return;
       hash = new U256(message.hash, 16);
       this.searchOrderSubject.next({by, hash, orders});
-    } else if (by === 'hash') { 
+    } else if (by === 'pair') { 
       if (!message.from_token || !message.to_token) return;
       fromToken = new TokenKey();
       let error = fromToken.fromJson(message.from_token);
@@ -1242,7 +1247,8 @@ export class TokenService implements OnDestroy {
       if (message.limit_value) {
         limitValue = new U256(message.limit_value);
       }
-      this.searchOrderSubject.next({by, fromToken, toToken, limitBy, limitValue, orders});
+      const more = message.more === 'true';
+      this.searchOrderSubject.next({by, fromToken, toToken, limitBy, limitValue, more, orders});
     } else {
       return;
     }
@@ -2290,7 +2296,7 @@ export class TokenKey {
     this.addressRaw = addressRaw;
     this.type = type;
     const ret = ChainHelper.rawToAddress(this.chain, this.addressRaw);
-    if (!ret.error) {
+    if (ret.error) {
       this.address = ret.address!;
       console.error(`TokenKey.constructor: convert raw to address failed, chain: ${this.chain}, raw: ${this.addressRaw.toHex()}`);
       return true;
@@ -2352,6 +2358,25 @@ export class OrderInfo {
 
   eq(other: OrderInfo): boolean {
     return this.hash.eq(other.hash);
+  }
+
+  normalizedPrice(): U512 {
+    const base = new U512(U256.max()).plus(1);
+    if (this.tokenOffer.type === TokenTypeStr._20
+      && this.tokenWant.type === TokenTypeStr._20) {
+      return new U512(this.valueWant).mul(base).idiv(this.valueOffer);
+    } else if (this.tokenOffer.type === TokenTypeStr._20
+      && this.tokenWant.type === TokenTypeStr._721) {
+        return new U512(1).mul(base).idiv(this.valueOffer);
+    } else if (this.tokenOffer.type === TokenTypeStr._721
+      && this.tokenWant.type === TokenTypeStr._20) {
+        return new U512(this.valueWant).mul(base);
+    } else if (this.tokenOffer.type === TokenTypeStr._721
+      && this.tokenWant.type === TokenTypeStr._721) {
+        return base;
+    } else {
+      return U512.max();
+    }
   }
 
   fillRate(): number {
@@ -2476,11 +2501,13 @@ export class SwapInfo {
 }
 
 export class OrderSwapInfo {
+  static readonly DEFAULT_EXPECTED_RECENT_SWAPS = 0;
+
   order: OrderInfo = new OrderInfo();
   swaps: SwapInfo[] = [];
 
   //local data
-  expectedRecentSwaps: number = 0;
+  expectedRecentSwaps: number = OrderSwapInfo.DEFAULT_EXPECTED_RECENT_SWAPS;
   synced: boolean = false;
   finalSync: boolean = false;
   moreSwaps: boolean = true;
