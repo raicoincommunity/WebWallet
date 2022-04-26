@@ -1,21 +1,21 @@
-import { Component, OnInit, ViewChild, HostListener } from '@angular/core';
+import { Component, OnInit, ViewChild, HostListener, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
-import { U256, TokenTypeStr, U512, U8, U64, ChainHelper, TokenHelper } from '../../services/util.service';
+import { U256, TokenTypeStr, U512, U8, U64, ChainHelper, TokenHelper, AppHelper } from '../../services/util.service';
 import { TokenWidgetComponent, TokenItem } from '../token-widget/token-widget.component';
 import { NotificationService } from '../../services/notification.service';
 import { AssetWidgetComponent } from '../asset-widget/asset-widget.component';
 import { BigNumber } from 'bignumber.js';
 import { WalletsService, WalletErrorCode } from '../../services/wallets.service';
-import { OrderSwapInfo, TokenService, OrderInfo, TokenKey, SearchLimitBy, SwapInfo } from '../../services/token.service';
+import { OrderSwapInfo, TokenService, OrderInfo, TokenKey, SearchLimitBy, SwapInfo, AccountSwapInfo, OrderActionStatus } from '../../services/token.service';
 import { ServerService } from '../../services/server.service'
 import { VerifiedTokensService } from '../../services/verified-tokens.service';
-import { THIS_EXPR } from '@angular/compiler/src/output/output_ast';
 
 @Component({
   selector: 'app-p2p',
   templateUrl: './p2p.component.html',
-  styleUrls: ['./p2p.component.css']
+  styleUrls: ['./p2p.component.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class P2pComponent implements OnInit {
   @ViewChild('searchFromTokenWidget') searchFromTokenWidget! : TokenWidgetComponent;
@@ -77,8 +77,8 @@ export class P2pComponent implements OnInit {
   private stopped: boolean = false;
   private searchSubscription: any;
   private orderSubscription: any;
-
-  private makerSwapInfos;
+  private accountOrdersSubscription: any;
+  private makersSubscription: any;
 
   constructor(
     private notification: NotificationService,
@@ -86,15 +86,27 @@ export class P2pComponent implements OnInit {
     private token: TokenService,
     private server: ServerService,
     private verified: VerifiedTokensService,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private cdRef: ChangeDetectorRef
   ) { }
 
   ngOnInit(): void {
     this.orderSubscription = this.token.orderInfo$.subscribe(order => {
       if (this.stopped) return;
-      if (!this.selectedOrder) return;
-      if (!this.selectedOrder.eq(order)) return;
-      this.selectedOrder = order;
+      let refresh = false;
+      if (this.selectedOrder && this.selectedOrder.eq(order)) {
+        this.selectedOrder = order;
+        refresh = true;
+      }
+      
+      const existing = this.searchResults.find(x => x.eq(order));
+      if (existing) {
+        this.updateSearchResults(order);
+        refresh = true;
+      }
+      if (refresh) {
+        this.cdRef.markForCheck();
+      }
     });
 
     this.searchSubscription = this.token.searchOrder$.subscribe(r => {
@@ -126,11 +138,23 @@ export class P2pComponent implements OnInit {
       this.searchStatus = SearchStatus.SEARCHED;
       if (r.orders.length > 0) {
         for (let order of r.orders) {
-          this.UpdateSearchResults(order, false);
+          this.updateSearchResults(order, false);
         }
         this.sortSearchResults();
         this.searchMore(r.orders[r.orders.length - 1]);
       }
+      this.cdRef.markForCheck();
+    });
+
+    this.accountOrdersSubscription = this.token.accountOrders$.subscribe(account => {
+      if (this.stopped) return;
+      if (account !== this.address()) return;
+      this.cdRef.markForCheck();
+    });
+
+    this.makersSubscription = this.token.makers$.subscribe(() => {
+      if (this.stopped) return;
+      this.cdRef.markForCheck();
     });
   }
 
@@ -144,9 +168,21 @@ export class P2pComponent implements OnInit {
       this.searchSubscription.unsubscribe();
       this.searchSubscription = null;
     }
+    this.unsubscribeSearchedOrders();
     this.searchResults = [];
 
+    if (this.accountOrdersSubscription) {
+      this.accountOrdersSubscription.unsubscribe();
+      this.accountOrdersSubscription = null;
+    }
+
     this.stopped = true;
+  }
+
+  unsubscribeSearchedOrders() {
+    for (let order of this.searchResults) {
+      this.token.unsubscribeOrder(order);
+    }
   }
 
   onPlaceAssetChanged() {
@@ -423,6 +459,7 @@ export class P2pComponent implements OnInit {
     }
 
     this.searchStatus = SearchStatus.SEARCHING;
+    this.unsubscribeSearchedOrders();
     this.searchResults = [];
   }
 
@@ -885,6 +922,40 @@ export class P2pComponent implements OnInit {
     this.activePanel = Panel.PLACE_ORDER;
   }
 
+  ping(order: OrderInfo) {
+    const wallet = this.wallets.selectedWallet()
+    if (!wallet) {
+      let msg = marker(`Please configure a wallet first`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    } else {
+      if (wallet.locked()) {
+        this.wallets.tryInputPassword(() => { this.doPing(order) });
+        return;
+      }
+    }
+    this.doPing(order);
+  }
+
+  pingSelectedOrder() {
+    const order = this.selectedOrder;
+    if (!order) return;
+    this.ping(order);
+  }
+
+  doPing(order: OrderInfo) {
+    if (!this.token.ready())
+    {
+      let msg = marker(`The account is synchronizing, please try later`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    }
+    
+    this.token.ping(order, this.address());
+  }
+
   orders(): OrderSwapInfo[] {
     return this.token.orders();
   }
@@ -1249,13 +1320,18 @@ export class P2pComponent implements OnInit {
     return true;
   }
 
-  selectedOrderPingable(): boolean {
+  orderActionStatus(order: OrderInfo): OrderActionStatus {
+    const info = this.token.makerInfo(order.maker.account);
+    if (!info) return OrderActionStatus.DISABLE;
+    const makerOrder = info.getOrder(order.orderHeight);
+    if (!makerOrder) return OrderActionStatus.DISABLE;
+    return makerOrder.status;
+  }
+
+  selectedOrderActionStatus(): OrderActionStatus {
     const order = this.selectedOrder;
-    if (!order) return false;
-    if (order.maker.account === this.address()) return false;
-    if (order.finished()) return false;
-    // todo:
-    return true;
+    if (!order) return OrderActionStatus.DISABLE;
+    return this.orderActionStatus(order);
   }
 
   cancelOrder() {
@@ -1516,18 +1592,26 @@ export class P2pComponent implements OnInit {
     });
   }
 
-  private UpdateSearchResults(order: OrderInfo, sort: boolean = true) {
+  private updateSearchResults(order: OrderInfo, sort: boolean = true) {
     if (this.address() === order.maker.account || this.address() === order.mainAccount) {
       return;
     }
+    const remove = order.expired(this.server.getTimestamp()) || order.finished();
     const index = this.searchResults.findIndex(x => x.eq(order));
     if (index === -1) {
+      if (remove) return;
       this.searchResults.push(order);
+      this.token.subscribeOrder(order)  
       if (sort) {
         this.sortSearchResults();
       }
     } else {
-      this.searchResults[index] = order;
+      if (remove) {
+        this.token.unsubscribeOrder(order);
+        this.searchResults.splice(index, 1);
+      } else {
+        this.searchResults[index] = order;
+      }
     }
   }
 
@@ -1572,9 +1656,4 @@ enum SearchStatus {
   INIT = 'init',
   SEARCHING = 'searching',
   SEARCHED = 'searched',
-}
-
-class MakerInfo {
-  swapInfo: SwapInfo = new SwapInfo;
-  lastPint: number = 0;
 }

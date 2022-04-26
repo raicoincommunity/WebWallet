@@ -162,7 +162,10 @@
               <td (click)="selectOrder(order, false)" class="uk-text-center">{{ orderFromValue(order) }}<span *ngIf="pairWithSameSymbol(order).same" style="font-size: 12px;"> {{orderFromTokenType(order)}}</span> = {{orderToValue(order)}}<span *ngIf="pairWithSameSymbol(order).same" style="font-size: 12px;"> {{orderToTokenType(order)}}</span></td>
               <td (click)="selectOrder(order, false)" class="uk-text-center">{{ orderAvailable(order) }}<span *ngIf="pairWithSameSymbol(order).same" style="font-size: 12px;"> {{orderFromTokenType(order)}}</span></td>
               <td class="uk-text-center">
-                <button (click)="search()" class="uk-button uk-button-small uk-button-primary">Ping...</button>
+                <button *ngIf="orderActionStatus(order) === 'trade'" class="uk-button uk-button-small uk-button-primary">{{ 'Trade' | translate }}</button>
+                <button *ngIf="orderActionStatus(order) === 'ping'" (click)="ping(order)" class="uk-button uk-button-small uk-button-secondary">Ping</button>
+                <button *ngIf="orderActionStatus(order) === 'pinging'" class="uk-button uk-button-small uk-button-disabled">Ping...</button>
+                <button *ngIf="orderActionStatus(order) === 'disable'" class="uk-button uk-button-small uk-button-disabled">Ping</button>
               </td>
             </tr>
             <tr *ngIf="searchStatus == 'searching'">
@@ -944,16 +947,28 @@
           <div class="uk-width-1-2@m">
             <button (click)="activePanel=''" class="uk-button uk-button-secondary uk-width-1-1">{{ 'Back' | translate }}</button>
           </div>
-          <div *ngIf="selectedOrderPingable()" class="uk-hidden@m uk-width-1-1 uk-grid-margin">
+          <div *ngIf="selectedOrderActionStatus() === 'ping'" (onclick)="pingSelectedOrder()" class="uk-hidden@m uk-width-1-1 uk-grid-margin">
             <button class="uk-button uk-button-primary uk-width-1-1" (click)="cancelOrder()">Ping</button>
           </div>
-          <div *ngIf="selectedOrderPingable()" class="uk-visible@m uk-width-1-2">
+          <div *ngIf="selectedOrderActionStatus() === 'ping'" (onclick)="pingSelectedOrder()"  class="uk-visible@m uk-width-1-2">
             <button class="uk-button uk-button-primary uk-width-1-1" (click)="cancelOrder()">Ping</button>
           </div>
-          <div *ngIf="!selectedOrderPingable()" class="uk-hidden@m uk-width-1-1 uk-grid-margin">
+          <div *ngIf="selectedOrderActionStatus() === 'pinging'" class="uk-hidden@m uk-width-1-1 uk-grid-margin">
+            <button class="uk-button uk-button-disabled uk-width-1-1" >Ping...</button>
+          </div>
+          <div *ngIf="selectedOrderActionStatus() === 'pinging'" class="uk-visible@m uk-width-1-2">
+            <button class="uk-button uk-button-disabled uk-width-1-1" >Ping...</button>
+          </div>
+          <div *ngIf="selectedOrderActionStatus() === 'trade'" class="uk-hidden@m uk-width-1-1 uk-grid-margin">
+            <button class="uk-button uk-button-primary uk-width-1-1" (click)="cancelOrder()">{{ 'Trade' | translate }}</button>
+          </div>
+          <div *ngIf="selectedOrderActionStatus() === 'trade'" class="uk-visible@m uk-width-1-2">
+            <button class="uk-button uk-button-primary uk-width-1-1" (click)="cancelOrder()">{{ 'Trade' | translate }}</button>
+          </div>
+          <div *ngIf="selectedOrderActionStatus() === 'disable'" class="uk-hidden@m uk-width-1-1 uk-grid-margin">
             <button class="uk-button uk-button-disabled uk-width-1-1" >Ping</button>
           </div>
-          <div *ngIf="!selectedOrderPingable()" class="uk-visible@m uk-width-1-2">
+          <div *ngIf="selectedOrderActionStatus() === 'disable'" class="uk-visible@m uk-width-1-2">
             <button class="uk-button uk-button-disabled uk-width-1-1" >Ping</button>
           </div>
         </div>
