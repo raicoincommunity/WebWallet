@@ -820,6 +820,7 @@ export class U256 extends Uint {
 
     try {
       this.bytes = sharedKey(a, b, true);
+      if (this.bytes.length !== 32 || this.eq(0)) return true;
       return false;
     } catch (e) {
       console.log(e);
@@ -2886,4 +2887,41 @@ export class ExtensionHelper {
     }
   }
 
+}
+
+export enum AppTopicType {
+    INVALID                 = 0,
+    ORDER_PAIR              = 1,
+    ORDER_ID                = 2,
+    ACCOUNT_SWAP_INFO       = 3,
+    ACCOUNT_HEAD            = 4,
+    ACCOUNT_TOKEN_BALANCE   = 5,
+
+    MAX
+};
+
+export class AppHelper {
+  static calcTopic(type: AppTopicType, ...data: (Uall|Uint8Array)[]): U256 {
+    let buffer = new Uint8Array(1024);
+    let count = 0;
+    
+    buffer.set(new U32(type).bytes, count);
+    count += 4;
+
+    for (let i of data) {
+      if (i instanceof Uint8Array) {
+        buffer.set(i, count);
+        count += i.length;
+      } else {
+        buffer.set(i.bytes, count);
+        count += i.bytes.length;  
+      }
+    }
+
+    const result = new U256();
+    result.bytes = uint8ToHash(buffer.slice(0, count));
+    return result;
+  }
+
+  static SWAP_PING_PONG_INTERVAL = 60;
 }

@@ -43,6 +43,7 @@ export class AutoReceiveService implements OnDestroy {
       w.accounts.forEach (a => {
         let check = this.wallets.accountActionCheck(a, w);
         if (check !== WalletErrorCode.SUCCESS) return;
+        if (this.token.swapping(a.address())) return;
 
         let received = false;
         let tokenReceived = false;

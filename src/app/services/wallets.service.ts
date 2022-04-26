@@ -1050,7 +1050,7 @@ export class WalletsService implements OnDestroy {
         a.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
       } 
       else {
-        a.nextSyncAt = now + 1500;
+        a.nextSyncAt = now + 20000;
       }
     });
   }
@@ -1706,19 +1706,24 @@ export class WalletsService implements OnDestroy {
     return { errorCode: WalletErrorCode.SUCCESS, block };
   }
 
-  private generateChangeBlock(account: Account, wallet: Wallet, rep: string, extensions?: any): { errorCode: WalletErrorCode, block?: Block } {
-    let previousInfo = this.blocks.getBlock(account.head);
+  generateChangeBlock(account: Account, wallet: Wallet, rep: string,
+    extensions?: any, timestamp?: number): { errorCode: WalletErrorCode, block?: Block } {
+    const previousInfo = this.blocks.getBlock(account.head);
     if (!previousInfo) return { errorCode: WalletErrorCode.MISS };
-    let previous = previousInfo.block;
+    const previous = previousInfo.block;  
 
     if (!rep) {
       rep = previous.representative().toAccountAddress();
     }
 
-    let now = this.server.getTimestamp();
-    let previousTimestamp = previous.timestamp().toNumber();
-    let timestamp = now > previousTimestamp ? now : previousTimestamp;
-    if (timestamp > now + 60) return { errorCode: WalletErrorCode.TIMESTAMP };
+    const previousTimestamp = previous.timestamp().toNumber();
+    if (timestamp) {
+      if (timestamp < previousTimestamp) return { errorCode: WalletErrorCode.TIMESTAMP };
+    } else {
+      const now = this.server.getTimestamp();
+      timestamp = now > previousTimestamp ? now : previousTimestamp;
+      if (timestamp > now + 60) return { errorCode: WalletErrorCode.TIMESTAMP };  
+    }
 
     let counter = new U32(1);
     if (previous.timestamp().sameDay(timestamp)) {
@@ -1939,6 +1944,15 @@ export class Account {
   receivable(): Amount {
     return { negative: false, value: this.balanceReceivable };
   }
+
+  heightConfirmed(height: U64): boolean {
+    return !this.confirmedHeight.eq(Account.INVALID_HEIGHT) && this.confirmedHeight.gte(height);
+  }
+
+  headConfirmed(): boolean { 
+    return this.heightConfirmed(this.headHeight);
+  }
+
 }
 
 export class Wallet {
@@ -2037,6 +2051,10 @@ export enum WalletErrorCode {
   NOT_ACTIVATED = 'The account is not activated, please deposit some Raicoin to activate it',
   CONSTRUCT_BLOCK = 'Failed to contruct block',
   PENDING_SWAP = 'There is a pending swap, please wait for it to complete',
+  SWAP_MAIN_ACCOUNT_MISS = 'The main account of the swap is missing',
+  SWAP_DERIVE_SHARE_PRI_KEY = 'Failed to derive share private key',
+  SWAP_DERIVE_SHARE = 'Failed to derive share',
+  SWAP_DERIVE_SHARE_PUB_KEY = 'Failed to derive public key',
 }
 marker('Success');
 marker('Invalid seed');
@@ -2057,6 +2075,10 @@ marker('Not enough balance');
 marker('Account\'s max allowed daily transactions limit is 1310700');
 marker('The account is not activated, please deposit some Raicoin to activate it');
 marker('There is a pending swap, please wait for it to complete');
+marker('The main account of the swap is missing');
+marker('Failed to derive share private key');
+marker('Failed to derive share');
+marker('Failed to derive share public key');
 
 export enum BlockStatus {
   PENDING = 'pending',

@@ -12,6 +12,7 @@ export class SettingsService {
   private lockMimutes = 30;
   private lang = '';
   private assets: {[account: string]: AssetSetting[]} = {};
+  private autoSwap: {[account: string]: boolean} = {};
 
   private globalSubject = new Subject<any>();
   public globalSettingChange$ = this.globalSubject.asObservable();
@@ -31,6 +32,7 @@ export class SettingsService {
       translate.use(browserLang.match(/en|id|vi|zh/) ? browserLang : 'en');
     }
     this.loadAssetsSetting();
+    this.loadAutoSwapSetting();
     this.storage.changes$.subscribe(event => this.processStorageEvent(event));
   }
 
@@ -84,6 +86,15 @@ export class SettingsService {
     return assets.findIndex(x => x.chain === chain && x.address === address) !== -1;
   }
 
+  addAutoSwap(account: string, enable: boolean) {
+    this.autoSwap[account] = enable;
+    this.saveAutoSwapSetting();
+  }
+
+  getAutoSwap(account: string): boolean | undefined {
+    return this.autoSwap[account];
+  }
+
   loadGlobalSetting() {
     let settings = this.storage.get(StorageKey.GLOBAL_SETTINGS);
     if (!settings) return;
@@ -121,6 +132,16 @@ export class SettingsService {
 
   saveAssetsSetting() {
     this.storage.set(StorageKey.ASSETS, this.assets);
+  }
+
+  loadAutoSwapSetting() {
+    let autoSwap = this.storage.get(StorageKey.AUTO_SWAP);
+    if (!autoSwap) return;
+    this.autoSwap = autoSwap;
+  }
+
+  saveAutoSwapSetting() {
+    this.storage.set(StorageKey.AUTO_SWAP, this.autoSwap);
   }
 
   private processStorageEvent(event: AppStorageEvent) {
