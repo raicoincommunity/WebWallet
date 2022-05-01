@@ -3,7 +3,7 @@ import { WalletsService, WalletErrorCode } from './wallets.service';
 import { TokenService } from './token.service';
 import { SettingsService } from './settings.service';
 import { ServerService, ServerState } from './server.service';
-import { U64, U128 } from './util.service';
+import { U64, U128, UtilService } from './util.service';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { NotificationService } from './notification.service';
@@ -13,7 +13,7 @@ import { NotificationService } from './notification.service';
 })
 export class AutoReceiveService implements OnDestroy {
   private timerAutoReceive: any = null;
-  private notfified: {[account: string]: boolean} = {};
+  private notified: {[account: string]: boolean} = {};
 
   constructor(
     private settings: SettingsService,
@@ -21,7 +21,8 @@ export class AutoReceiveService implements OnDestroy {
     private wallets: WalletsService,
     private translate: TranslateService,
     private notification: NotificationService,
-    private token: TokenService
+    private token: TokenService,
+    private util: UtilService
   ) {
     this.timerAutoReceive = setInterval(() => this.autoReceive(), 1000);
   }
@@ -43,14 +44,15 @@ export class AutoReceiveService implements OnDestroy {
       w.accounts.forEach (a => {
         let check = this.wallets.accountActionCheck(a, w);
         if (check !== WalletErrorCode.SUCCESS) return;
-        if (this.token.swapping(a.address())) return;
+        check = this.token.accountActionCheck(a, w);
+        if (check !== WalletErrorCode.SUCCESS) return;
 
         let received = false;
         let tokenReceived = false;
         while (true) {
           if (this.wallets.limited(a)) break;
           if (this.wallets.restricted(a)) break;
-
+  
           const receivables = this.wallets.receivables(a);
           if (receivables.length !== 0) {
             const r = receivables[0];
@@ -59,6 +61,9 @@ export class AutoReceiveService implements OnDestroy {
               const timestamp = this.server.getTimestamp();
               if (r.amount.lt(this.wallets.creditPrice(new U64(timestamp)))) break;
             }
+
+            check = this.token.accountActionCheck(a, w);
+            if (check !== WalletErrorCode.SUCCESS) break;
             const result = this.wallets.receive(r.hash.toHex(), a, w);
             if (result.errorCode !== WalletErrorCode.SUCCESS) break;
             received = true;  
@@ -70,6 +75,9 @@ export class AutoReceiveService implements OnDestroy {
               this.notify(a.address());
               break;
             }
+
+            check = this.token.accountActionCheck(a, w);
+            if (check !== WalletErrorCode.SUCCESS) break;
             const result = this.token.receive(a.address(), r.key(), a, w);
             if (result.errorCode !== WalletErrorCode.SUCCESS) break;
             tokenReceived = true;
@@ -88,18 +96,18 @@ export class AutoReceiveService implements OnDestroy {
   }
 
   notify(account: string) {
-    if (this.notfified[account]) return;
+    if (this.notified[account]) return;
 
     let timestamp = this.server.getTimestamp();
     const price = this.wallets.creditPrice(new U64(timestamp));
     
-    const shortAccount = account.substr(0, 8) + '...' + account.substr(60, 4);
+    const shortAccount = this.util.other.shortAddress(account, 4);
     let msg = marker(`Failed to receive token, please deposit at least {amount} RAI to activate the account first: {account}`);
     const param = { 'amount': price.toBalanceStr(U128.RAI()), account: shortAccount};
     this.translate.get(msg, param).subscribe(res => msg = res);    
-    this.notification.sendWarning(msg, { timeout: 20 * 1000 });
+    this.notification.sendWarning(msg, { timeout: 30 * 1000 });
 
-    this.notfified[account] = true;
+    this.notified[account] = true;
   }
 
 }

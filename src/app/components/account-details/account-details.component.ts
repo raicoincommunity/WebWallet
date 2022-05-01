@@ -75,7 +75,7 @@ export class AccountDetailsComponent implements OnInit {
   }
 
   amountShown(info: BlockInfo): AmountShown {
-    const result = new AmountShown;
+    const result = new AmountShown();
     const address = info.block.account().toAccountAddress();
     const tokenBlock = this.token.tokenBlock(address, info.block.height());
     if (!tokenBlock) {
@@ -106,6 +106,7 @@ export class AccountDetailsComponent implements OnInit {
           const value = new U256(tokenExtension.value || tokenExtension.max_offer
                                  || tokenExtension.value_offer);
           result.amount = this.formatAmount(type, value, decimals, symbol);
+          if (!result.amount) result.amount = '0 RAI';
         } else if (op === ExtensionTokenOp.CREATE) {
           if (tokenBlock.type === TokenType._20) {
             const value = new U256(tokenExtension.init_supply);

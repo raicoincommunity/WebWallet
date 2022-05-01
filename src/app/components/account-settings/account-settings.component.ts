@@ -6,6 +6,7 @@ import { AliasService } from '../../services/alias.service';
 import { ActivatedRoute } from "@angular/router";
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
+import { TokenService } from '../../services/token.service';
 
 @Component({
   selector: 'app-account-settings',
@@ -28,6 +29,7 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
     private route: ActivatedRoute,
     private renderer: Renderer2,
     private alias: AliasService,
+    private token: TokenService,
     private notification: NotificationService) { }
 
   ngOnInit(): void {
@@ -72,6 +74,8 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
       return;
     }
 
+    const error = this.checkToken();
+    if (error) return;
     let result = this.wallets.change(this.newRep);
     if (result.errorCode !== WalletErrorCode.SUCCESS) {
       let msg = result.errorCode;
@@ -103,6 +107,8 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
       return;
     }
 
+    const error = this.checkToken();
+    if (error) return;
     let result = this.wallets.setName(this.newName);
     if (result.errorCode !== WalletErrorCode.SUCCESS) {
       let msg = result.errorCode;
@@ -133,6 +139,8 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
       return;
     }
 
+    const error = this.checkToken();
+    if (error) return;
     let result = this.wallets.setDns(this.newDns);
     if (result.errorCode !== WalletErrorCode.SUCCESS) {
       let msg = result.errorCode;
@@ -219,6 +227,18 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
       return;
     }
 
+    const a = this.wallets.selectedAccount();
+    const w = this.wallets.selectedWallet();
+    if (!a || !w) return;
+    const errorCode = this.token.accountActionCheck(a, w);
+    if (errorCode !== WalletErrorCode.SUCCESS
+      && errorCode !== WalletErrorCode.CREDIT_RESERVED_FOR_SWAP) {
+      let msg = errorCode;
+      this.translate.get(msg).subscribe(res => msg = res);    
+      this.notification.sendError(`${msg} (${a.shortAddress()})`, { timeout: 20 * 1000 });
+      return;
+    }
+
     let result = this.wallets.increaseCredit(this.increaseCredit);
     if (result.errorCode !== WalletErrorCode.SUCCESS) {
       let msg = result.errorCode;
@@ -289,6 +309,21 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
     let msg = marker('Account verification request sent!');
     this.translate.get(msg).subscribe(res => msg = res);
     this.notification.sendSuccess(msg);
+  }
+
+  private checkToken(): boolean {
+    const a = this.wallets.selectedAccount();
+    const w = this.wallets.selectedWallet();
+    if (!a || !w) return true;
+    const errorCode = this.token.accountActionCheck(a, w);
+    if (errorCode === WalletErrorCode.SUCCESS) return false;
+
+    const address = a.shortAddress();
+    let msg = errorCode;
+    this.translate.get(msg).subscribe(res => msg = res);    
+    this.notification.sendError(`${msg} (${address})`, { timeout: 20 * 1000 });
+
+    return true;
   }
 
 }

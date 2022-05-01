@@ -59,9 +59,21 @@ export class ReceiveComponent implements OnInit {
   }
 
   doReceive() {
+    const a = this.wallets.selectedAccount();
+    const w = this.wallets.selectedWallet();
+    if (!a || !w) return;
+
     let error = false;
     let received = false;
     for (let hash of this.checkedHashs) {
+      const errorCode = this.token.accountActionCheck(a, w);
+      if (errorCode !== WalletErrorCode.SUCCESS && a.created()) {
+        let msg = errorCode;
+        this.translate.get(msg).subscribe(res => msg = res);    
+        this.notification.sendError(`${msg} (${a.shortAddress()})`, { timeout: 20 * 1000 });
+        error = true;
+        break;
+      }
       const result = this.wallets.receive(hash);
       if (result.errorCode !== WalletErrorCode.SUCCESS && result.errorCode !== WalletErrorCode.IGNORED) {
         let msg = result.errorCode;
