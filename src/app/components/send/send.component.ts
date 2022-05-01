@@ -95,6 +95,17 @@ export class SendComponent implements OnInit {
     const asset = widget.selectedAsset;
     if (!asset) return;
     if (asset.isRaicoin) {
+      const a = this.wallets.selectedAccount();
+      const w = this.wallets.selectedWallet();
+      if (!a || !w) return;
+      const errorCode = this.token.accountActionCheck(a, w);
+      if (errorCode !== WalletErrorCode.SUCCESS) {
+        let msg = errorCode;
+        this.translate.get(msg).subscribe(res => msg = res);    
+        this.notification.sendError(`${msg} (${a.shortAddress()})`, { timeout: 20 * 1000 });
+        return;
+      }
+
       const amount = new U128(widget.amount.toDec(), 10, true);
       const result = this.wallets.send(this.destinationAccount, amount,
                                        this.note, this.destinationSubAccount);
@@ -107,7 +118,8 @@ export class SendComponent implements OnInit {
       let msg = marker(`Successfully sent { amount } RAI!`);
       const param = { 'amount': amount.toBalanceStr(U128.RAI()) };
       this.translate.get(msg, param).subscribe(res => msg = res);    
-      this.notification.sendSuccess(msg);  
+      this.notification.sendSuccess(msg);
+      
     } else {
       let value: any = {
         op: ExtensionTokenOpStr.SEND,

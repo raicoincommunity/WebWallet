@@ -1,4 +1,6 @@
 import { Component, OnInit, ViewChild, HostListener, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Subject} from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { U256, TokenTypeStr, U512, U8, U64, ChainHelper, TokenHelper, AppHelper } from '../../services/util.service';
@@ -79,6 +81,9 @@ export class P2pComponent implements OnInit {
   private orderSubscription: any;
   private accountOrdersSubscription: any;
   private makersSubscription: any;
+  private accountSwapInfoSubscription: any = null;
+  private refreshSubject = new Subject<number>();
+  private refreshCount = 0;
 
   constructor(
     private notification: NotificationService,
@@ -105,7 +110,7 @@ export class P2pComponent implements OnInit {
         refresh = true;
       }
       if (refresh) {
-        this.cdRef.markForCheck();
+        this.refreshSubject.next(this.refreshCount++);
       }
     });
 
@@ -143,19 +148,30 @@ export class P2pComponent implements OnInit {
         this.sortSearchResults();
         this.searchMore(r.orders[r.orders.length - 1]);
       }
-      this.cdRef.markForCheck();
+      this.refreshSubject.next(this.refreshCount++);
     });
 
     this.accountOrdersSubscription = this.token.accountOrders$.subscribe(account => {
       if (this.stopped) return;
       if (account !== this.address()) return;
-      this.cdRef.markForCheck();
+      this.refreshSubject.next(this.refreshCount++);
     });
 
     this.makersSubscription = this.token.makers$.subscribe(() => {
       if (this.stopped) return;
-      this.cdRef.markForCheck();
+      this.refreshSubject.next(this.refreshCount++);
     });
+
+    this.accountSwapInfoSubscription = this.token.accountSwapInfo$.subscribe(() => {
+      if (this.stopped) return;
+      this.refreshSubject.next(this.refreshCount++);
+    });
+
+    this.refreshSubject.pipe(debounceTime(1000), distinctUntilChanged()).subscribe(
+      _ => {
+        this.cdRef.markForCheck();
+      }
+    );
   }
 
   @HostListener('unloaded')
@@ -174,6 +190,16 @@ export class P2pComponent implements OnInit {
     if (this.accountOrdersSubscription) {
       this.accountOrdersSubscription.unsubscribe();
       this.accountOrdersSubscription = null;
+    }
+
+    if (this.makersSubscription) {
+      this.makersSubscription.unsubscribe();
+      this.makersSubscription = null;
+    }
+
+    if (this.accountSwapInfoSubscription) {
+      this.accountSwapInfoSubscription.unsubscribe();
+      this.accountSwapInfoSubscription = null;
     }
 
     this.stopped = true;
@@ -953,7 +979,18 @@ export class P2pComponent implements OnInit {
       return;
     }
     
-    this.token.ping(order, this.address());
+    const result = this.token.ping(order, this.address());
+    if (result.errorCode !== WalletErrorCode.SUCCESS) {
+      let msg = result.errorCode;
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    }
+
+    let msg = marker(`Successfully sent { ping } block!`);
+    const param = { ping: 'Ping' };
+    this.translate.get(msg, param).subscribe(res => msg = res);    
+    this.notification.sendSuccess(msg);
   }
 
   orders(): OrderSwapInfo[] {
@@ -1316,7 +1353,7 @@ export class P2pComponent implements OnInit {
     if (order.maker.account !== this.address()) return false;
     if (order.finished()) return false;
     if (this.token.orderCancelling(order.maker.account, order.orderHeight)) return false;
-    if (this.token.swapping(order.maker.account)) return false;
+    if (this.token.swappingAsMaker(order.maker.account)) return false;
     return true;
   }
 

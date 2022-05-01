@@ -615,7 +615,14 @@ export class U32 extends Uint {
   plus(other: UintFrom, base?: number): U32 {
     return super.plus(other, base) as U32;
   }
+
+  minus(other: UintFrom, base?: number): U32{
+    return super.minus(other, base) as U32;
+  }
   
+  mul(other: UintFrom, base?: number): U32{
+    return super.mul(other, base) as U32;
+  }
 }
 
 export class U64 extends Uint {
@@ -884,6 +891,10 @@ export class U512 extends Uint {
 
   idiv(other: UintFrom, base?: number): U512 {
     return super.idiv(other, base) as U512;
+  }
+
+  mod(other: UintFrom, base?: number): U512 {
+    return super.mod(other, base) as U512;
   }
 
   encrypt(share: U256 | Uint8Array) {
@@ -2924,4 +2935,5 @@ export class AppHelper {
   }
 
   static SWAP_PING_PONG_INTERVAL = 60;
+  static SWAP_TIMEOUT = 100;
 }

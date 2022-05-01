@@ -6,11 +6,7 @@ import { environment } from '../../environments/environment';
 import { Subject } from 'rxjs';
 import { SettingsService } from './settings.service';
 import { VerifiedTokensService } from './verified-tokens.service';
-import { info } from 'console';
-import { skip } from 'rxjs/operators';
-import { ValueConverter } from '@angular/compiler/src/render3/view/template';
-import WalletConnectProvider from '@walletconnect/web3-provider';
-import { sharedKey } from '@stablelib/x25519';
+import { Block } from './blocks.service';
 
 @Injectable({
   providedIn: 'root'
@@ -24,9 +20,9 @@ export class TokenService implements OnDestroy {
   private maxTokenIds: {[account: string]: MaxTokenId} = {};
   private receivings: {[key: string]: boolean} = {};
   private makers: { [account: string]: MakerInfo } = {};
-  private takers: { [account: string]: TakerInfo } = {};
+  private takers: { [account: string]: TakerInfo } = {}; // check if taker limited
   private timerSync: any = null;
-  private timerMakerStatus: any = null;
+  private timerSwapData: any = null;
   private tokenInfoQueries: {[chainAddress: string]: number} = {};
   private issuerSubject = new Subject<{account: string, created: boolean}>();
   private tokenIdSubject = new Subject<{ chain: string, address: string, id: U256, existing: boolean }>();
@@ -58,7 +54,7 @@ export class TokenService implements OnDestroy {
     this.server.state$.subscribe(state => this.processServerState(state));
     this.server.message$.subscribe(message => this.processMessage(message));
     this.timerSync = setInterval(() => this.ongoingSync(), 3000);
-    this.timerMakerStatus = setInterval(() => this.ongoingUpdateMakerStatus(), 3000);
+    this.timerSwapData = setInterval(() => this.ongoingUpateSwapData(), 3000);
     this.wallets.addAccount$.subscribe(address => this.addAccount(address));
     this.wallets.forEachAccount(account => this.addAccount(account.address()));
   }
@@ -68,9 +64,9 @@ export class TokenService implements OnDestroy {
       clearInterval(this.timerSync);
       this.timerSync = null;
     }
-    if (this.timerMakerStatus) {
-      clearInterval(this.timerMakerStatus);
-      this.timerMakerStatus = null;
+    if (this.timerSwapData) {
+      clearInterval(this.timerSwapData);
+      this.timerSwapData = null;
     }
   }
 
@@ -202,19 +198,54 @@ export class TokenService implements OnDestroy {
     this.queryTokenReceivablesSummary(account);
   }
 
-  change(address: string, extensions: {[key: string]: any}[], wallet?: Wallet): WalletOpResult  {
-    const ignored = { errorCode: WalletErrorCode.IGNORED };
+  accountActionCheck(account: string | Account, wallet?: Wallet): WalletErrorCode {
+    if (!wallet) {
+      wallet = this.wallets.selectedWallet();
+    }
+    if (!wallet) {
+      return WalletErrorCode.UNEXPECTED;
+    }
+
+    let address;
+    if (typeof account === 'string') {
+      address = account;
+      const a = wallet.findAccount({address});
+      if (!a) {
+        return WalletErrorCode.UNEXPECTED;
+      }
+      account = a;
+    } else {
+      address = account.address();
+    }
+
     const info = this.accounts[address];
-    if (!info) return ignored;
-    if (info.swapping()) {
-      return { errorCode: WalletErrorCode.PENDING_SWAP };
+    if (!info) return WalletErrorCode.MISS;
+
+    if (!info.synced || !info.swapInfoQueried) {
+      return WalletErrorCode.UNSYNCED;
+    }
+
+    if (info.swappingAsMaker()) return WalletErrorCode.PENDING_SWAP;
+    if (info.pendingSwapInquiries() > 0) {
+      if (this.wallets.txnsLimitRemaining(account) <= info.pendingSwapInquiries()) {
+        return WalletErrorCode.CREDIT_RESERVED_FOR_SWAP;
+      }  
+    }
+
+    return WalletErrorCode.SUCCESS;
+  }
+
+  change(address: string, extensions: {[key: string]: any}[], wallet?: Wallet): WalletOpResult  {
+    const errorCode = this.accountActionCheck(address, wallet);
+    if (errorCode !== WalletErrorCode.SUCCESS) {
+      return { errorCode };
     }
 
     if (!wallet) {
       wallet = this.wallets.selectedWallet();
     }
     if (!wallet) {
-      return {errorCode: WalletErrorCode.UNEXPECTED};
+      return { errorCode: WalletErrorCode.UNEXPECTED };
     }
 
     const account = wallet.findAccount({address});
@@ -225,12 +256,14 @@ export class TokenService implements OnDestroy {
   }
 
   receive(address: string, key: string, account?: Account, wallet?: Wallet): WalletOpResult {
+    const errorCode = this.accountActionCheck(address, wallet);
+    if (errorCode !== WalletErrorCode.SUCCESS) {
+      return { errorCode };
+    }
+
     const ignored = { errorCode: WalletErrorCode.IGNORED };
     const info = this.accounts[address];
     if (!info) return ignored;
-    if (info.swapping()) {
-      return { errorCode: WalletErrorCode.PENDING_SWAP };
-    }
 
     const index = info.receivables.findIndex(x => x.key() === key);
     if (index === -1) return ignored;
@@ -261,12 +294,9 @@ export class TokenService implements OnDestroy {
   }
 
   setMainAccount(address: string, mainAccount: string, wallet?: Wallet): WalletOpResult {
-    const ignored = { errorCode: WalletErrorCode.IGNORED };
-    const info = this.accounts[address];
-    if (!info) return ignored;
-
-    if (info.swapping()) {
-      return { errorCode: WalletErrorCode.PENDING_SWAP };
+    const errorCode = this.accountActionCheck(address, wallet);
+    if (errorCode !== WalletErrorCode.SUCCESS) {
+      return { errorCode };
     }
 
     if (!wallet) {
@@ -292,16 +322,14 @@ export class TokenService implements OnDestroy {
   }
 
   makeOrder(address: string, value: {[key: string]: string}, wallet?: Wallet): WalletOpResult {
-    const ignored = { errorCode: WalletErrorCode.IGNORED };
-    const info = this.accounts[address];
-    if (!info) return ignored;
-
-    if (info.swapping()) {
-      return { errorCode: WalletErrorCode.PENDING_SWAP };
+    const errorCode = this.accountActionCheck(address, wallet);
+    if (errorCode !== WalletErrorCode.SUCCESS) {
+      return { errorCode };
     }
 
+    const info = this.accounts[address]!;
     if (info.orderLimited()) {
-      return { errorCode: WalletErrorCode.CREDIT }
+      return { errorCode: WalletErrorCode.CREDIT_FOR_ORDER }
     }
 
     if (!wallet) {
@@ -324,16 +352,17 @@ export class TokenService implements OnDestroy {
   }
 
   cancelOrder(address: string, height: U64, wallet?: Wallet): WalletOpResult {
+    const errorCode = this.accountActionCheck(address, wallet);
+    if (errorCode !== WalletErrorCode.SUCCESS) {
+      return { errorCode };
+    }
+
     const ignored = { errorCode: WalletErrorCode.IGNORED };
     const info = this.accounts[address];
     if (!info) return ignored;
 
     const order = info.getOrder(height);
     if (!order || order.order.finished()) return ignored;
-
-    if (info.swapping()) {
-      return { errorCode: WalletErrorCode.PENDING_SWAP }
-    }
 
     if (!wallet) {
       wallet = this.wallets.selectedWallet();
@@ -363,12 +392,9 @@ export class TokenService implements OnDestroy {
   }
 
   swapInquiry(address: string, value: {[key: string]: string}, wallet?: Wallet): WalletOpResult {
-    const ignored = { errorCode: WalletErrorCode.IGNORED };
-    const info = this.accounts[address];
-    if (!info) return ignored;
-
-    if (info.swapping()) {
-      return { errorCode: WalletErrorCode.PENDING_SWAP };
+    const errorCode = this.accountActionCheck(address, wallet);
+    if (errorCode !== WalletErrorCode.SUCCESS) {
+      return { errorCode };
     }
 
     if (!wallet) {
@@ -386,11 +412,21 @@ export class TokenService implements OnDestroy {
     value.op = ExtensionTokenOpStr.SWAP;
     value.sub_op = TokenSwapSubOpStr.INQUIRY;
 
+    const info = this.accounts[address];
     const extensions = [ { type: ExtensionTypeStr.TOKEN, value } ];
-    return this.wallets.changeExtensions(extensions, account, wallet);
+    const result = this.wallets.changeExtensions(extensions, account, wallet);
+    if (result.errorCode === WalletErrorCode.SUCCESS) {
+      info.addSwapInquiry(result.block!.height(), new U64(value.timeout));
+    }
+    return result
   }
 
   ping(order: OrderInfo, address: string, wallet?: Wallet): WalletOpResult {
+    const errorCode = this.accountActionCheck(address, wallet);
+    if (errorCode !== WalletErrorCode.SUCCESS) {
+      return { errorCode };
+    }
+
     const ignored = { errorCode: WalletErrorCode.IGNORED };
     const info = this.makers[order.maker.account];
     if (!info) return ignored;
@@ -399,12 +435,6 @@ export class TokenService implements OnDestroy {
     const status = info.calcOrderActionStatus(order, now);
     if (status !== OrderActionStatus.PING) {
       return ignored;
-    }
-
-    const accountInfo = this.accounts[address];
-    if (!accountInfo) return ignored;
-    if (accountInfo.swapping()) {
-      return { errorCode: WalletErrorCode.PENDING_SWAP }
     }
 
     if (!wallet) {
@@ -430,6 +460,7 @@ export class TokenService implements OnDestroy {
 
     if (result.errorCode === WalletErrorCode.SUCCESS) {
       info.lastPing = now;
+      info.updateOrderStatus(now);
     }
     return result;
   }
@@ -526,10 +557,10 @@ export class TokenService implements OnDestroy {
     return info.orderCancelling(height);
   }
 
-  swapping(account: string): boolean {
+  swappingAsMaker(account: string): boolean {
     const info = this.accounts[account];
     if (!info) return false;
-    return info.swapping();
+    return info.swappingAsMaker();
   }
 
   searchOrderById(hash: U256) {
@@ -584,46 +615,144 @@ export class TokenService implements OnDestroy {
     }
   }
 
+  txnsLimitRemaining(account: Account): number {
+    const remaining = this.wallets.txnsLimitRemaining(account);
+    const info = this.accounts[account.address()];
+    if (!info) return remaining;
+    const reserved = info.pendingSwapInquiries();
+    if (reserved >= remaining) return 0;
+    return remaining - reserved;
+  }
+
+  processPings(account: Account, wallet: Wallet): SwapProcessResult {
+    const skipped = { returnCode: SwapReturnCode.SKIPPED };
+    const address = account.address();
+    const info = this.accounts[address];
+    if (!info) return skipped;
+
+    if (!info.synced || !info.subscribed) return skipped;
+
+    if (info.orders.length === 0) return skipped;
+    if (!info.swapInfo) return skipped;
+    if (info.swapInfo.limited) return skipped;
+    const now = this.server.getTimestamp();
+    if (info.swapInfo.pong.plus(AppHelper.SWAP_PING_PONG_INTERVAL).gt(now)) {
+      return skipped;
+    }
+    if (info.swapInfo.pong.gte(info.swapInfo.ping)) return skipped;
+    return this.pong(account, wallet);
+  }
+
   processActiveSwaps(account: Account, wallet: Wallet): SwapProcessResult {
     const skipped = { returnCode: SwapReturnCode.SKIPPED };
     const address = account.address();
     const info = this.accounts[address];
     if (!info) return skipped;
 
+    if (!info.synced || !info.subscribed) return skipped;
+
     const purged = info.purgeActiveSwaps(this.server.getTimestamp());
     for (let swap of purged) {
       this.removeTaker(swap.taker.account);
     }
 
-    const swapping = info.getSwappingItem();
+    const swapping = info.getMakerSwappingItem();
     if (swapping) {
-      return this.processActiveSwap(swapping, account, wallet);
+      return this.processActiveSwap(info, swapping, account, wallet);
     }
 
     for (let swap of info.activeSwaps) {
-      const result = this.processActiveSwap(swap, account, wallet);
+      const result = this.processActiveSwap(info, swap, account, wallet);
       if (result.returnCode === SwapReturnCode.SKIPPED) continue;
+      return result;
     }
     return skipped;
   }
 
-  processActiveSwap(swap: SwapFullInfo, account: Account, wallet: Wallet): SwapProcessResult {
+  processActiveSwap(info: AccountTokensInfo, swap: SwapFullInfo, account: Account,
+    wallet: Wallet): SwapProcessResult {
     const skipped = { returnCode: SwapReturnCode.SKIPPED };
     const address = account.address();
     const status = swap.swap.status;
-    if (address === swap.order.maker.account) {
+    const now = this.server.getTimestamp();
+
+    if (address === swap.swap.maker) {
+      const order = info.getOrder(swap.order.orderHeight);
+      if (order && (order.cancelSent || order.order.finished())) return skipped;
+
       if (status === SwapStatus.INQUIRY) {
-        if (swap.inquiry_ack_sent) return skipped;
+        if (swap.inquiryAckSent) return skipped;
+        if (swap.swap.timeout.lt(now + 80)) return skipped; // timeout = now + 100 seconds
+        if (swap.order.timeout.lte(now)) return skipped;
+        if (this.takerSwapLimited(swap.swap.taker)) return skipped;
+
+        const ackValue = swap.ackValue();
+        if (ackValue === undefined) return skipped;
+        if (order && order.order.fungiblePair() && order.order.leftOffer.lt(ackValue)) {
+            return skipped;
+        }
+    
+        if (this.txnsLimitRemaining(account) < 1) {
+          return skipped;
+        }
+
+        const result = this.swapInquiryAck(swap, account, wallet);
+        if (result.returnCode === SwapReturnCode.SUCCESS) {
+          swap.inquiryAckSent = true;
+        }
+        return result;
 
       } else if (status === SwapStatus.TAKE) {
-        if (swap.take_ack_sent) return skipped;
+
+        if (swap.takeAckSent) return skipped;
+        if (swap.swap.timeout.lt(now + 20)) return skipped;
+        if (!account.headHeight.plus(1).eq(swap.swap.tradeHeight)) return skipped;
+        const result = this.swapTakeAck(swap, account, wallet);
+        if (result.returnCode === SwapReturnCode.SUCCESS) {
+          swap.takeAckSent = true;
+        }
+        return result;
 
       } else {
         return skipped;
       }
-      // todo:
     } else if (address === swap.swap.taker) {
-      // todo:
+      if (status === SwapStatus.INQUIRY_ACK) {
+        if (this.makerTxnLimited(swap.swap.maker)) return skipped;
+        if (swap.takeSent) return skipped;
+        if (swap.swap.timeout.lt(now + 40)) return skipped;
+        if (swap.takeNackBlockStatus === TakeNackBlockStatus.INIT) {
+          const result = this.deriveTakeNackBlock(swap, account, wallet);
+          if (result.returnCode !== SwapReturnCode.SUCCESS) {
+            swap.takeNackBlockStatus = TakeNackBlockStatus.ERROR;
+            return result;
+          }
+          swap.takeNackBlockStatus = TakeNackBlockStatus.PENDING;
+          swap.takeNackBlock = result.walletOpResult!.block!;
+          this.submitTakeNackBlock(address, swap.swap.inquiryHeight, swap.takeNackBlock);
+          return result;
+        }
+        else if (swap.takeNackBlockStatus === TakeNackBlockStatus.SUBMITTED) {
+          if (swap.takeSent) return skipped;
+          const result = this.swapTake(swap, account, wallet);
+          if (result.returnCode === SwapReturnCode.SUCCESS) {
+            swap.takeSent = true;
+          }
+          return result;
+        }
+        else {
+          return skipped;
+        }
+      } else if (status === SwapStatus.TAKE) {
+        if (!swap.takeNackBlock) return skipped;
+        if (swap.swap.timeout.gt(now)) return skipped;
+        if (swap.takeNackSentTime + 5 > now) return skipped;
+        this.wallets.blockPublish(swap.takeNackBlock);
+        swap.takeNackSentTime = now;
+        return skipped;
+      } else {
+        return skipped;
+      }
     } else {
       console.error('processActiveSwap: unexpected swap,', swap);
       return skipped;
@@ -636,7 +765,8 @@ export class TokenService implements OnDestroy {
     if (!mainAccount) { 
       return { returnCode: SwapReturnCode.FAILED,
         walletOpResult: { errorCode: WalletErrorCode.SWAP_MAIN_ACCOUNT_MISS },
-        mainAccountError: true
+        mainAccountError: true,
+        mainAccount: swap.order.mainAccount,
       };
     }
     
@@ -647,7 +777,7 @@ export class TokenService implements OnDestroy {
 
     let value: any = {}
     value.op = ExtensionTokenOpStr.SWAP;
-    value.sub_op = TokenSwapSubOpStr.TAKE_ACK;
+    value.sub_op = TokenSwapSubOpStr.TAKE_NACK;
     value.taker = swap.swap.taker;
     value.inquiry_height = swap.swap.inquiryHeight.toDec();
     let extensions = [ { type: ExtensionTypeStr.TOKEN, value } ];
@@ -664,7 +794,8 @@ export class TokenService implements OnDestroy {
      if (sharePriKey.length !== 32) {
       return { returnCode: SwapReturnCode.FAILED,
         walletOpResult: { errorCode: WalletErrorCode.SWAP_DERIVE_SHARE_PRI_KEY },
-        mainAccountError: true
+        mainAccountError: true,
+        mainAccount: swap.order.mainAccount,
       };
      }
      const sharePubkey = this.wallets.sharePubkey(mainAccount.headHeight.plus(1),
@@ -672,16 +803,18 @@ export class TokenService implements OnDestroy {
      if (sharePubkey.length !== 32) {
       return { returnCode: SwapReturnCode.FAILED,
         walletOpResult: { errorCode: WalletErrorCode.SWAP_DERIVE_SHARE_PUB_KEY },
-        mainAccountError: true
+        mainAccountError: true,
+        mainAccount: swap.order.mainAccount,
       };
      }
 
      const share = new U256();
      const error = share.fromShare(sharePriKey, swap.swap.takerShare);
      if (error) {
-      return { returnCode: SwapReturnCode.FAILED,
+      return { returnCode: SwapReturnCode.SKIPPED,
         walletOpResult: { errorCode: WalletErrorCode.SWAP_DERIVE_SHARE },
-        mainAccountError: true
+        mainAccountError: true,
+        mainAccount: swap.order.mainAccount,
       };
      }
      const signature = new U512(takeNackBlock.signature());
@@ -690,7 +823,7 @@ export class TokenService implements OnDestroy {
 
     value = {};
     value.op = ExtensionTokenOpStr.SWAP;
-    value.sup_op = TokenSwapSubOpStr.INQUIRY_ACK;
+    value.sub_op = TokenSwapSubOpStr.INQUIRY_ACK;
     value.taker = swap.swap.taker;
     value.inquiry_height = swap.swap.inquiryHeight.toDec();
     value.trade_height = takeNackBlock.height().toDec();
@@ -702,13 +835,152 @@ export class TokenService implements OnDestroy {
     if (result.errorCode !== WalletErrorCode.SUCCESS) { 
       return { returnCode: SwapReturnCode.FAILED,
         walletOpResult: result,
-        mainAccountError: true
+        mainAccountError: true,
+        mainAccount: swap.order.mainAccount,
       };  
     } else {
       return { returnCode: SwapReturnCode.SUCCESS,
         walletOpResult: result
       };  
     }
+  }
+
+  private swapTakeAck(swap: SwapFullInfo, account: Account, wallet: Wallet): SwapProcessResult {
+    const ackValue = swap.ackValue();
+    if (ackValue === undefined) {
+      return { returnCode: SwapReturnCode.SKIPPED };
+    }
+
+    const value: any = {}
+    value.op = ExtensionTokenOpStr.SWAP;
+    value.sub_op = TokenSwapSubOpStr.TAKE_ACK;
+    value.taker = swap.swap.taker;
+    value.inquiry_height = swap.swap.inquiryHeight.toDec();
+    value.take_height = swap.swap.takeHeight.toDec();
+    value.value = ackValue.toDec();
+
+    const extensions = [ { type: ExtensionTypeStr.TOKEN, value } ];
+    const result = this.wallets.changeExtensions(extensions, account, wallet);
+    if (result.errorCode !== WalletErrorCode.SUCCESS) { 
+      return { returnCode: SwapReturnCode.FAILED,
+        walletOpResult: result
+      };  
+    } else {
+      return { returnCode: SwapReturnCode.SUCCESS,
+        walletOpResult: result
+      };  
+    }
+  }
+
+  private swapTake(swap: SwapFullInfo, account: Account, wallet: Wallet): SwapProcessResult {
+    const value: any = {}
+    value.op = ExtensionTokenOpStr.SWAP;
+    value.sub_op = TokenSwapSubOpStr.TAKE;
+    value.inquiry_height = swap.swap.inquiryHeight.toDec();
+
+    const extensions = [ { type: ExtensionTypeStr.TOKEN, value } ];
+    const result = this.wallets.changeExtensions(extensions, account, wallet);
+    if (result.errorCode !== WalletErrorCode.SUCCESS) { 
+      return { returnCode: SwapReturnCode.FAILED,
+        walletOpResult: result
+      };  
+    } else {
+      return { returnCode: SwapReturnCode.SUCCESS,
+        walletOpResult: result
+      };  
+    }
+  }
+
+  private pong(account: Account, wallet: Wallet): SwapProcessResult {
+    const value: any = {}
+    value.op = ExtensionTokenOpStr.SWAP;
+    value.sub_op = TokenSwapSubOpStr.PONG;
+    const extensions = [ { type: ExtensionTypeStr.TOKEN, value } ];
+    const result = this.wallets.changeExtensions(extensions, account, wallet);
+    if (result.errorCode !== WalletErrorCode.SUCCESS) { 
+      return { returnCode: SwapReturnCode.FAILED,
+        walletOpResult: result
+      };  
+    } else {
+      return { returnCode: SwapReturnCode.SUCCESS,
+        walletOpResult: result
+      };  
+    }
+  }
+
+  private deriveTakeNackBlock(swap: SwapFullInfo, account: Account, wallet: Wallet): SwapProcessResult{
+    const skipped = { returnCode: SwapReturnCode.SKIPPED };
+    const makerInfo = this.makers[swap.swap.maker];
+    if (!makerInfo) {
+      console.log('deriveTakeNackBlock: maker not found, ', swap.swap.maker);
+      return skipped;
+    }
+
+    if (!makerInfo.synced()) {
+      console.log('deriveTakeNackBlock: maker not synced, ', swap.swap.maker);
+      return skipped;
+    }
+    
+    if (!makerInfo.head) {
+      console.log('deriveTakeNackBlock: maker head is null, ', swap.swap.maker);
+      return skipped;
+    }
+
+    if (!makerInfo.head.hash.eq(swap.swap.tradePrevious)) {
+      return skipped;
+    }
+
+    const sharePriKey = this.wallets.sharePriKey(swap.swap.inquiryHeight, account, wallet);
+    if (sharePriKey.length !== 32) {
+      return { returnCode: SwapReturnCode.FAILED,
+        walletOpResult: { errorCode: WalletErrorCode.SWAP_DERIVE_SHARE_PRI_KEY }
+      };
+    }
+
+    const share = new U256();
+    const error = share.fromShare(sharePriKey, swap.swap.makerShare);
+    if (error) {
+      return {
+        returnCode: SwapReturnCode.SKIPPED,
+        walletOpResult: { errorCode: WalletErrorCode.SWAP_DERIVE_SHARE }
+      };
+    }
+    const signature = new U512(swap.swap.makerSignature);
+    signature.decrypt(share);
+
+    const value: any = {}
+    value.op = ExtensionTokenOpStr.SWAP;
+    value.sub_op = TokenSwapSubOpStr.TAKE_NACK;
+    value.taker = swap.swap.taker;
+    value.inquiry_height = swap.swap.inquiryHeight.toDec();
+    const extensions = [{ type: ExtensionTypeStr.TOKEN, value }];
+
+    const result = this.wallets.generateChangeBlockByPrevious(makerInfo.head.block,
+      makerInfo.head.hash, swap.swap.timeout, swap.swap.tradeHeight, signature, extensions);
+    if (result.errorCode === WalletErrorCode.SUCCESS) {
+      return { returnCode: SwapReturnCode.SUCCESS, walletOpResult: result };
+    } else {
+      console.log('deriveTakeNackBlock: generate block failed, ', result.errorCode);
+      return { returnCode: SwapReturnCode.SKIPPED, walletOpResult: result };
+    }
+  }
+
+  private takerSwapLimited(account: string): boolean {
+    const info = this.takers[account];
+    if (!info) return false;
+    return info.swapInfo.limited;
+  }
+
+  private makerSwapLimited(account: string): boolean {
+    const info = this.makers[account];
+    if (!info) return false;
+    return info.swapInfo.limited;
+  }
+
+  private makerTxnLimited(account: string): boolean {
+    const info = this.makers[account];
+    if (!info) return false;
+    return info.txnLimited(this.server.getTimestamp());
   }
 
   private processServerState(state: ServerState) {
@@ -779,7 +1051,12 @@ export class TokenService implements OnDestroy {
 
   }
 
-  private ongoingUpdateMakerStatus() {
+  private ongoingUpateSwapData() {
+    this.updateMakerStatus();
+    this.purgeAccountSwapInquiries();
+  }
+
+  private updateMakerStatus() {
     const now = this.server.getTimestamp();
     let notify = false;
     for (let maker in this.makers) {
@@ -792,6 +1069,24 @@ export class TokenService implements OnDestroy {
     if (notify) {
       this.makersSubject.next();
     }
+  }
+
+  private purgeAccountSwapInquiries() {
+    for (let account in this.accounts) {
+      const info = this.accounts[account];
+      info.purgeSwapInquiries(this.server.getTimestamp());
+    }
+  }
+
+  private submitTakeNackBlock(maker: string, inquiryHeight: U64, block: Block) {
+    const message: any = {
+      action: 'submit_take_nack_block',
+      service: this.SERVICE,
+      maker,
+      inquiry_height: inquiryHeight.toDec(),
+      block: block.json()
+    };
+    this.server.send(message);
   }
 
   private subscribe(address: string) {
@@ -918,6 +1213,9 @@ export class TokenService implements OnDestroy {
         case 'search_orders':
           this.processSearchOrdersAck(message);
           break;
+        case 'submit_take_nack_block':
+          this.processSubmitTakeNackBlockAck(message);
+          break;
         default:
           break;
       }
@@ -959,6 +1257,9 @@ export class TokenService implements OnDestroy {
           break;
         case 'token_id_transfer':
           this.processTokenIdTransferNotify(message);
+          break;
+        case 'take_nack_block_submitted':
+          this.processTakeNackBlockSubmittedNotify(message);
           break;
         default:
           break;
@@ -1618,6 +1919,24 @@ export class TokenService implements OnDestroy {
     }
   }
 
+  private processSubmitTakeNackBlockAck(message: any) {
+    if (!message.taker || !message.inquiry_height) return;
+    const info = this.accounts[message.taker];
+    if (!info) return;
+
+    const swap = info.getActiveSwap(message.taker, new U64(message.inquiry_height));
+    if (!swap) return;
+    if (swap.takeNackBlockStatus !== TakeNackBlockStatus.PENDING) return;
+    if (message.error) {
+      swap.takeNackBlockStatus = TakeNackBlockStatus.ERROR;
+      return;
+    }
+
+    if (message.status === 'submitted') {
+      swap.takeNackBlockStatus = TakeNackBlockStatus.SUBMITTED;
+    }
+  }
+
   private processTokenReceivableNotify(message: any) {
     this.updateReceivable(message);
   }
@@ -1700,6 +2019,20 @@ export class TokenService implements OnDestroy {
       token.removeTokenId(id);
     }
     this.syncAccountTokenIds(account, token);
+  }
+
+  private processTakeNackBlockSubmittedNotify(message: any) {
+    if (!message.taker || !message.inquiry_height) return;
+    const info = this.accounts[message.taker];
+    if (!info) return;
+
+    const swap = info.getActiveSwap(message.taker, new U64(message.inquiry_height));
+    if (!swap) return;
+    if (swap.takeNackBlockStatus !== TakeNackBlockStatus.PENDING) return;
+
+    if (message.status === 'submitted') {
+      swap.takeNackBlockStatus = TakeNackBlockStatus.SUBMITTED;
+    }
   }
 
   private updateAccountTokensInfo(address: string, json: any) {
@@ -2272,6 +2605,7 @@ class AccountTokensInfo {
   moreOrders: boolean = true;
   minOrderHeight: U64 = U64.max();
   activeSwaps: SwapFullInfo[] = [];
+  swapInquiries: {height: U64, timeout: U64}[]= [];
 
   tokenBlockLinks: TokenBlockLinks = new TokenBlockLinks();
 
@@ -2315,8 +2649,12 @@ class AccountTokensInfo {
     }
   }
 
+  getActiveSwap(taker: string, inquiryHeight: U64): SwapFullInfo | undefined {
+    return this.activeSwaps.find(x => x.swap.taker === taker && x.swap.inquiryHeight.eq(inquiryHeight));
+  }
+
   updateActiveSwap(swap: SwapFullInfo, now: number): boolean {
-    if (swap.swap.timeout.gt(now + AppHelper.SWAP_PING_PONG_INTERVAL * 2)) {
+    if (swap.swap.timeout.gt(now + AppHelper.SWAP_TIMEOUT + 20)) {
       return false;
     }
 
@@ -2324,10 +2662,12 @@ class AccountTokensInfo {
     if (index !== -1) {
       swap.copyLocalData(this.activeSwaps[index]);
       this.activeSwaps[index] = swap;
+      this.tryRemoveSwapInquiry(swap.swap);
       return false;
     } else {
       if (swap.swap.finished() || swap.swap.expired(now)) return false;
       this.activeSwaps.push(swap);
+      this.tryRemoveSwapInquiry(swap.swap);
       return true;
     }
   }
@@ -2336,8 +2676,14 @@ class AccountTokensInfo {
     const purged: SwapFullInfo[] = [];
     for (let i = this.activeSwaps.length - 1; i >= 0; i--) {
       const swap = this.activeSwaps[i];
-      if (swap.swap.finished() || swap.swap.expired(now)) {
+      if (swap.swap.finished() || swap.swap.expired(now) || swap.order.finished()) {
+        if (swap.swap.status === SwapStatus.TAKE && this.address === swap.swap.taker) {
+          continue;
+        }
         purged.push(swap);
+        if (this.address === swap.swap.taker) {
+          this.removeSwapInquiry(swap.swap.inquiryHeight)
+        }
         this.activeSwaps.splice(i, 1);
       }
     }
@@ -2410,12 +2756,46 @@ class AccountTokensInfo {
     return order.cancelSent;
   }
 
-  swapping(): boolean {
-    return !!this.getSwappingItem();
+  swappingAsMaker(): boolean {
+    return !!this.getMakerSwappingItem();
   }
 
-  getSwappingItem(): SwapFullInfo | undefined {
-    return this.activeSwaps.find(x => x.swapping(this.address));
+  getMakerSwappingItem(): SwapFullInfo | undefined {
+    return this.activeSwaps.find(x => x.swapping() && this.address === x.swap.maker);
+  }
+
+  addSwapInquiry(height: U64, timeout: U64) {
+    const index = this.swapInquiries.findIndex(x => x.height.eq(height));
+    if (index === -1) {
+      this.swapInquiries.push({height, timeout});
+    }
+  }
+
+  removeSwapInquiry(height: U64) {
+    const index = this.swapInquiries.findIndex(x => x.height.eq(height));
+    if (index !== -1) {
+      this.swapInquiries.splice(index, 1);
+    }
+  }
+
+  tryRemoveSwapInquiry(swap: SwapInfo) {
+    if (this.address !== swap.taker) return;
+    if (swap.finished() || swap.status === SwapStatus.TAKE) {
+      this.removeSwapInquiry(swap.inquiryHeight);
+    }
+  }
+
+  purgeSwapInquiries(now: number) {
+    for (let i = this.swapInquiries.length - 1; i >= 0; i--) {
+      const inquiry = this.swapInquiries[i];
+      if (inquiry.timeout.lt(now)) {
+        this.swapInquiries.splice(i, 1);
+      }
+    }
+  }
+
+  pendingSwapInquiries(): number {
+    return this.swapInquiries.length;
   }
 
 }
@@ -3052,10 +3432,12 @@ export class SwapFullInfo {
   takerBalance: U256 = new U256(0);
 
   // local data
-  inquiry_ack_sent: boolean = false;
-  take_sent: boolean = false;
-  take_ack_sent: boolean = false;
-  take_nack_block_status: string = TakeNackBlockStatus.INIT;
+  inquiryAckSent: boolean = false;
+  takeSent: boolean = false;
+  takeAckSent: boolean = false;
+  takeNackSentTime: number = 0;
+  takeNackBlockStatus: string = TakeNackBlockStatus.INIT;
+  takeNackBlock: any = null;
 
   eq(other: SwapFullInfo): boolean {
     return this.swap.taker === other.swap.taker
@@ -3063,17 +3445,31 @@ export class SwapFullInfo {
   }
 
   copyLocalData(other: SwapFullInfo) {
-    this.inquiry_ack_sent = other.inquiry_ack_sent;
-    this.take_sent = other.take_sent;
-    this.take_ack_sent = other.take_ack_sent;
-    this.take_nack_block_status = other.take_nack_block_status;
+    this.inquiryAckSent = other.inquiryAckSent;
+    this.takeSent = other.takeSent;
+    this.takeAckSent = other.takeAckSent;
+    this.takeNackSentTime = other.takeNackSentTime;
+    this.takeNackBlockStatus = other.takeNackBlockStatus;
+    this.takeNackBlock = other.takeNackBlock;
   }
 
-  swapping(address: string): boolean {
-    if (this.swap.maker !== address) return false;
+  swapping(): boolean {
     if (this.swap.status === SwapStatus.INQUIRY_ACK || this.swap.status === SwapStatus.TAKE
-       || this.inquiry_ack_sent) return true;
+       || this.inquiryAckSent) return true;
     return false;
+  }
+
+  ackValue(): U256 | undefined {
+    if (this.order.fungiblePair()) {
+      const secure = new U512(this.swap.value).mul(this.order.valueOffer);
+      if (!secure.mod(this.order.valueWant).eq(0)) return undefined;
+      const ack = secure.idiv(this.order.valueWant);
+      if (ack.gt(this.order.leftOffer)) return undefined;
+      return new U256(ack.toDec());
+    } else {
+      if (!this.swap.value.eq(this.order.valueWant)) return undefined;
+      return this.order.valueOffer;
+    }
   }
 
   fromJson(json: any): boolean {
@@ -3153,8 +3549,11 @@ export class MakerInfo {
   }
 
   txnLimited(now: number): boolean {
-    if (this.swapInfo.limited) return true;
     return this.head.txnLimited(now);
+  }
+
+  swapLimited(): boolean {
+    return this.swapInfo.limited;
   }
 
   mainAccountTxnLimited(account: string, now: number): boolean {
@@ -3164,7 +3563,7 @@ export class MakerInfo {
   }
 
   calcOrderActionStatus(order: OrderInfo, now: number): OrderActionStatus {
-    if (!this.synced() || !order.active(now) || this.txnLimited(now)
+    if (!this.synced() || !order.active(now) || this.txnLimited(now) || this.swapLimited()
       || this.mainAccountTxnLimited(order.mainAccount, now)) {
         return OrderActionStatus.DISABLE;
     }
@@ -3198,8 +3597,6 @@ export class MakerInfo {
     }
     return update;
   }
-
-  // todo:
 }
 
 export class AccountHead {
@@ -3250,7 +3647,8 @@ class TakerInfo {
 export interface SwapProcessResult {
   returnCode: SwapReturnCode;
   walletOpResult?: WalletOpResult;
-  mainAccountError?: boolean;
+  mainAccountError?: boolean
+  mainAccount?: string;
 }
 
 export enum SwapReturnCode {

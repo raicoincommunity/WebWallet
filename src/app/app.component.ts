@@ -9,6 +9,7 @@ import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { AliasService } from './services/alias.service';
 import { AutoReceiveService } from './services/auto-receive.service';
 import { TokenService } from './services/token.service';
+import { AutoSwapService } from './services/auto-swap.service';
 
 @Component({
   selector: 'app-root',
@@ -35,6 +36,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private server: ServerService,
     private alias: AliasService,
     private autoReceive: AutoReceiveService,
+    private autoSwap: AutoSwapService,
     private token: TokenService,
     private notification: NotificationService){
   }

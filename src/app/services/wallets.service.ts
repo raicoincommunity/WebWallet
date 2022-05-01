@@ -176,7 +176,21 @@ export class WalletsService implements OnDestroy {
     if (!account.created()) return false;
     let head = this.blocks.getBlock(account.head);
     if (!head) return false;
+    if (!head.block.timestamp().sameDay(this.server.getTimestamp())) return false;
     return head.block.counter().gte(new U32(head.block.credit()).mul(20));
+  }
+
+  txnsLimitRemaining(account: Account): number {
+    if (!account.created()) return 0;
+    let head = this.blocks.getBlock(account.head);
+    if (!head) return 0;
+    const allowed = new U32(head.block.credit()).mul(20);
+    if (!head.block.timestamp().sameDay(this.server.getTimestamp())) {
+      return allowed.toNumber();
+    }
+
+    if (head.block.counter().gte(allowed)) return 0;
+    return allowed.minus(head.block.counter()).toNumber();
   }
 
   restricted(account: Account): boolean {
@@ -295,7 +309,7 @@ export class WalletsService implements OnDestroy {
 
     this.blockPublish(blockInfo.block);
 
-    return { errorCode: WalletErrorCode.SUCCESS };
+    return { errorCode: WalletErrorCode.SUCCESS, block: blockInfo.block };
   }
 
   change(rep: string, account?: Account, wallet?: Wallet): WalletOpResult {
@@ -320,7 +334,7 @@ export class WalletsService implements OnDestroy {
 
     this.blockPublish(blockInfo.block);
 
-    return { errorCode: WalletErrorCode.SUCCESS };
+    return { errorCode: WalletErrorCode.SUCCESS, block: blockInfo.block };
   }
 
   changeExtensions(extensions: { [key: string]: any }[], account?: Account, wallet?: Wallet)
@@ -351,7 +365,7 @@ export class WalletsService implements OnDestroy {
 
     this.blockPublish(blockInfo.block);
 
-    return { errorCode: WalletErrorCode.SUCCESS };
+    return { errorCode: WalletErrorCode.SUCCESS, block: blockInfo.block };
   }
 
   setName(name: string, account?: Account, wallet?: Wallet): WalletOpResult {
@@ -971,7 +985,7 @@ export class WalletsService implements OnDestroy {
     this.server.send(message);
   }
 
-  private blockPublish(block: Block) {
+  blockPublish(block: Block) {
     let message: any = {
       action: 'block_publish',
       account: block.account().toAccountAddress(),
@@ -1465,7 +1479,9 @@ export class WalletsService implements OnDestroy {
         account.balanceReceivable = account.balanceReceivable.minus(receivable[0].amount);
       }
     }
-    this.syncHeadBlock(account);
+    if (!local) {
+      this.syncHeadBlock(account);
+    }
 
     if (!local) {
       let wallets = this.findWalletsByAccount(account);
@@ -1767,6 +1783,74 @@ export class WalletsService implements OnDestroy {
     return { errorCode: WalletErrorCode.SUCCESS, block };
   }
 
+  generateChangeBlockByPrevious(prevBlock: any, prevHash: U256, timestamp: U64, height: U64,
+    signature: U512, extensions?: any): { errorCode: WalletErrorCode, block?: Block } {
+      if (prevBlock.type !== BlockTypeStr.TX_BLOCK) {
+        return { errorCode: WalletErrorCode.ACCOUNT_TYPE };
+      }
+
+      const prevCredit = new U16(prevBlock.credit);
+      const prevCounter = new U32(prevBlock.counter);
+      const prevTimestamp = new U64(prevBlock.timestamp);
+      const prevHeight = new U64(prevBlock.height);
+      const prevAccount = new U256();
+      let error = prevAccount.fromAccountAddress(prevBlock.account);
+      if (error) {
+        return { errorCode: WalletErrorCode.UNEXPECTED };
+      }
+      const prevRep = new U256();
+      error = prevRep.fromAccountAddress(prevBlock.representative);
+      if (error) {
+        return { errorCode: WalletErrorCode.UNEXPECTED };
+      }
+      const prevBalance = new U128(prevBlock.balance);
+
+      if (prevTimestamp.gt(timestamp)) {
+        return { errorCode: WalletErrorCode.TIMESTAMP };
+      }
+
+      if (!prevHeight.plus(1).eq(height)) {
+        return { errorCode: WalletErrorCode.BLOCK_HEIGHT };
+      }
+
+      let counter = new U32(1);
+      if (prevTimestamp.sameDay(timestamp)) {
+        counter = prevCounter.plus(1);
+      }
+      if (counter.gt(new U32(prevCredit).mul(20))) {
+        return { errorCode: WalletErrorCode.CREDIT };
+      }
+
+      let json: any = {};
+      json.type = BlockTypeStr.TX_BLOCK;
+      json.opcode = BlockOpcodeStr.CHANGE;
+      json.credit = prevCredit.toDec();
+      json.counter = counter.toDec();
+      json.timestamp = timestamp.toDec();
+      json.height = height.toDec();
+      json.account = prevAccount.toAccountAddress();
+      json.previous = prevHash.toHex();
+      json.representative = prevRep.toAccountAddress();
+      json.balance = prevBalance.toDec();
+      json.link = new U256(0).toHex();
+      if (extensions) {
+        json.extensions = extensions;
+      }
+      else {
+        json.extensions_length = '0';
+        json.extensions = '';  
+      }
+      json.signature = signature.toHex();
+  
+      const block = new TxBlock();
+      error = block.fromJson(json);
+      if (error) return { errorCode: WalletErrorCode.CONSTRUCT_BLOCK };
+      error = this.blocks.verifySignature(block);
+      if (error) return { errorCode: WalletErrorCode.BLOCK_SIGNATURE };
+  
+      return { errorCode: WalletErrorCode.SUCCESS, block };
+  }
+
   private generateCreditBlock(account: Account, wallet: Wallet, increase: U16): { errorCode: WalletErrorCode, block?: Block } {
     let previousInfo = this.blocks.getBlock(account.head);
     if (!previousInfo) return { errorCode: WalletErrorCode.MISS };
@@ -1920,6 +2004,11 @@ export class Account {
     return this.storage.address;
   }
 
+  shortAddress(reserve: number = 5): string {
+    const addr = this.address();
+    return addr.substr(0, reserve + 4) + '...' + addr.substr(-reserve);
+  }
+
   index(): number {
     return this.storage.index;
   }
@@ -2050,11 +2139,15 @@ export enum WalletErrorCode {
   CREDIT_MAX = 'Account\'s max allowed daily transactions limit is 1310700',
   NOT_ACTIVATED = 'The account is not activated, please deposit some Raicoin to activate it',
   CONSTRUCT_BLOCK = 'Failed to contruct block',
-  PENDING_SWAP = 'There is a pending swap, please wait for it to complete',
+  PENDING_SWAP = 'There are swaps in progress, please wait for them to complete',
   SWAP_MAIN_ACCOUNT_MISS = 'The main account of the swap is missing',
   SWAP_DERIVE_SHARE_PRI_KEY = 'Failed to derive share private key',
   SWAP_DERIVE_SHARE = 'Failed to derive share',
   SWAP_DERIVE_SHARE_PUB_KEY = 'Failed to derive public key',
+  CREDIT_RESERVED_FOR_SWAP = 'The account\'s credit is not enough, please increase it in \'Settings -> Account Settings\', or wait for existing swaps to complete',
+  CREDIT_FOR_ORDER = 'The account\'s credit is not enough, please increase it in \'Settings -> Account Settings\', or cancel some existing orders',
+  BLOCK_HEIGHT = 'Invalid block height',
+  BLOCK_SIGNATURE = 'Invalid block signature',
 }
 marker('Success');
 marker('Invalid seed');
@@ -2074,11 +2167,15 @@ marker('Not connected to server yet');
 marker('Not enough balance');
 marker('Account\'s max allowed daily transactions limit is 1310700');
 marker('The account is not activated, please deposit some Raicoin to activate it');
-marker('There is a pending swap, please wait for it to complete');
+marker('There are swaps in progress, please wait for them to complete');
 marker('The main account of the swap is missing');
 marker('Failed to derive share private key');
 marker('Failed to derive share');
 marker('Failed to derive share public key');
+marker('The account\'s credit is not enough, please increase it in \'Settings -> Account Settings\', or wait for existing swaps to complete');
+marker('The account\'s credit is not enough, please increase it in \'Settings -> Account Settings\', or cancel some existing orders');
+marker('Invalid block height');
+marker('Invalid block signature');
 
 export enum BlockStatus {
   PENDING = 'pending',
