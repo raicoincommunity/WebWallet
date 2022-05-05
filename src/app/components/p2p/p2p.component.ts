@@ -3,7 +3,7 @@ import { Subject} from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
-import { U256, TokenTypeStr, U512, U8, U64, ChainHelper, TokenHelper, AppHelper } from '../../services/util.service';
+import { U256, TokenTypeStr, U512, U8, U64, ChainHelper, TokenHelper, AppHelper, TokenType } from '../../services/util.service';
 import { TokenWidgetComponent, TokenItem } from '../token-widget/token-widget.component';
 import { NotificationService } from '../../services/notification.service';
 import { AssetWidgetComponent } from '../asset-widget/asset-widget.component';
@@ -24,6 +24,8 @@ export class P2pComponent implements OnInit {
   @ViewChild('searchToTokenWidget') searchToTokenWidget! : TokenWidgetComponent;
   @ViewChild('placeToTokenWidget') placeToTokenWidget! : TokenWidgetComponent;
   @ViewChild('placeAssetWidget') placeAssetWidget! : AssetWidgetComponent;
+  @ViewChild('swapFromTokenWidget') swapFromTokenWidget! : TokenWidgetComponent;
+  @ViewChild('swapToTokenWidget') swapToTokenWidget! : TokenWidgetComponent;
 
   // search orders
   activePanel = '';
@@ -66,24 +68,38 @@ export class P2pComponent implements OnInit {
   expireOptions = [1, 2, 4, 8, 12, 24, 2 * 24, 4 * 24, 7 * 24, 15 * 24, 30 * 24, 0]
 
   private priceBaseToggle = true;
-  private priceBaseAmount = new U256(0);
-  private priceQuoteAmount = new U256(0);
-  private placeActualAmount = new U256(0);
-  private placeActualTargetAmount = new U256(0);
-  private targetTokenAmount = new U256(0);
-  private targetTokenId = new U256(0);
+  private priceBaseAmount = U256.zero();
+  private priceQuoteAmount = U256.zero();
+  private placeActualAmount = U256.zero();
+  private placeActualTargetAmount = U256.zero();
+  private targetTokenAmount = U256.zero();
+  private targetTokenId = U256.zero();
 
   // selected order
   private selectedOrder: OrderInfo | undefined;
+
+  // swap
+  inputSwapToAmount = '';
+  inputSwapToTokenId = '';
+  inputSwapFromAmount = '';
+  inputSwapFromTokenId = '';
+  swapToAmountStatus = 0;
+  private swapToAmount = U256.zero();
+  private actualSwapToAmount = U256.zero();
+  private actualSwapFromAmount = U256.zero();
+  private swapFromToken: TokenItem | undefined;
+  private swapToToken: TokenItem | undefined;
 
   private stopped: boolean = false;
   private searchSubscription: any;
   private orderSubscription: any;
   private accountOrdersSubscription: any;
   private makersSubscription: any;
-  private accountSwapInfoSubscription: any = null;
+  private accountSwapInfoSubscription: any;
+  private tokenInfoSubscription: any;;
   private refreshSubject = new Subject<number>();
   private refreshCount = 0;
+  cache: {[hash: string]: {[key: string]: any}} = {};
 
   constructor(
     private notification: NotificationService,
@@ -106,7 +122,11 @@ export class P2pComponent implements OnInit {
       
       const existing = this.searchResults.find(x => x.eq(order));
       if (existing) {
-        this.updateSearchResults(order);
+        if (this.searchingBy === SearchByOption.ID) {
+          this.searchResults[0] = order;
+        } else if (this.searchingBy === SearchByOption.PAIR) {
+          this.updateSearchResults(order);
+        }
         refresh = true;
       }
       if (refresh) {
@@ -117,10 +137,17 @@ export class P2pComponent implements OnInit {
     this.searchSubscription = this.token.searchOrder$.subscribe(r => {
       if (this.stopped) return;
       if (r.by !== this.searchingBy) return;
-      let more = false;
       if (r.by === SearchByOption.ID) {
         if (!r.hash || !this.searchingOrderId) return;
         if (!r.hash.eq(this.searchingOrderId)) return;
+        this.searchingMore = false;
+        if (r.orders.length > 0) {
+          for (let order of r.orders) {
+            this.searchResults.push(order);
+            this.token.subscribeOrder(order)  
+          }
+        }
+
       } else if (r.by === SearchByOption.PAIR) { 
         if (!r.fromToken || !r.toToken || !this.searchingFromToken || !this.searchingToToken) 
         return;
@@ -135,19 +162,19 @@ export class P2pComponent implements OnInit {
         } else {
           return;
         }
-        more = r.more!;
+        this.searchingMore = r.more!;
+        if (r.orders.length > 0) {
+          for (let order of r.orders) {
+            this.updateSearchResults(order, false);
+          }
+          this.sortSearchResults();
+          this.searchMore(r.orders[r.orders.length - 1]);
+        }
       } else {
         return;
       }
-      this.searchingMore = more;
+
       this.searchStatus = SearchStatus.SEARCHED;
-      if (r.orders.length > 0) {
-        for (let order of r.orders) {
-          this.updateSearchResults(order, false);
-        }
-        this.sortSearchResults();
-        this.searchMore(r.orders[r.orders.length - 1]);
-      }
       this.refreshSubject.next(this.refreshCount++);
     });
 
@@ -167,8 +194,14 @@ export class P2pComponent implements OnInit {
       this.refreshSubject.next(this.refreshCount++);
     });
 
-    this.refreshSubject.pipe(debounceTime(1000), distinctUntilChanged()).subscribe(
+    this.tokenInfoSubscription = this.token.tokenInfo$.subscribe(() => {
+      if (this.stopped) return;
+      this.refreshSubject.next(this.refreshCount++);
+    });
+
+    this.refreshSubject.pipe(debounceTime(500), distinctUntilChanged()).subscribe(
       _ => {
+        this.cache = {};
         this.cdRef.markForCheck();
       }
     );
@@ -200,6 +233,11 @@ export class P2pComponent implements OnInit {
     if (this.accountSwapInfoSubscription) {
       this.accountSwapInfoSubscription.unsubscribe();
       this.accountSwapInfoSubscription = null;
+    }
+
+    if (this.tokenInfoSubscription) {
+      this.tokenInfoSubscription.unsubscribe();
+      this.tokenInfoSubscription = null;
     }
 
     this.stopped = true;
@@ -657,7 +695,7 @@ export class P2pComponent implements OnInit {
     return this.placeFungiblePair();
   }
 
-  shoulShowMainAccountTips(): boolean {
+  shouldShowMainAccountTips(): boolean {
     return this.activePanel === Panel.PLACE_ORDER && this.wallets.mainAccountSelected();
   }
 
@@ -957,7 +995,7 @@ export class P2pComponent implements OnInit {
       return;
     } else {
       if (wallet.locked()) {
-        this.wallets.tryInputPassword(() => { this.doPing(order) });
+        this.wallets.tryInputPassword(() => { this.doPing(order); });
         return;
       }
     }
@@ -991,12 +1029,230 @@ export class P2pComponent implements OnInit {
     const param = { ping: 'Ping' };
     this.translate.get(msg, param).subscribe(res => msg = res);    
     this.notification.sendSuccess(msg);
+    this.cache = {};
+    this.cdRef.markForCheck();
+  }
+
+  swapCheck(): boolean {
+    if (this.wallets.synchronizing() || !this.token.ready()) {
+      let msg = marker(`The account is synchronizing, please try later`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return true;
+    }
+
+    if (!this.selectedOrder) return true;
+    const order = this.selectedOrder;
+    if (!this.swapToToken) return true;
+    const token = this.swapToToken;
+
+    if (order.fungiblePair()) {
+      this.syncSwapToAmount();
+      if (this.swapToAmountStatus !== 1) return true;
+    } else {
+      let balanceEnough = true;
+      const balance = this.token.balance(token.chain, token.address);
+      if (balance.type === TokenType.INVALID) {
+        balanceEnough = false;
+      } else {
+        if (token.type !== TokenHelper.toTypeStr(balance.type)) return true;
+        if (balance.type === TokenType._20) {
+          if (balance.amount.lt(order.valueWant)) {
+            balanceEnough = false;
+          }
+        } else {
+          const owner = this.token.tokenIdOwner(order.tokenWant, order.valueWant);
+          if (!owner || owner !== this.address()) {
+            balanceEnough = false;
+          }
+        }
+      }
+
+      if (!balanceEnough) {
+        let msg = marker(`Insufficient balance`);
+        this.translate.get(msg).subscribe(res => msg = res);
+        this.notification.sendError(msg);
+        this.activePanel = Panel.SWAP;
+        return true;
+      }
+    }
+
+    let orderValid = true;
+    if (order.finished() || order.expired(this.server.getTimestamp())) {
+      orderValid = false;
+    }
+    if (order.fungiblePair() && order.leftOffer.lt(this.actualSwapFromAmount)) {
+      orderValid = false;
+    }
+    if (!orderValid) {
+      let msg = marker(`The order info is outdated, please retry`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      this.activePanel = Panel.ORDER_DETAILS;
+      return true;
+    }
+
+    return false;
+  }
+
+  swap() {
+    if (this.swapCheck()) return;
+
+    const wallet = this.wallets.selectedWallet()
+    if (!wallet) {
+      let msg = marker(`Please configure a wallet first`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    } else {
+      if (wallet.locked()) {
+        this.wallets.tryInputPassword(() => { this.activePanel = Panel.CONFIRM_SWAP; });
+        return;
+      }
+    }
+    this.activePanel = Panel.CONFIRM_SWAP;
+  }
+
+  confirmSwapFromToken(): string {
+    if (!this.swapFromTokenWidget || !this.swapFromTokenWidget.selectedToken) {
+      return "";
+    }
+    return this.swapFromTokenWidget.selectedToken.textFormat();
+  }
+
+  confirmSwapToToken(): string {
+    if (!this.swapToTokenWidget || !this.swapToTokenWidget.selectedToken) {
+      return "";
+    }
+    return this.swapToTokenWidget.selectedToken.textFormat();
+  }
+
+  confirmSwapFromAmount(): string {
+    if (!this.selectedOrder) return '';
+    const order = this.selectedOrder;
+    if (!this.swapFromToken) return '';
+    const token = this.swapFromToken;
+
+    if (token.type === TokenTypeStr._20) {
+      let amount;
+      if (order.fungiblePair()) {
+        amount = this.actualSwapFromAmount;
+      } else {
+        amount = order.valueOffer;
+      }
+      return amount.toBalanceStr(token.decimals) + ' ' + token.symbol;
+    } else if (token.type === TokenTypeStr._721) {
+      return `1 ${token.symbol} (${order.valueOffer.toDec()})`;
+    } else {
+      return '';
+    }
+  }
+
+  confirmSwapToAmount(): string {
+    if (!this.selectedOrder) return '';
+    const order = this.selectedOrder;
+    if (!this.swapToToken) return '';
+    const token = this.swapToToken;
+
+    if (token.type === TokenTypeStr._20) {
+      let amount;
+      if (order.fungiblePair()) {
+        amount = this.actualSwapToAmount;
+      } else {
+        amount = order.valueWant;
+      }
+      return amount.toBalanceStr(token.decimals) + ' ' + token.symbol;
+    } else if (token.type === TokenTypeStr._721) {
+      return `1 ${token.symbol} (${order.valueWant.toDec()})`;
+    } else {
+      return '';
+    }
+  }
+
+  confirmSwap() {
+    if (this.swapCheck()) return;
+
+    if (!this.selectedOrder) return;
+    const order = this.selectedOrder;
+    
+    const maker = order.maker.account;
+    const height = this.token.mainAccountHeadHeight(maker, order.mainAccount);
+    if (height === undefined || height.eq(0)) {
+      let msg = marker(`The order info is outdated, please refresh`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      this.activePanel = Panel.ORDER_DETAILS;
+      return;
+    }
+    height.plus(1);
+    const timeout = this.server.getTimestamp() + AppHelper.SWAP_TIMEOUT;
+
+    let tokenValue;
+    if (order.fungiblePair()) {
+      tokenValue = this.actualSwapToAmount;
+    } else {
+      tokenValue = order.valueWant;
+    }
+
+    const account = this.wallets.selectedAccount();
+    if (!account) return;
+    
+    const sharePubkey = this.wallets.sharePubkey(account.headHeight.plus(1));
+    if (sharePubkey.length !== 32) {
+      let msg = marker(`Failed to create x25519 share public key`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      this.activePanel = Panel.ORDER_DETAILS;
+      return;
+    }
+    const share = new U256();
+    share.bytes = sharePubkey;
+
+    const value: any = {
+      maker: maker,
+      order_height: order.orderHeight.toDec(),
+      ack_height: height.toDec(),
+      timeout: `${timeout}`,
+      value: tokenValue.toDec(),
+      share: share.toHex(),
+    };
+
+    const result = this.token.swapInquiry(this.address(), value);
+    if (result.errorCode !== WalletErrorCode.SUCCESS) {
+      let msg = result.errorCode;
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    }
+
+    let msg = marker(`Successfully sent swap inquiry block!`);
+    this.translate.get(msg).subscribe(res => msg = res);    
+    this.notification.sendSuccess(msg);
+
+    this.swapClear();
+    this.activePanel = '';
+  }
+
+  swapClear() {
+    this.swapFromTokenWidget.clear();
+    this.swapToTokenWidget.clear();
+    this.inputSwapToAmount = '';
+    this.inputSwapToTokenId = '';
+    this.inputSwapFromAmount = '';
+    this.inputSwapFromTokenId = '';
+    this.swapToAmountStatus = 0;
+    this.swapToAmount = U256.zero();
+    this.actualSwapToAmount = U256.zero();
+    this.actualSwapFromAmount = U256.zero();
+    this.swapFromToken = undefined;
+    this.swapToToken = undefined;
   }
 
   orders(): OrderSwapInfo[] {
     return this.token.orders();
   }
 
+  @cacheOrderInfo()
   orderCreatedAt(order: OrderSwapInfo | OrderInfo) : number {
     if (order instanceof OrderSwapInfo) {
       order = order.order;
@@ -1004,6 +1260,7 @@ export class P2pComponent implements OnInit {
     return order.createdAt.toNumber();
   }
 
+  @cacheOrderInfo()
   orderHash(order: OrderSwapInfo | OrderInfo): string {
     if (order instanceof OrderSwapInfo) {
       order = order.order;
@@ -1011,6 +1268,7 @@ export class P2pComponent implements OnInit {
     return order.hash.toHex();
   }
 
+  @cacheOrderInfo()
   orderFromTokenSymbol(order: OrderSwapInfo | OrderInfo): string {
     if (order instanceof OrderSwapInfo) {
       order = order.order;
@@ -1019,6 +1277,7 @@ export class P2pComponent implements OnInit {
     return this.getTokenSymbol(token.chain, token.address, token.type);
   }
 
+  @cacheOrderInfo()
   orderToTokenSymbol(order: OrderSwapInfo | OrderInfo): string {
     if (order instanceof OrderSwapInfo) {
       order = order.order;
@@ -1027,7 +1286,16 @@ export class P2pComponent implements OnInit {
     return this.getTokenSymbol(token.chain, token.address, token.type);
   }
 
+  @cacheOrderInfo()
   orderFromTokenType(order: OrderSwapInfo | OrderInfo): string {
+    if (order instanceof OrderSwapInfo) {
+      order = order.order;
+    }
+    return order.tokenOffer.type;
+  }
+
+  @cacheOrderInfo()
+  orderFromTokenTypeShown(order: OrderSwapInfo | OrderInfo): string {
     if (order instanceof OrderSwapInfo) {
       order = order.order;
     }
@@ -1035,7 +1303,16 @@ export class P2pComponent implements OnInit {
     return this.getTokenTypeShown(token.chain, token.type);
   }
 
+  @cacheOrderInfo()
   orderToTokenType(order: OrderSwapInfo | OrderInfo): string {
+    if (order instanceof OrderSwapInfo) {
+      order = order.order;
+    }
+    return order.tokenWant.type;
+  }
+
+  @cacheOrderInfo()
+  orderToTokenTypeShown(order: OrderSwapInfo | OrderInfo): string {
     if (order instanceof OrderSwapInfo) {
       order = order.order;
     }
@@ -1043,6 +1320,7 @@ export class P2pComponent implements OnInit {
     return this.getTokenTypeShown(token.chain, token.type);
   }
 
+  @cacheOrderInfo()
   orderFillRate(order: OrderSwapInfo | OrderInfo) : string {
     if (order instanceof OrderSwapInfo) {
       order = order.order;
@@ -1078,6 +1356,7 @@ export class P2pComponent implements OnInit {
     return msg;
   }
 
+  @cacheOrderInfo()
   orderMaker(order: OrderSwapInfo | OrderInfo) : string {
     if (order instanceof OrderSwapInfo) {
       order = order.order;
@@ -1085,22 +1364,7 @@ export class P2pComponent implements OnInit {
     return order.maker.account;
   }
 
-  orderPrice(order: OrderSwapInfo | OrderInfo) : string {
-    if (order instanceof OrderSwapInfo) {
-      order = order.order;
-    }
-
-    const ret = this.pairWithSameSymbol(order);
-    if (ret.error) return '';
-    const showType = ret.same!;
-
-    let token = order.tokenOffer;
-    const offer = this.formatTokenValue(token.chain, token.address, token.type, order.valueOffer, showType);
-    token = order.tokenWant;
-    const want = this.formatTokenValue(token.chain, token.address, token.type, order.valueWant, showType);
-    return `${offer} = ${want}`;
-  }
-
+  @cacheOrderInfo()
   orderFromValue(order: OrderSwapInfo | OrderInfo) : string {
     if (order instanceof OrderSwapInfo) {
       order = order.order;
@@ -1110,6 +1374,13 @@ export class P2pComponent implements OnInit {
     return this.formatTokenValue(token.chain, token.address, token.type, order.valueOffer, false, true);
   }
 
+  selectedOrderFromValue(): string {
+    const order = this.selectedOrder;
+    if (!order) return '';
+    return this.orderFromValue(order);
+  }
+
+  @cacheOrderInfo()
   orderToValue(order: OrderSwapInfo | OrderInfo) : string {
     if (order instanceof OrderSwapInfo) {
       order = order.order;
@@ -1119,6 +1390,12 @@ export class P2pComponent implements OnInit {
     return this.formatTokenValue(token.chain, token.address, token.type, order.valueWant, false, true);
   }
 
+  selectedOrderToValue(): string {
+    if (!this.selectedOrder) return '';
+    return this.orderToValue(this.selectedOrder);
+  }
+
+  @cacheOrderInfo()
   orderAvailable(order: OrderSwapInfo | OrderInfo) : string {
     if (order instanceof OrderSwapInfo) {
       order = order.order;
@@ -1244,7 +1521,13 @@ export class P2pComponent implements OnInit {
     return this.orderToTokenType(order);
   }
 
-  selectedOrderFromTokenTypes(): string {
+  selectedOrderToTokenTypeShown(): string {
+    const order = this.selectedOrder;
+    if (!order) return '';
+    return this.orderToTokenTypeShown(order);
+  }
+
+  selectedOrderFromTokenTypeShown(): string {
     const order = this.selectedOrder;
     if (!order) return '';
     const token = order.tokenOffer;
@@ -1304,11 +1587,6 @@ export class P2pComponent implements OnInit {
     }
   }
 
-  selectedOrderPrice() {
-    if (!this.selectedOrder) return '';
-    return this.orderPrice(this.selectedOrder);
-  }
-
   selectedOrderWithFungiblePair(): boolean {
     if (!this.selectedOrder) return false;
     return this.selectedOrder.fungiblePair();
@@ -1357,7 +1635,11 @@ export class P2pComponent implements OnInit {
     return true;
   }
 
+  @cacheOrderInfo()
   orderActionStatus(order: OrderInfo): OrderActionStatus {
+    if (this.address() === order.maker.account || this.address() === order.mainAccount) {
+      return OrderActionStatus.DISABLE;
+    }
     const info = this.token.makerInfo(order.maker.account);
     if (!info) return OrderActionStatus.DISABLE;
     const makerOrder = info.getOrder(order.orderHeight);
@@ -1426,13 +1708,7 @@ export class P2pComponent implements OnInit {
     return `${hash.substring(0, 4)}...${hash.substring(hash.length - 4)}`;
   }
 
-  selectedOrderFromTokenTypeAndAddress(): string {
-    const order = this.selectedOrder;
-    if (!order) return '';
-    const token = order.tokenOffer;
-    return this.getTokenTypeAndAddress(token.chain, token.address, token.type);
-  }
-
+  @cacheOrderInfo()
   pairWithSameSymbol(order: OrderInfo): {error: boolean, same?: boolean} {
     let token = order.tokenOffer;
     const metaOffer = this.getTokenMetaInfo(token.chain, token.address, token.type);
@@ -1447,6 +1723,196 @@ export class P2pComponent implements OnInit {
      same = metaOffer.symbol === metaWant.symbol;
     }
     return {error: false, same};
+  }
+
+  selectedOrderPairWithSameSymbol(): boolean {
+    if (!this.selectedOrder) return false;
+    return !!this.pairWithSameSymbol(this.selectedOrder).same;
+  }
+
+  syncSwapToAmount() {
+    const order = this.selectedOrder;
+    if (!order || !order.fungiblePair()) {
+      this.swapToAmountStatus = 0;
+      return;
+    }
+    this.inputSwapFromAmount = '';
+    const widget = this.swapToTokenWidget;
+    if (!widget) {
+      this.swapToAmountStatus = 0;
+      return;
+    }
+
+    const tokenKey = order.tokenWant;
+    const token = widget.getToken(tokenKey.chain, tokenKey.addressRaw, tokenKey.type);
+    if (!token) {
+      this.swapToAmountStatus = 0;
+      return;
+    }
+
+    try {
+      const decimalsValue = new BigNumber(10).pow(token.decimals);
+      this.swapToAmount =
+        new U256(new BigNumber(this.inputSwapToAmount).mul(decimalsValue));
+      if (this.swapToAmount.eq(0)) {
+        this.swapToAmountStatus = 2;
+        return;
+      }
+
+      this.actualSwapToAmount = this.calcActualAmount(this.swapToAmount,
+        order.valueWant, order.valueOffer);
+      const secure = new U512(this.actualSwapToAmount).mul(order.valueOffer).idiv(order.valueWant);
+      this.actualSwapFromAmount = new U256(secure.toBigNumber());
+      this.syncSwapFromAmount();
+      if (this.actualSwapFromAmount.gt(order.leftOffer)
+        || (this.actualSwapFromAmount.lt(order.minOffer) && !this.actualSwapFromAmount.eq(order.leftOffer))) {
+        this.swapToAmountStatus = 2;
+        return;
+      }
+
+      if (!this.token.synced()) {
+        this.swapToAmountStatus = 2;
+        return;  
+      }
+
+      const info = this.token.accountTokenInfo(token.chain, token.addressRaw);
+      if (!info) {
+        this.swapToAmountStatus = 2;
+        return;  
+      }
+
+      if (TokenHelper.toTypeStr(info.type) !== token.type) {
+        this.swapToAmountStatus = 2;
+        return;  
+      }
+
+      if (info.balance.lt(this.actualSwapToAmount)) {
+        this.swapToAmountStatus = 2;
+        return;  
+      }
+
+      this.swapToAmountStatus = 1;
+    }
+    catch (err) {
+      this.swapToAmountStatus = 2;
+    }
+  }
+
+  syncSwapFromAmount() {
+    this.inputSwapFromAmount = '';
+    const order = this.selectedOrder;
+    if (!order || order.tokenOffer.type !== TokenTypeStr._20) return;
+    const token = this.swapFromToken!;
+    if (order.fungiblePair()) {
+      this.inputSwapFromAmount = this.actualSwapFromAmount.toBalanceStr(token.decimals, false);
+    } else {
+      this.inputSwapFromAmount = order.valueOffer.toBalanceStr(token.decimals, false);
+    }
+  }
+
+  swapToAmountHint(): string {
+    if (!this.selectedOrder) return '';
+    const token = this.selectedOrder.tokenWant;
+    const balance = this.token.balance(token.chain, token.address);
+    let amount = '';
+    if (TokenHelper.toTypeStr(balance.type) !== token.type) {
+      amount = '0';
+    } else {
+      amount = balance.amount.toBalanceStr(balance.decimals);
+    }
+
+    let msg = marker('Balance');
+    this.translate.get(msg).subscribe(res => msg = res);
+    return `${msg}: ${amount}`;
+  }
+
+  swapToAmountMin() {
+    if (!this.selectedOrder) return;
+    const order = this.selectedOrder;
+    const token = this.selectedOrder.tokenWant;
+    const balance = this.token.balance(token.chain, token.address);
+    if (TokenHelper.toTypeStr(balance.type) !== token.type) {
+      this.inputSwapToAmount = '0';
+      this.syncSwapToAmount();
+      return;
+    }
+
+    const available = order.availableWantMin();
+    if (balance.amount.lt(available)) {
+      this.inputSwapToAmount = '0';
+      this.syncSwapToAmount();
+      return;
+    }
+
+    this.inputSwapToAmount = available.toBalanceStr(balance.decimals, false);
+    this.syncSwapToAmount();
+  }
+
+  swapToAmountMax() {
+    if (!this.selectedOrder) return;
+    const order = this.selectedOrder;
+    const token = this.selectedOrder.tokenWant;
+    const balance = this.token.balance(token.chain, token.address);
+    if (TokenHelper.toTypeStr(balance.type) !== token.type) {
+      this.inputSwapToAmount = '0';
+      this.syncSwapToAmount();
+      return;
+    }
+
+    if (balance.amount.lt(order.availableWantMin())) {
+      this.inputSwapToAmount = '0';
+      this.syncSwapToAmount();
+      return;
+    }
+
+    const availableMax = order.availableWantMax();
+    if (balance.amount.gte(availableMax)) {
+      this.inputSwapToAmount = availableMax.toBalanceStr(balance.decimals, false);
+      this.syncSwapToAmount();
+      return;
+    }
+
+    const amount = this.calcActualAmount(balance.amount, order.valueWant, order.valueOffer);
+    this.inputSwapToAmount = amount.toBalanceStr(balance.decimals, false);
+    this.syncSwapToAmount();
+  }
+
+  activateSwapPanel(order?: OrderInfo) {
+    if (order) {
+      this.selectedOrder = order;
+    }
+    order = this.selectedOrder;
+    if (!order) return;
+    let token = order.tokenOffer;
+    this.swapFromToken = this.swapFromTokenWidget.getToken(token.chain, token.addressRaw,
+      token.type);
+    if (!this.swapFromToken) return;
+    this.swapFromTokenWidget.addToken(this.swapFromToken);
+
+    token = order.tokenWant;
+    this.swapToToken = this.swapToTokenWidget.getToken(token.chain, token.addressRaw, token.type);
+    if (!this.swapToToken) return;
+    this.swapToTokenWidget.addToken(this.swapToToken);
+
+    if (order.tokenWant.type === TokenTypeStr._721) {
+      this.inputSwapToTokenId = order.valueWant.toDec();
+    }
+
+    if (!order.fungiblePair() && order.tokenWant.type === TokenTypeStr._20) {
+      this.inputSwapToAmount = order.valueWant.toBalanceStr(new U8(this.swapToToken.decimals),
+        false);
+      this.syncSwapToAmount();
+  }
+
+    if (order.tokenOffer.type === TokenTypeStr._20) {
+      this.syncSwapFromAmount();
+    }
+
+    if (order.tokenOffer.type === TokenTypeStr._721) {
+      this.inputSwapFromTokenId = order.valueOffer.toDec();
+    }
+
+    this.activePanel = Panel.SWAP;
   }
 
   private getTokenTypeAndAddress(chain: string, address: string, type: string): string {
@@ -1630,9 +2096,6 @@ export class P2pComponent implements OnInit {
   }
 
   private updateSearchResults(order: OrderInfo, sort: boolean = true) {
-    if (this.address() === order.maker.account || this.address() === order.mainAccount) {
-      return;
-    }
     const remove = order.expired(this.server.getTimestamp()) || order.finished();
     const index = this.searchResults.findIndex(x => x.eq(order));
     if (index === -1) {
@@ -1671,6 +2134,8 @@ enum Panel {
   MY_ORDER_DETAILS = 'my_order_details',
   CONFIRM_CANCEL_ORDER = 'confirm_cancel_order',
   ORDER_DETAILS = 'order_details',
+  SWAP = 'swap',
+  CONFIRM_SWAP = 'confirm_swap',
 }
 
 class TokenMetaInfo {
@@ -1693,4 +2158,33 @@ enum SearchStatus {
   INIT = 'init',
   SEARCHING = 'searching',
   SEARCHED = 'searched',
+}
+
+function cacheOrderInfo(timeout: number = -1) {
+  return (target: any, key: string, descriptor: PropertyDescriptor) => {
+    const method = descriptor.value;
+    let lastUpdate = 0;
+    timeout *= 1000;
+    descriptor.value = function (order: OrderSwapInfo | OrderInfo) {
+      if (order instanceof OrderSwapInfo) {
+        order = order.order;
+      }
+      const self = this as P2pComponent;
+      const hash = order.hash.toHex();
+      const cached = self.cache[hash]?.[key];
+      if (cached) {
+        if (timeout < 0 || Date.now() - lastUpdate < timeout) {
+          return cached;
+        }
+      }
+      const result = method.call(self, order);
+      if (!self.cache[hash]) self.cache[hash] = {};
+      self.cache[hash][key] = result;
+      if (timeout >= 0) {
+        lastUpdate = Date.now();
+      }
+      return result;
+    };
+    return descriptor;
+  };
 }

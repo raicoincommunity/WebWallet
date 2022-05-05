@@ -21,6 +21,8 @@ export class AccountDetailsComponent implements OnInit {
   empty = true;
   finished = false;
 
+  cache: { [hash: string]: { [key: string]: any } } = {};
+
   constructor(
     private route: ActivatedRoute,
     private translate: TranslateService,
@@ -74,13 +76,17 @@ export class AccountDetailsComponent implements OnInit {
     return blocks;
   }
 
+  @cacheBlockInfo()
   amountShown(info: BlockInfo): AmountShown {
     const result = new AmountShown();
     const address = info.block.account().toAccountAddress();
     const tokenBlock = this.token.tokenBlock(address, info.block.height());
     if (!tokenBlock) {
       const value = new U256(info.amount.value);
-      if (value.eq(0)) return result;
+      if (value.eq(0)) {
+        result.cache = false;
+        return result;
+      }
       const valueStr = value.toBalanceStr(new U8(9));
       if (info.amount.negative) {
         result.sign = 2;
@@ -134,6 +140,7 @@ export class AccountDetailsComponent implements OnInit {
     }
   }
 
+  @cacheBlockInfo()
   opStr(info: BlockInfo): string {
     const address = info.block.account().toAccountAddress();
     const tokenBlock = this.token.tokenBlock(address, info.block.height());
@@ -213,4 +220,31 @@ export class AccountDetailsComponent implements OnInit {
 class AmountShown {
   sign: number = 0;
   amount: string = '0 RAI';
+  cache: boolean = true;
+}
+
+
+function cacheBlockInfo() {
+  return (target: any, key: string, descriptor: PropertyDescriptor) => {
+    const method = descriptor.value;
+    descriptor.value = function (info: BlockInfo) {
+      const self = this as AccountDetailsComponent;
+      const hash = info.block.hash().toHex();
+      const cached = self.cache[hash]?.[key];
+      if (cached) return cached;
+      const result = method.call(self, info);
+      if (!self.cache[hash]) self.cache[hash] = {};
+      if (result instanceof AmountShown) {
+        if (result.cache) {
+          self.cache[hash][key] = result;
+        }
+      } else if (typeof result === 'string') {
+        if (result !== 'change') {
+          self.cache[hash][key] = result;
+        }
+      }
+      return result;
+    };
+    return descriptor;
+  };
 }

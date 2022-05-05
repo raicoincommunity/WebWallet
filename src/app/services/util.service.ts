@@ -504,6 +504,14 @@ export class U8 extends Uint {
     }
     return U8._MAX;
   }
+
+  static _ZERO: U8 | undefined;
+  static zero(): U8 {
+    if (!U8._ZERO) {
+      U8._ZERO = new U8(0);
+    }
+    return U8._ZERO;
+  }
   
   readonly size = U8.SIZE;
   constructor(from: UintFrom = 0, base?: number, check: boolean = true) {
@@ -737,6 +745,22 @@ export class U256 extends Uint {
     return U256._MAX;
   }
 
+  static _ZERO: U256 | undefined;
+  static zero(): U256 {
+    if (!U256._ZERO) {
+      U256._ZERO = new U256(0);
+    }
+    return U256._ZERO;
+  }
+
+  static _ONE: U256 | undefined;
+  static one(): U256 {
+    if (!U256._ONE) {
+      U256._ONE = new U256(1);
+    }
+    return U256._ONE;
+  }
+
   static gcd(a: U256, b: U256): U256 {
     if (b.eq(0)) return a;
     if (a.eq(0)) return b;
@@ -835,12 +859,15 @@ export class U256 extends Uint {
     }
   }
 
-  toBalanceStr(decimals: U8, format: boolean = true): string {
+  toBalanceStr(decimals: U8 | number, format: boolean = true): string {
+    if (decimals instanceof U8) {
+      decimals = decimals.toNumber();
+    }
     const BigNumberCustom = BigNumber.another({ DECIMAL_PLACES: 255 });
-    const decimalsValue = new BigNumberCustom(10).pow(decimals.toNumber());
-    let result = new BigNumberCustom(this.toBigNumber()).div(decimalsValue).toFormat(decimals.toNumber(), 1);
+    const decimalsValue = new BigNumberCustom(10).pow(decimals);
+    let result = new BigNumberCustom(this.toBigNumber()).div(decimalsValue).toFormat(decimals, 1);
 
-    if (decimals.toNumber() === 0)
+    if (decimals === 0)
     {
       return format ? result : result.replace(/,/g, '');
     }
@@ -1379,6 +1406,14 @@ export class ChainHelper {
       address = ret.raw;
     }
     return address.isNativeTokenAddress();
+  }
+
+  static nativeTokenAddress(chain: string | Chain): {error: boolean, address?: string} {
+    if (typeof chain !== 'string') {
+      chain = ChainHelper.toChainStr(chain);
+    }
+
+    return ChainHelper.rawToAddress(chain, U256.one());
   }
 
   static isRaicoin(chain: string | Chain): boolean {
@@ -2907,6 +2942,7 @@ export enum AppTopicType {
     ACCOUNT_SWAP_INFO       = 3,
     ACCOUNT_HEAD            = 4,
     ACCOUNT_TOKEN_BALANCE   = 5,
+    TOKEN_ID_OWNER          = 6,
 
     MAX
 };

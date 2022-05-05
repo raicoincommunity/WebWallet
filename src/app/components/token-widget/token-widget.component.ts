@@ -2,7 +2,7 @@ import { Component, OnInit, Input, ViewChild, ElementRef, HostListener, Output, 
 import { TranslateService } from '@ngx-translate/core';
 import { WalletsService } from '../../services/wallets.service';
 import { LogoService } from '../../services/logo.service';
-import { VerifiedTokensService } from '../../services/verified-tokens.service';
+import { VerifiedToken, VerifiedTokensService } from '../../services/verified-tokens.service';
 import { environment } from '../../../environments/environment';
 import { ChainHelper, TokenHelper, TokenTypeStr, U256 } from '../../services/util.service';
 
@@ -13,6 +13,7 @@ import { ChainHelper, TokenHelper, TokenTypeStr, U256 } from '../../services/uti
 })
 export class TokenWidgetComponent implements OnInit {
   @Input('raiLabel') label: string = '';
+  @Input('raiChangable') changable: boolean = true;
 
   @Output("raiChange") eventTokenSelected = new EventEmitter<TokenItem | undefined>();
 
@@ -22,7 +23,7 @@ export class TokenWidgetComponent implements OnInit {
 
   @HostListener('document:click', ['$event'])
   onClick(event: MouseEvent) {
-    if (this.tokenInput
+    if (this.changable && this.tokenInput
        && !this.tokenInput.nativeElement.contains(event.target)
        && !this.tokenSelect.nativeElement.contains(event.target)) {
       this.hideSearchResult();
@@ -35,6 +36,8 @@ export class TokenWidgetComponent implements OnInit {
   searchResultShown: boolean = false;
 
   private filtedToken: {chain: string, addressRaw: U256} | undefined;
+  private allowedTokes: TokenItem[] | undefined;
+  private defaultTokens: TokenItem[] | undefined;
 
   constructor(
     private wallets: WalletsService,
@@ -46,6 +49,33 @@ export class TokenWidgetComponent implements OnInit {
   ngOnInit(): void {
   }
 
+  tokenValid(chain: string, addressRaw: U256, type: string): boolean {
+    // todo: custom tokens
+    const token = this.verified.token(chain, addressRaw);
+    if (token && token.type === TokenHelper.toType(type)) return true;
+    return false;
+  }
+
+  addToken(token: TokenItem, replace: boolean = true) {
+    if (replace) {
+      this.allowedTokes = [token];
+    } else {
+      if (!this.allowedTokes) this.allowedTokes = [];
+      this.allowedTokes.push(token);
+    }
+    if (!this.changable) {
+      this.selectedToken = token;
+      this.tokenInputText = token.textFormat();
+    }
+  }
+
+  getToken(chain: string, addressRaw: U256, type: string): TokenItem | undefined {
+    // todo: custom tokens
+    const token = this.verified.token(chain, addressRaw);
+    if (!token || token.type !== TokenHelper.toType(type)) return undefined;
+    return this.makeTokenItem(token);
+  }
+
   account(): string {
     return this.wallets.selectedAccountAddress();
   }
@@ -54,6 +84,7 @@ export class TokenWidgetComponent implements OnInit {
     this.tokenInputText = '';
     this.selectedToken = undefined;
     this.eventTokenSelected.emit(this.selectedToken);
+    this.defaultTokens = undefined;
   }
 
   filtToken(token: {chain: string, addressRaw: U256} | undefined) {
@@ -78,6 +109,7 @@ export class TokenWidgetComponent implements OnInit {
       this.selectedToken = undefined;
       this.eventTokenSelected.emit(this.selectedToken);
     }
+    this.defaultTokens = undefined;
   }
 
   showSearchResult() {
@@ -92,6 +124,7 @@ export class TokenWidgetComponent implements OnInit {
 
   showLabel(): string {
     let msg = this.label;
+    if (!msg) return '';
     this.translate.get(msg).subscribe(res => msg = res);
     return msg;
   }
@@ -101,6 +134,7 @@ export class TokenWidgetComponent implements OnInit {
     this.tokenInputText = token.textFormat();
     this.hideSearchResult();
     this.eventTokenSelected.emit(this.selectedToken);
+    this.defaultTokens = undefined;
   }
 
   style(): string {
@@ -127,6 +161,9 @@ export class TokenWidgetComponent implements OnInit {
   }
 
   tokens(): TokenItem[] {
+    if (this.allowedTokes) return this.allowedTokes;
+    if (this.defaultTokens) return this.defaultTokens;
+
     const result: TokenItem[] = [];
     // todo: add custom tokens
     const custom: TokenItem[] = [];
@@ -134,37 +171,17 @@ export class TokenWidgetComponent implements OnInit {
       const chain = ChainHelper.toChainStr(i.chain);
       const existing = custom.find(x => x.chain === chain && x.address == i.address);
       if (existing) continue;
-      const item = new TokenItem();
-      item.chain = chain;
-      item.address = i.address;
-      const ret = ChainHelper.addressToRaw(chain, i.address);
-      if (ret.error) {
-        console.error(`Failed to get raw address, chain=${chain}, address=${i.address}`);
-        continue;
-      }
-      item.addressRaw = ret.raw!;
-      item.type = TokenHelper.toTypeStr(i.type);
-      if (i.address) {
-        item.shortAddress = ChainHelper.toShortAddress(chain, i.address);
-      } else {
-        item.shortAddress = i.name;
-      }
-      item.chainLogo = this.logo.getChainLogo(i.chain);
-      if (i.address === '') {
-        item.tokenLogo = this.logo.getTokenLogo(i.chain, '');
-      } else {
-        item.tokenLogo = this.logo.getTokenLogo(i.chain, i.address);
-      }
-      item.symbol = i.symbol;
-      item.name = i.name;
-      item.decimals = i.decimals;
+      const item = this.makeTokenItem(i);
+      if (!item) continue;
       result.push(item);
     }
 
-    return result.filter(item => {
+    this.defaultTokens = result.filter(item => {
       if (this.tokenInputText.includes('<')) return true;
        return item.symbol.toUpperCase().includes(this.tokenInputText.toUpperCase());
       });
+
+    return this.defaultTokens;
   }
 
   check(): boolean {
@@ -175,6 +192,35 @@ export class TokenWidgetComponent implements OnInit {
 
     return false;
   }
+
+  private makeTokenItem(info: VerifiedToken): TokenItem | undefined {
+    const item = new TokenItem();
+    item.chain = ChainHelper.toChainStr(info.chain);
+    item.address = info.address;
+    const ret = ChainHelper.addressToRaw(item.chain, item.address);
+    if (ret.error) {
+      console.error(`makeTokenItem: Failed to get raw address, chain=${item.chain}, address=${item.address }`);
+      return undefined;
+    }
+    item.addressRaw = ret.raw!;
+    item.type = TokenHelper.toTypeStr(info.type);
+    if (info.address) {
+      item.shortAddress = ChainHelper.toShortAddress(item.chain, info.address);
+    } else {
+      item.shortAddress = info.name;
+    }
+    item.chainLogo = this.logo.getChainLogo(info.chain);
+    if (info.address === '') {
+      item.tokenLogo = this.logo.getTokenLogo(item.chain, '');
+    } else {
+      item.tokenLogo = this.logo.getTokenLogo(item.chain, info.address);
+    }
+    item.symbol = info.symbol;
+    item.name = info.name;
+    item.decimals = info.decimals;
+    return item;
+  }
+
 
 }
 

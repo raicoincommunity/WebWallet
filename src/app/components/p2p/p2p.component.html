@@ -159,10 +159,10 @@
           <tbody>
             <tr *ngFor="let order of searchResults">
               <td (click)="selectOrder(order, false)" class="uk-text-left uk-text-truncate">{{ orderMaker(order) }}</td>
-              <td (click)="selectOrder(order, false)" class="uk-text-center">{{ orderFromValue(order) }}<span *ngIf="pairWithSameSymbol(order).same" style="font-size: 12px;"> {{orderFromTokenType(order)}}</span> = {{orderToValue(order)}}<span *ngIf="pairWithSameSymbol(order).same" style="font-size: 12px;"> {{orderToTokenType(order)}}</span></td>
-              <td (click)="selectOrder(order, false)" class="uk-text-center">{{ orderAvailable(order) }}<span *ngIf="pairWithSameSymbol(order).same" style="font-size: 12px;"> {{orderFromTokenType(order)}}</span></td>
+              <td (click)="selectOrder(order, false)" class="uk-text-center">{{ orderFromValue(order) }}<span *ngIf="pairWithSameSymbol(order).same" style="font-size: 12px;"> {{orderFromTokenTypeShown(order)}}</span> = {{orderToValue(order)}}<span *ngIf="pairWithSameSymbol(order).same" style="font-size: 12px;"> {{orderToTokenTypeShown(order)}}</span></td>
+              <td (click)="selectOrder(order, false)" class="uk-text-center">{{ orderAvailable(order) }}<span *ngIf="pairWithSameSymbol(order).same" style="font-size: 12px;"> {{orderFromTokenTypeShown(order)}}</span></td>
               <td class="uk-text-center">
-                <button *ngIf="orderActionStatus(order) === 'trade'" class="uk-button uk-button-small uk-button-primary">{{ 'Trade' | translate }}</button>
+                <button *ngIf="orderActionStatus(order) === 'trade'" (click)="selectOrder(order, false)" class="uk-button uk-button-small uk-button-primary">{{ 'Trade' | translate }}</button>
                 <button *ngIf="orderActionStatus(order) === 'ping'" (click)="ping(order)" class="uk-button uk-button-small uk-button-secondary">Ping</button>
                 <button *ngIf="orderActionStatus(order) === 'pinging'" class="uk-button uk-button-small uk-button-disabled">Ping...</button>
                 <button *ngIf="orderActionStatus(order) === 'disable'" class="uk-button uk-button-small uk-button-disabled">Ping</button>
@@ -185,7 +185,7 @@
     </div>
 
     <!-- Place Order Panel-->
-    <div *ngIf="shoulShowMainAccountTips()" class="uk-alert-warning" uk-alert>
+    <div *ngIf="shouldShowMainAccountTips()" class="uk-alert-warning" uk-alert>
       <p><b>{{ 'Tips' | translate }}:</b> {{ 'The main acccount (#1 account of a wallet) is reserved for Raicoin P2P protocol, please add or switch to a secondary account to place order.' | translate }}</p>
     </div>
     <div [hidden]="activePanel !== 'place_order'" class="uk-card uk-card-default uk-margin">
@@ -315,8 +315,8 @@
             <tr *ngFor="let order of orders()">
               <td (click)="selectOrder(order)" class="uk-visible@m">{{ orderCreatedAt(order) * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}</td>
               <td (click)="selectOrder(order)" class="uk-text-truncate">{{ orderHash(order) }}</td>
-              <td (click)="selectOrder(order)" class="uk-text-center">{{ orderFromTokenSymbol(order) }} <span style="font-size: 12px;">{{ orderFromTokenType(order) }}</span></td>
-              <td (click)="selectOrder(order)" class="uk-text-center">{{ orderToTokenSymbol(order) }} <span style="font-size: 12px;">{{ orderToTokenType(order) }}</span></td>
+              <td (click)="selectOrder(order)" class="uk-text-center">{{ orderFromTokenSymbol(order) }} <span style="font-size: 12px;">{{ orderFromTokenTypeShown(order) }}</span></td>
+              <td (click)="selectOrder(order)" class="uk-text-center">{{ orderToTokenSymbol(order) }} <span style="font-size: 12px;">{{ orderToTokenTypeShown(order) }}</span></td>
               <td (click)="selectOrder(order)" class="uk-text-center">{{ orderStatus(order) }} <span style="font-size: 12px;">({{ orderFillRate(order) }})</span></td>
               <td class="uk-text-center uk-visible@m"><a ngxClipboard
                 [cbContent]="orderHash(order) " (cbOnSuccess)="orderIdCopied()" uk-icon="icon: copy" title="{{ 'Copy Order ID' | translate }}" uk-tooltip></a>&nbsp;&nbsp;<a (click)="selectOrder(order)" uk-icon="icon: more;" title="{{ 'Show order details' | translate }}"
@@ -534,7 +534,7 @@
                     {{ selectedOrderFromTokenSymbol() }} <span style="font-size: 12px;">{{ selectedOrderFromTokenTypeAddress() }}</span>
                   </div>
                   <div *ngIf="!selectedOrderFromTokenTrusted()" class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
-                    {{ selectedOrderFromTokenSymbol() }} <span style="font-size: 12px;">{{ selectedOrderFromTokenType() }}</span>
+                    {{ selectedOrderFromTokenSymbol() }} <span style="font-size: 12px;">{{ selectedOrderFromTokenTypeShown() }}</span>
                   </div>
                   <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
                     <a ngxClipboard
@@ -592,7 +592,7 @@
                 {{ 'Price' | translate }}
               </div>
               <div class="uk-width-3-5 uk-text-left uk-text-break">
-                {{ selectedOrderPrice() }}
+                {{ selectedOrderFromValue() }}<span *ngIf="selectedOrderPairWithSameSymbol()" style="font-size: 12px;"> {{ selectedOrderFromTokenTypeShown() }}</span> = {{ selectedOrderToValue() }}<span *ngIf="selectedOrderPairWithSameSymbol()" style="font-size: 12px;"> {{ selectedOrderToTokenTypeShown() }}</span>
               </div>
             </div>
           </div>
@@ -683,7 +683,7 @@
 
                 <span class="confirm-title uk-text-truncate">
                   <div>
-                    <span class="confirm-title uk-text-truncate">{{ selectedOrderFromTokenSymbol() }} {{ selectedOrderFromTokenType() }}</span>
+                    <span class="confirm-title uk-text-truncate">{{ selectedOrderFromTokenSymbol() }} {{ selectedOrderFromTokenTypeShown() }}</span>
                     <span class="confirm-subtitle">{{ 'From Token' | translate }}</span>
                     <br class="br-spacer" />
                   </div>
@@ -705,7 +705,7 @@
               <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
                 <span class="confirm-title uk-text-truncate">
                   <div>
-                    <span class="confirm-title uk-text-truncate">{{ selectedOrderToTokenSymbol() }} {{ selectedOrderToTokenType() }}</span>
+                    <span class="confirm-title uk-text-truncate">{{ selectedOrderToTokenSymbol() }} {{ selectedOrderToTokenTypeShown() }}</span>
                     <span class="confirm-subtitle">{{ 'To Token' | translate }}</span>
                     <br class="br-spacer" />
                   </div>
@@ -832,7 +832,7 @@
                     {{ selectedOrderFromTokenSymbol() }} <span style="font-size: 12px;">{{ selectedOrderFromTokenTypeAddress() }}</span>
                   </div>
                   <div *ngIf="!selectedOrderFromTokenTrusted()" class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
-                    {{ selectedOrderFromTokenSymbol() }} <span style="font-size: 12px;">{{ selectedOrderFromTokenType() }}</span>
+                    {{ selectedOrderFromTokenSymbol() }} <span style="font-size: 12px;">{{ selectedOrderFromTokenTypeShown() }}</span>
                   </div>
                   <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
                     <a ngxClipboard
@@ -890,7 +890,7 @@
                 {{ 'Price' | translate }}
               </div>
               <div class="uk-width-3-5 uk-text-left uk-text-break">
-                {{ selectedOrderPrice() }}
+                {{ selectedOrderFromValue() }}<span *ngIf="selectedOrderPairWithSameSymbol()" style="font-size: 12px;"> {{ selectedOrderFromTokenTypeShown() }}</span> = {{ selectedOrderToValue() }}<span *ngIf="selectedOrderPairWithSameSymbol()" style="font-size: 12px;"> {{ selectedOrderToTokenTypeShown() }}</span>
               </div>
             </div>
           </div>
@@ -947,11 +947,11 @@
           <div class="uk-width-1-2@m">
             <button (click)="activePanel=''" class="uk-button uk-button-secondary uk-width-1-1">{{ 'Back' | translate }}</button>
           </div>
-          <div *ngIf="selectedOrderActionStatus() === 'ping'" (onclick)="pingSelectedOrder()" class="uk-hidden@m uk-width-1-1 uk-grid-margin">
-            <button class="uk-button uk-button-primary uk-width-1-1" (click)="cancelOrder()">Ping</button>
+          <div *ngIf="selectedOrderActionStatus() === 'ping'" class="uk-hidden@m uk-width-1-1 uk-grid-margin">
+            <button class="uk-button uk-button-primary uk-width-1-1" (click)="pingSelectedOrder()">Ping</button>
           </div>
-          <div *ngIf="selectedOrderActionStatus() === 'ping'" (onclick)="pingSelectedOrder()"  class="uk-visible@m uk-width-1-2">
-            <button class="uk-button uk-button-primary uk-width-1-1" (click)="cancelOrder()">Ping</button>
+          <div *ngIf="selectedOrderActionStatus() === 'ping'" class="uk-visible@m uk-width-1-2">
+            <button class="uk-button uk-button-primary uk-width-1-1" (click)="pingSelectedOrder()">Ping</button>
           </div>
           <div *ngIf="selectedOrderActionStatus() === 'pinging'" class="uk-hidden@m uk-width-1-1 uk-grid-margin">
             <button class="uk-button uk-button-disabled uk-width-1-1" >Ping...</button>
@@ -960,10 +960,10 @@
             <button class="uk-button uk-button-disabled uk-width-1-1" >Ping...</button>
           </div>
           <div *ngIf="selectedOrderActionStatus() === 'trade'" class="uk-hidden@m uk-width-1-1 uk-grid-margin">
-            <button class="uk-button uk-button-primary uk-width-1-1" (click)="cancelOrder()">{{ 'Trade' | translate }}</button>
+            <button class="uk-button uk-button-primary uk-width-1-1" (click)="activateSwapPanel()">{{ 'Trade' | translate }}</button>
           </div>
           <div *ngIf="selectedOrderActionStatus() === 'trade'" class="uk-visible@m uk-width-1-2">
-            <button class="uk-button uk-button-primary uk-width-1-1" (click)="cancelOrder()">{{ 'Trade' | translate }}</button>
+            <button class="uk-button uk-button-primary uk-width-1-1" (click)="activateSwapPanel()">{{ 'Trade' | translate }}</button>
           </div>
           <div *ngIf="selectedOrderActionStatus() === 'disable'" class="uk-hidden@m uk-width-1-1 uk-grid-margin">
             <button class="uk-button uk-button-disabled uk-width-1-1" >Ping</button>
@@ -975,6 +975,200 @@
       </div>
 
     </div>
+
+    <!-- Swap Panel-->
+    <div [hidden]="activePanel !== 'swap'" class="uk-card uk-card-default uk-margin">
+      <div class="uk-card-header">
+        <h3 class="uk-card-title">{{ 'Trade' | translate }}</h3>
+      </div>
+
+      <div class="uk-card-body">
+        <div class="uk-form-horizontal">
+
+          <div class="uk-margin">
+            <app-token-widget raiLabel="{{ 'You pay' | translate }}" [raiChangable]="false" #swapToTokenWidget ></app-token-widget>
+          </div>
+
+          <div *ngIf="selectedOrderWithFungiblePair()" class="uk-margin">
+            <label class="uk-form-label" for="form-input-swap-to-amount">
+              {{ 'Amount' | translate }} *
+            </label>
+            <div class="uk-form-controls">
+              <div uk-grid>
+                <div class="uk-width-1-1">
+                  <div class="uk-inline uk-width-1-1">
+                    <a class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px; width: auto;"><span (click)="swapToAmountMin()" uk-tooltip title="{{ 'Set Minimum Amount' | translate }}">{{ 'Min' | translate }}</span>&nbsp;&nbsp;<span (click)="swapToAmountMax()" uk-tooltip title="{{ 'Set Maximum Amount' | translate }}">{{ 'Max' | translate }}</span></a>
+                    <input (change)="syncSwapToAmount()" (keyup)="syncSwapToAmount()" [(ngModel)]="inputSwapToAmount" class="uk-input" id="form-input-swap-to-amount" type="text" placeholder="{{ swapToAmountHint() }}" [ngClass]="{ 'uk-form-success': swapToAmountStatus === 1, 'uk-form-danger': swapToAmountStatus === 2 }">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="!selectedOrderWithFungiblePair() && selectedOrderToTokenType() === '20'"  class="uk-margin">
+            <label class="uk-form-label" for="form-input-swap-to-amount">
+              {{ 'Amount' | translate }}
+            </label>
+            <div class="uk-form-controls">
+              <div uk-grid>
+                <div class="uk-width-1-1">
+                  <div class="uk-inline uk-width-1-1">
+                    <input [(ngModel)]="inputSwapToAmount" id="form-input-swap-to-amount" class="uk-input"
+                    type="text"  autocomplete="off" disabled />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="selectedOrderToTokenType() === '721'"  class="uk-margin">
+            <label class="uk-form-label" for="form-input-swap-to-id">
+              {{ 'Token ID' | translate }}
+            </label>
+            <div class="uk-form-controls">
+              <div uk-grid>
+                <div class="uk-width-1-1">
+                  <div class="uk-inline uk-width-1-1">
+                    <input [(ngModel)]="inputSwapToTokenId" id="form-input-swap-to-id" class="uk-input"
+                    type="text"  autocomplete="off" disabled />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-margin">
+            <app-token-widget raiLabel="{{ 'You get' | translate }}"  [raiChangable]="false" #swapFromTokenWidget ></app-token-widget>
+          </div>
+
+          <div *ngIf="selectedOrderFromTokenType() === '20'"  class="uk-margin">
+            <label class="uk-form-label" for="form-input-swap-from-amount">
+              {{ 'Amount' | translate }}
+            </label>
+            <div class="uk-form-controls">
+              <div uk-grid>
+                <div class="uk-width-1-1">
+                  <div class="uk-inline uk-width-1-1">
+                    <input [(ngModel)]="inputSwapFromAmount" id="form-input-swap-from-amount" class="uk-input"
+                    type="text"  autocomplete="off" disabled />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="selectedOrderFromTokenType() === '721'"  class="uk-margin">
+            <label class="uk-form-label" for="form-input-swap-from-id">
+              {{ 'Token ID' | translate }}
+            </label>
+            <div class="uk-form-controls">
+              <div uk-grid>
+                <div class="uk-width-1-1">
+                  <div class="uk-inline uk-width-1-1">
+                    <input [(ngModel)]="inputSwapFromTokenId" id="form-input-swap-from-id" class="uk-input"
+                    type="text"  autocomplete="off" disabled />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="uk-card-footer uk-text-right">
+        <div uk-grid>
+          <div class="uk-width-1-2@m">
+            <button (click)="activePanel = 'order_details'" class="uk-button uk-button-secondary uk-width-1-1">{{ 'Back' | translate }}</button>
+          </div>
+          <div class="uk-width-1-2@m">
+            <button class="uk-button uk-button-primary uk-width-1-1" (click)="swap()">{{ 'Swap' | translate }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm Swap Panel-->
+    <div *ngIf="activePanel === 'confirm_swap'" uk-grid class="uk-margin">
+      <div class="uk-width-1-1">
+        <div class="uk-card uk-card-default uk-text-center uk-text-warning">
+          <span style="display:block; font-size: 32px;">{{ 'Please confirm the swap details' | translate }}</span>
+        </div>
+        <br />
+
+        <div uk-grid>
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title">{{ confirmSwapToToken() }}</span>
+                    <span class="confirm-subtitle">{{ 'From Token' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-truncate">
+                  <div>
+                    <span class="confirm-title">{{ confirmSwapFromToken() }}</span>
+                    <span class="confirm-subtitle">{{ 'To Token' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-break">
+                  <div>
+                    <span class="confirm-currency uk-text-danger">-{{ confirmSwapToAmount() }}</span>
+                    <span class="confirm-subtitle">{{ 'You Pay' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-2@m">
+            <div class="uk-card uk-card-default">
+              <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+                <span class="confirm-title uk-text-break">
+                  <div>
+                    <span class="confirm-currency uk-text-success">+{{ confirmSwapFromAmount() }}</span>
+                    <span class="confirm-subtitle">{{ 'You Get' | translate }}</span>
+                    <br class="br-spacer" />
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div uk-grid>
+          <div class="uk-width-1-2@s ">
+            <button (click)="activePanel = 'swap'" class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' |
+              translate }}</button>
+          </div>
+          <div class="uk-width-1-2@s">
+            <button class="uk-button uk-button-primary uk-width-1-1" (click)="confirmSwap()">{{ 'Confirm' |
+              translate }}</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
 
     <!-- End -->
   </div>

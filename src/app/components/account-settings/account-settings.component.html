@@ -207,13 +207,13 @@
           <div class="uk-width-1-1" *ngIf="changable()">
             <div class="uk-form-horizontal">
               <div class="uk-margin">
-                <label class="uk-form-label" for="input-new-alias">{{ 'New Domain' | translate }} </label>
+                <label class="uk-form-label" for="input-new-domain">{{ 'New Domain' | translate }} </label>
                 <div class="uk-form-controls">
                   <div *ngIf="!locked()" class="uk-inline uk-width-1-1">
-                    <input [(ngModel)]="newDns" (blur)="checkNewDns()" [ngClass]="{'uk-form-danger': newDnsStatus === 1 }" class="uk-input" id="input-new-alias" type="text" placeholder="{{ 'Input a domain name you own, such as google.com' | translate }}">
+                    <input [(ngModel)]="newDns" (blur)="checkNewDns()" [ngClass]="{'uk-form-danger': newDnsStatus === 1 }" class="uk-input" id="input-new-domain" type="text" placeholder="{{ 'Input a domain name you own, such as google.com' | translate }}">
                   </div>
                   <div *ngIf="locked()" class="uk-inline uk-width-1-1">
-                    <input class="uk-input" disabled type="text" id="input-new-alias" placeholder="{{ 'Unlock wallet first' | translate }}">
+                    <input class="uk-input" disabled type="text" id="input-new-domain" placeholder="{{ 'Unlock wallet first' | translate }}">
                   </div>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Chain, TokenType, ChainStr, ChainHelper} from './util.service';
+import { Chain, TokenType, ChainStr, ChainHelper, U256} from './util.service';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -56,7 +56,17 @@ export class VerifiedTokensService {
     }
   }
 
-  token(chain: string, address: string): VerifiedToken | undefined {
+  token(chain: string, address: string | U256): VerifiedToken | undefined {
+    if (address instanceof U256) {
+      if (ChainHelper.isNative(chain, address)) {
+       address = '';
+      } else {
+        const ret = ChainHelper.rawToAddress(chain, address);
+        if (ret.error) return undefined;
+        address = ret.address!;
+      }
+    }
+
     if (environment.current_chain === ChainStr.RAICOIN) {
       return this.verifiedTokensDict[chain]?.[address];
     } else if (environment.current_chain === ChainStr.RAICOIN_TEST) {
