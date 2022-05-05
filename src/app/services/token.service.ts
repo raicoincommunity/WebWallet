@@ -20,7 +20,8 @@ export class TokenService implements OnDestroy {
   private maxTokenIds: {[account: string]: MaxTokenId} = {};
   private receivings: {[key: string]: boolean} = {};
   private makers: { [account: string]: MakerInfo } = {};
-  private takers: { [account: string]: TakerInfo } = {}; // check if taker limited
+  private takers: { [account: string]: TakerInfo } = {};
+  private tokenIdOwners: TokenIdOwnerInfo[] = [];
   private timerSync: any = null;
   private timerSwapData: any = null;
   private tokenInfoQueries: {[chainAddress: string]: number} = {};
@@ -102,16 +103,53 @@ export class TokenService implements OnDestroy {
         this.subscribeTopicAccountHead(order.mainAccount);
       }
     }
+
+    this.subscribeTokenIdOwner(order);
+  }
+
+  private subscribeTokenIdOwner(order: OrderInfo) {
+    if (order.tokenWant.type !== TokenTypeStr._721) return;
+    const newInfo = new TokenIdOwnerInfo();
+    newInfo.fromParams(order.tokenWant, order.valueWant);
+    const info = this.tokenIdOwners.find(x => x.eq(newInfo));
+    if (info) {
+      info.ref++;
+      return;
+    }
+    newInfo.ref = 1;
+    this.tokenIdOwners.push(newInfo);
+    this.queryTokenIdOwner(newInfo.address, newInfo.tokenId, newInfo.chain);
+    this.subscribeTopicTokenIdOwner(newInfo);
   }
 
   unsubscribeOrder(order: OrderInfo) {
     let info = this.makers[order.maker.account];
-    if (!info) return;
-    info.removeOrder(order);
+    if (info) {
+      info.removeOrder(order);
+    }
+    this.unsubscribeTokenIdOwner(order);
   }
 
-  accountTokenInfo(chain: string, address: string, account?: string)
+  private unsubscribeTokenIdOwner(order: OrderInfo) {
+    if (order.tokenWant.type !== TokenTypeStr._721) return;
+    const newInfo = new TokenIdOwnerInfo();
+    newInfo.fromParams(order.tokenWant, order.valueWant);
+    const index = this.tokenIdOwners.findIndex(x => x.eq(newInfo));
+    if (index === -1) return;
+    this.tokenIdOwners[index].ref--;
+    if (this.tokenIdOwners[index].ref <= 0) {
+      this.tokenIdOwners.splice(index, 1);
+    }
+  }
+
+  accountTokenInfo(chain: string, address: string | U256, account?: string)
    : AccountTokenInfo | undefined {
+    if (address instanceof U256) {
+      const ret = ChainHelper.rawToAddress(chain, address);
+      if (ret.error) return undefined;
+      address = ret.address!;
+    }
+
     if (!account) account = this.wallets.selectedAccountAddress();
     const info = this.accounts[account];
     if (!info) return undefined;
@@ -123,16 +161,24 @@ export class TokenService implements OnDestroy {
     return undefined;
   }
 
-  balance(chain: string, address: string, account?: string): U256 {
+  balance(chain: string, address: string, account?: string): { amount: U256, type: TokenType, decimals: U8 } {
+    const zero = { amount: U256.zero(), type: TokenType.INVALID, decimals: U8.zero() };
     if (!account) account = this.wallets.selectedAccountAddress();
     const info = this.accounts[account];
-    if (!info) return new U256(0);
+    if (!info) return zero;
+
+    if (address === '') {
+      const ret = ChainHelper.nativeTokenAddress(chain);
+      if (ret.error) return zero;
+      address = ret.address!;
+    }
+
     for (let i of info.tokens) {
       if (i.chain === chain && i.address === address) {
-        return i.balance;
+        return { amount: i.balance, type: i.type, decimals: i.decimals };
       }
     }
-    return new U256(0);
+    return zero;
   }
 
   issued(address: string): boolean {
@@ -186,6 +232,14 @@ export class TokenService implements OnDestroy {
       address = ret.raw!;
     }
     return this.getTokenInfo(chain, address);
+  }
+
+  tokenIdOwner(token: TokenKey, tokenId: U256): string {
+    const target = new TokenIdOwnerInfo();
+    target.fromParams(token, tokenId);
+    const info = this.tokenIdOwners.find(x => x.eq(target));
+    if (!info) return '';
+    return info.owner;
   }
 
   receivables(account?: string): TokenReceivable[] {
@@ -591,6 +645,12 @@ export class TokenService implements OnDestroy {
     return this.makers[maker];
   }
 
+  mainAccountHeadHeight(maker: string, mainAccount: string): U64 | undefined {
+    const info = this.makers[maker];
+    if (!info) return undefined;
+    return info.mainAccountHeadHeight(mainAccount);
+  }
+
   addTaker(address: string, swapInfo: AccountSwapInfo) {
     let info = this.takers[address];
     if (!info) {
@@ -635,12 +695,18 @@ export class TokenService implements OnDestroy {
     if (info.orders.length === 0) return skipped;
     if (!info.swapInfo) return skipped;
     if (info.swapInfo.limited) return skipped;
+    if (info.swapInfo.activeOrders.eq(0)) return skipped;
     const now = this.server.getTimestamp();
+    if (info.lastPong + AppHelper.SWAP_PING_PONG_INTERVAL > now) return skipped;
     if (info.swapInfo.pong.plus(AppHelper.SWAP_PING_PONG_INTERVAL).gt(now)) {
       return skipped;
     }
     if (info.swapInfo.pong.gte(info.swapInfo.ping)) return skipped;
-    return this.pong(account, wallet);
+    const result = this.pong(account, wallet);
+    if (result.returnCode === SwapReturnCode.SUCCESS) {
+      info.lastPong = now;
+    }
+    return result;
   }
 
   processActiveSwaps(account: Account, wallet: Wallet): SwapProcessResult {
@@ -997,7 +1063,14 @@ export class TokenService implements OnDestroy {
 
     for (let address in this.accounts) {
       let info = this.accounts[address];
-      if (info.nextSyncAt > now && !force) continue;
+      const synced = info.subscribed && info.swapMainAccountQueried && info.swapInfoQueried;
+      if (!force) {
+        if (info.nextSyncAt > now) continue;
+        if (info.lastSyncAt > now - 15000 && synced) {
+          info.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
+          continue;
+        }
+      }
 
       this.subscribe(address);
       this.querySyncInfo(address);
@@ -1008,17 +1081,26 @@ export class TokenService implements OnDestroy {
       this.queryAccountActiveSwaps(address);
       this.syncAccountOrders(address);
 
-      if (info.subscribed && info.swapMainAccountQueried && info.swapInfoQueried) {
+      info.lastSyncAt = now;
+      if (synced) {
         info.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
       } else {
-        info.nextSyncAt = now + 20000;
+        info.nextSyncAt = now + 10000;
       }
     }
 
     this.purgeMakers();
     for (let address in this.makers) {
       let info = this.makers[address];
-      if (info.nextSyncAt > now && !force) continue;
+      const synced = info.swapInfoQueried && info.headQueried;
+      if (!force) {
+        if (info.nextSyncAt > now) continue;
+        if (info.lastSyncAt > now - 15000 && synced) {
+          info.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
+          continue;
+        }
+      }
+
       this.queryAccountSwapInfo(address);
       this.subscribeTopicAccountSwapInfo(address);
       this.queryAccountHead(address);
@@ -1034,10 +1116,11 @@ export class TokenService implements OnDestroy {
         this.subscribeTopicAccountHead(account);
       }
 
-      if (info.swapInfoQueried && info.headQueried) {
+      info.lastSyncAt = now;
+      if (synced) {
         info.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
       } else {
-        info.nextSyncAt = now + 20000;
+        info.nextSyncAt = now + 10000;
       }
     }
 
@@ -1047,6 +1130,26 @@ export class TokenService implements OnDestroy {
       this.subscribeTopicAccountSwapInfo(address);
 
       info.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
+    }
+
+    for (let info of this.tokenIdOwners) {
+      const synced = !!info.owner;
+      if (!force) {
+        if (info.nextSyncAt > now) continue;
+        if (info.lastSyncAt > now - 15000 && synced) {
+          info.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
+          continue;
+        }
+      }
+
+      this.queryTokenIdOwner(info.address, info.tokenId, info.chain);
+      this.subscribeTopicTokenIdOwner(info);
+      info.lastSyncAt = now;
+      if (synced) {
+        info.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
+      } else {
+        info.nextSyncAt = now + 10000;
+      }
     }
 
   }
@@ -1109,6 +1212,19 @@ export class TokenService implements OnDestroy {
       topic: 'account_head',
       account,
       filters: [{key:'topic', value:topic.toHex()}],
+    };
+    this.server.send(message);
+  }
+
+  private subscribeTopicTokenIdOwner(info: TokenIdOwnerInfo) {
+    const message: any = {
+      action: 'service_subscribe',
+      service: this.SERVICE,
+      topic: 'token_id_owner',
+      chain: info.chain,
+      address: info.address,
+      token_id: info.tokenId,
+      filters: [{key:'topic', value:info.topic()}],
     };
     this.server.send(message);
   }
@@ -1210,6 +1326,9 @@ export class TokenService implements OnDestroy {
         case 'token_id_info':
           this.processTokenIdInfoQueryAck(message);
           break;
+        case 'token_id_owner':
+          this.processTokenIdOwner(message);
+          break;
         case 'search_orders':
           this.processSearchOrdersAck(message);
           break;
@@ -1254,6 +1373,9 @@ export class TokenService implements OnDestroy {
           break;
         case 'token_id_info':
           this.processTokenIdInfoNotify(message);
+          break;
+        case 'token_id_owner':
+          this.processTokenIdOwner(message);
           break;
         case 'token_id_transfer':
           this.processTokenIdTransferNotify(message);
@@ -1405,6 +1527,7 @@ export class TokenService implements OnDestroy {
     if (makerInfo) {
       makerInfo.swapInfoQueried = true;
       makerInfo.swapInfo = swapInfo;
+      makerInfo.updateOrderStatus(this.server.getTimestamp());
       this.makersSubject.next();
     }
 
@@ -1455,11 +1578,8 @@ export class TokenService implements OnDestroy {
     if (!message.ids) {
       if (token.tokenIds.length < token.expectedTokenIds
         && !token.balance.eq(token.tokenIds.length)) {
+        token.tokenIds = [];
         this.queryAccountTokensInfo(account);
-        setTimeout(() => {
-          token.tokenIds = [];
-          this.syncAccountTokenIds(account, token);
-        }, 1000);
       }
       return;
     }
@@ -1873,6 +1993,18 @@ export class TokenService implements OnDestroy {
     catch (e) {
       console.log(`TokenService.processTokenIdInfoQueryAck: failed to parse message=`, message);
     }
+  }
+
+  private processTokenIdOwner(message: any) {
+    if (message.error) return;
+    const info = new TokenIdOwnerInfo();
+    const error = info.fromJson(message);
+    if (error) return;
+
+    const index = this.tokenIdOwners.findIndex(x => x.eq(info));
+    if (index === -1) return;
+    info.copyLocalData(this.tokenIdOwners[index]);
+    this.tokenIdOwners[index] = info;
   }
 
   private processSearchOrdersAck(message: any) {  
@@ -2306,12 +2438,39 @@ export class TokenService implements OnDestroy {
 
   private queryTokenIdInfo(address: string, id: U256, chain?: string) {
     if (!chain) chain = environment.current_chain;
+    const ret = ChainHelper.addressToRaw(chain, address);
+    if (ret.error) {
+      console.error(`queryTokenIdInfo: convert address to raw failed, chain=${chain}, address=${address}`);
+      return;
+    }
     const message: any = {
       action: 'token_id_info',
       service: this.SERVICE,
       chain,
       address: address,
+      address_raw: ret.raw!.toHex(),
       token_id: id.toDec()
+    };
+    this.server.send(message);
+  }
+
+  private queryTokenIdOwner(address: string, id: U256 | string, chain?: string) {
+    if (!chain) chain = environment.current_chain;
+    const ret = ChainHelper.addressToRaw(chain, address);
+    if (ret.error) {
+      console.error(`queryTokenIdOwner: convert address to raw failed, chain=${chain}, address=${address}`);
+      return;
+    }
+    if (id instanceof U256) {
+      id = id.toDec();
+    }
+    const message: any = {
+      action: 'token_id_owner',
+      service: this.SERVICE,
+      chain,
+      address: address,
+      address_raw: ret.raw!.toHex(),
+      token_id: id
     };
     this.server.send(message);
   }
@@ -2591,6 +2750,7 @@ class AccountTokensInfo {
   subscribed: boolean = false;
   synced: boolean = false;
   nextSyncAt: number = 0;
+  lastSyncAt: number = -1000000;
   issuerInfo: IssuerInfo = new IssuerInfo();
   swapMainAccountQueried: boolean = false;
   swapMainAccount: string = '';
@@ -2613,6 +2773,7 @@ class AccountTokensInfo {
   //local data
   expectedRecentBlocks: number = 10;
   expectedRecentOrders: number = 10;
+  lastPong: number = 0;
 
   updateToken(token: AccountTokenInfo) {
     const index = this.tokens.findIndex(
@@ -2799,7 +2960,6 @@ class AccountTokensInfo {
   }
 
 }
-
 
 
 class TokenBlock {
@@ -3157,10 +3317,10 @@ export class TokenKey {
     this.type = type;
     const ret = ChainHelper.rawToAddress(this.chain, this.addressRaw);
     if (ret.error) {
-      this.address = ret.address!;
       console.error(`TokenKey.constructor: convert raw to address failed, chain: ${this.chain}, raw: ${this.addressRaw.toHex()}`);
       return true;
     }
+    this.address = ret.address!;
     return false;
   }
 
@@ -3216,27 +3376,32 @@ export class OrderInfo {
   hash: U256 = new U256(0);
   createdAt: U64 = new U64(0);
 
+  private price: U512 | undefined;
+
   eq(other: OrderInfo): boolean {
     return this.hash.eq(other.hash);
   }
 
   normalizedPrice(): U512 {
+    if (this.price) return this.price;
+
     const base = new U512(U256.max()).plus(1);
     if (this.tokenOffer.type === TokenTypeStr._20
       && this.tokenWant.type === TokenTypeStr._20) {
-      return new U512(this.valueWant).mul(base).idiv(this.valueOffer);
+      this.price = new U512(this.valueWant).mul(base).idiv(this.valueOffer);
     } else if (this.tokenOffer.type === TokenTypeStr._20
       && this.tokenWant.type === TokenTypeStr._721) {
-        return new U512(1).mul(base).idiv(this.valueOffer);
+        this.price = new U512(1).mul(base).idiv(this.valueOffer);
     } else if (this.tokenOffer.type === TokenTypeStr._721
       && this.tokenWant.type === TokenTypeStr._20) {
-        return new U512(this.valueWant).mul(base);
+        this.price = new U512(this.valueWant).mul(base);
     } else if (this.tokenOffer.type === TokenTypeStr._721
       && this.tokenWant.type === TokenTypeStr._721) {
-        return base;
+        this.price = base;
     } else {
-      return U512.max();
+      this.price = U512.max();
     }
+    return this.price;
   }
 
   fillRate(): number {
@@ -3277,6 +3442,31 @@ export class OrderInfo {
 
   fungiblePair(): boolean {
     return this.tokenOffer.type === TokenTypeStr._20 && this.tokenWant.type === TokenTypeStr._20;
+  }
+
+  availableOfferMin(): U256 {
+    if (!this.fungiblePair()) return U256.zero();
+    if (this.leftOffer.lt(this.minOffer)) return this.leftOffer;
+    return this.minOffer;
+  }
+
+  availableOfferMax(): U256 {
+    if (!this.fungiblePair()) return U256.zero();
+    return this.leftOffer;
+  }
+
+  availableWantMin(): U256 {
+    if (!this.fungiblePair()) return U256.zero();
+    const minOffer = this.availableOfferMin();
+    const secure = new U512(minOffer).mul(this.valueWant).idiv(this.valueOffer);
+    return new U256(secure.toBigNumber());
+  }
+
+  availableWantMax(): U256 {
+    if (!this.fungiblePair()) return U256.zero();
+    const maxOffer = this.availableOfferMax();
+    const secure = new U512(maxOffer).mul(this.valueWant).idiv(this.valueOffer);
+    return new U256(secure.toBigNumber());
   }
 
   fromJson(json: any): boolean {
@@ -3507,6 +3697,7 @@ export class MakerInfo {
   headQueried: boolean = false;
   lastPing: number = 0;
   nextSyncAt: number = 0;
+  lastSyncAt: number = -1000000;
 
   getOrder(height: U64): MakerOrderInfo | undefined {
     return this.orders.find(x => x.order.orderHeight.eq(height));
@@ -3556,17 +3747,31 @@ export class MakerInfo {
     return this.swapInfo.limited;
   }
 
+  mainAccountSynced(account: string): boolean {
+    const mainAccount = this.mainAccounts[account];
+    if (!mainAccount) return false;
+    return mainAccount.account !== '' && mainAccount.block !== null;
+  }
+
   mainAccountTxnLimited(account: string, now: number): boolean {
     const head = this.mainAccounts[account];
     if (!head) return true;
     return head.txnLimited(now);
   }
 
+  mainAccountHeadHeight(account: string): U64 | undefined {
+    const mainAccount = this.mainAccounts[account];
+    if (!mainAccount) return undefined;
+    return mainAccount.headHeight();
+  }
+
   calcOrderActionStatus(order: OrderInfo, now: number): OrderActionStatus {
     if (!this.synced() || !order.active(now) || this.txnLimited(now) || this.swapLimited()
-      || this.mainAccountTxnLimited(order.mainAccount, now)) {
+      || this.mainAccountTxnLimited(order.mainAccount, now)
+      || !this.mainAccountSynced(order.mainAccount)) {
         return OrderActionStatus.DISABLE;
     }
+
 
     if (this.swapInfo.pong.plus(AppHelper.SWAP_PING_PONG_INTERVAL).gt(now)
           || (this.lastPing > 0 && this.swapInfo.pong.gt(this.lastPing - 10)
@@ -3617,6 +3822,11 @@ export class AccountHead {
     }
   }
 
+  headHeight(): U64 {
+    if (!this.block) return new U64(0);
+    return new U64(this.block.height);
+  }
+
   txnLimited(now: number): boolean {
     if (!this.block) return true;
     const blockTimestamp = new U64(this.block.timestamp);
@@ -3642,6 +3852,78 @@ class TakerInfo {
   swapInfo: AccountSwapInfo = new AccountSwapInfo();
   ref: number = 0;
   nextSyncAt: number = 0;
+}
+
+class TokenIdOwnerInfo {
+  chain: string = '';
+  address: string = '';
+  tokenId: string = '';
+  owner: string = '';
+
+  // local data
+  ref: number = 0;
+  nextSyncAt: number = 0;
+  lastSyncAt: number = -1000000;
+  _topic: string = '';
+
+  copyLocalData(info: TokenIdOwnerInfo) {
+    this.ref = info.ref;
+    this.nextSyncAt = info.nextSyncAt;
+    this._topic = info._topic;
+  }
+
+  eq(other: TokenIdOwnerInfo) {
+    return this.chain === other.chain && this.address === other.address && this.tokenId === other.tokenId;
+  }
+
+  fromJson(json: any): boolean {
+    try {
+      this.chain = json.chain;
+      this.address = json.address;
+      if (!this.address) {
+        const ret = ChainHelper.rawToAddress(this.chain, new U256(json.address_raw, 16));
+        if (ret.error) {
+          console.log(`TokenIdOwnerInfo.fromJson: failed to parse json=${json}`);
+          return true;
+        }
+        this.address = ret.address!;
+      }
+      this.tokenId = json.token_id;
+      this.owner = json.owner;
+      return false;
+    }
+    catch (e) {
+      console.log(`TokenIdOwnerInfo.fromJson: failed to parse json=${json}`);
+      return true;
+    }
+  }
+
+  fromParams(token: TokenKey, tokenId: U256, owner: string = '') {
+    this.chain = token.chain;
+    this.address = token.address;
+    this.tokenId = tokenId.toDec();
+    this.owner = owner;
+  }
+
+  topic(): string {
+    if (this._topic) return this._topic;
+    const chain = ChainHelper.toChain(this.chain);
+    if (chain === Chain.INVALID) {
+      console.error(`TokenIdOwnerInfo.topic: invalid chain=${this.chain}`);
+      return '';
+    }
+    const ret = ChainHelper.addressToRaw(this.chain, this.address);
+    if (ret.error) {
+      console.error(`TokenIdOwnerInfo.calcTopic: failed to convert address to raw, address=${this.address}`);
+      return '';
+    }
+
+    const topic = AppHelper.calcTopic(AppTopicType.TOKEN_ID_OWNER, new U32(chain), ret.raw!,
+      new U256(this.tokenId));
+    this._topic = topic.toHex();
+    return this._topic;
+  }
+
 }
 
 export interface SwapProcessResult {

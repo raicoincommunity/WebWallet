@@ -8,13 +8,15 @@
             [src]="selectedToken.chainLogo" width="20" height="20" /></a>
         <a *ngIf="selectedToken" class="uk-form-icon" href="#" style="padding-left: 0px;"><img
             [src]="selectedToken.tokenLogo" width="20" height="20" /></a>
-        <a #tokenSelect (click)="onRemove()" uk-icon="icon: trash;" class="uk-form-icon uk-form-icon-flip" style="padding-right: 0px;"></a>
-        <input #tokenInput (focus)="onFocus()" (blur)="onBlur()" [(ngModel)]="tokenInputText"
+        <a *ngIf="changable" #tokenSelect (click)="onRemove()" uk-icon="icon: trash;" class="uk-form-icon uk-form-icon-flip" style="padding-right: 0px;"></a>
+        <input *ngIf="!changable" #tokenInput [(ngModel)]="tokenInputText" class="uk-input"
+           type="text"  autocomplete="off" [style]="style()" disabled />
+        <input *ngIf="changable" #tokenInput (focus)="onFocus()" (blur)="onBlur()" [(ngModel)]="tokenInputText"
           (ngModelChange)="onChange()"
           [ngClass]="{ 'uk-form-danger': tokenStatus() === 2 && !tokenFocused && !searchResultShown }" class="uk-input"
            type="text" placeholder="{{ 'Search by symbol, such as BTC' | translate }}" autocomplete="off" [style]="style()" />
-        <button type="button" style="display:none"></button>
-        <div uk-dropdown="mode: click" #tokenDropdown class="uk-width-1-1 uk-margin-remove-top uk-padding-remove">
+        <button *ngIf="changable" type="button" style="display:none"></button>
+        <div *ngIf="changable" uk-dropdown="mode: click" #tokenDropdown class="uk-width-1-1 uk-margin-remove-top uk-padding-remove">
           <ul class="uk-nav uk-dropdown-nav uk-text-truncate">
             <li *ngFor="let token of tokens()">
               <div (click)="selectToken(token)" (mousedown)="selectToken(token)" class="uk-inline uk-width-1-1 uk-padding-remove-left">

@@ -175,6 +175,8 @@ export class TxBlock implements Block {
   private _extensions: Uint8Array = new Uint8Array(0);
   private _signature: U512 = new U512();
 
+  private _hash: U256 | undefined;
+
   static readonly MAX_EXTENSIONS_LENGTH = 256;
 
   constructor () {
@@ -265,6 +267,9 @@ export class TxBlock implements Block {
   }
 
   hash(): U256 {
+    if (typeof this._hash !== 'undefined') {
+      return this._hash;
+    }
     const context = blake.blake2bInit(32, null);
     blake.blake2bUpdate(context, this.type().bytes);
     blake.blake2bUpdate(context, this.opcode().bytes);
@@ -282,6 +287,7 @@ export class TxBlock implements Block {
     let uint8 = blake.blake2bFinal(context) as Uint8Array;
     let result = new U256();
     result.bytes = uint8;
+    this._hash = result;
     return result;
   }
 

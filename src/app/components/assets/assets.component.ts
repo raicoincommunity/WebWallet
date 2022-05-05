@@ -97,7 +97,7 @@ export class AssetsComponent implements OnInit {
       item.asset = i.symbol;
       item.chainShown = ChainHelper.toChainShown(i.chain);
       const decimals = new U8(i.decimals);
-      item.balance = this.token.balance(i.chain, i.address).toBalanceStr(decimals);
+      item.balance = this.token.balance(i.chain, i.address).amount.toBalanceStr(decimals);
       item.chainLogo = this.logo.getChainLogo(i.chain);
       const ret  = ChainHelper.addressToRaw(i.chain, i.address);
       if (ret.error || !ret.raw || !ret.raw.isNativeTokenAddress()) {

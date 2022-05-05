@@ -200,11 +200,11 @@ export class AssetWidgetComponent implements OnInit {
       this.translate.get(msg).subscribe(res => msg = res);
       return msg;
     } else {
-      let max = marker(`Balance`);
-      this.translate.get(max).subscribe(res => max = res);
+      let msg = marker(`Balance`);
+      this.translate.get(msg).subscribe(res => msg = res);
       const asset = this.selectedAsset;
       const balance = asset.balance.toBalanceStr(asset.decimals, false);
-      return `${max}: ${balance} ${asset.symbol}`;
+      return `${msg}: ${balance} ${asset.symbol}`;
     }
   }
 

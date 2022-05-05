@@ -1036,6 +1036,14 @@ export class WalletsService implements OnDestroy {
     this.blockQueryByHash(block_info.block.previous());
   }
 
+  private syncAccountExtra(account: Account) {
+    this.syncHeadBlock(account);
+    this.syncConfirmedBlock(account);
+    this.receivablesQuery(account);
+    this.accountForksQuery(account);
+    this.syncRecentBlocks(account);
+  }
+
   private syncAccount(account: Account, wallet: Wallet) {
     this.accountSubscribe(account, wallet);
     if (!account.subscribed) return;
@@ -1043,11 +1051,7 @@ export class WalletsService implements OnDestroy {
     this.accountInfoQuery(account);
 
     if (account.synced) {
-      this.syncHeadBlock(account);
-      this.syncConfirmedBlock(account);
-      this.receivablesQuery(account);
-      this.accountForksQuery(account);
-      this.syncRecentBlocks(account);
+      this.syncAccountExtra(account);
     }
   }
 
@@ -1055,16 +1059,24 @@ export class WalletsService implements OnDestroy {
     if (this.server.getState() !== ServerState.CONNECTED) return;
 
     this.forEachAccount((a, w) => {
-      let now = window.performance.now();
-      if (a.nextSyncAt > now && !force) return;
+      const now = window.performance.now();
+      const synced = a.synced && a.subscribed;
+      if (!force) {
+        if (a.nextSyncAt > now) return;
+        if (a.lastSyncAt > now - 15000 && synced) {
+          a.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
+          return;
+        }
+      }
 
       this.syncAccount(a, w);
 
-      if (a.synced && a.subscribed) {
+      a.lastSyncAt = now;
+      if (synced) {
         a.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
       } 
       else {
-        a.nextSyncAt = now + 20000;
+        a.nextSyncAt = now + 10000;
       }
     });
   }
@@ -1130,6 +1142,7 @@ export class WalletsService implements OnDestroy {
       }
       else {
         a.subscribed = true
+        this.accountInfoQuery(a)
       }
     });
   }
@@ -1150,6 +1163,7 @@ export class WalletsService implements OnDestroy {
       accounts.forEach(a => {
         if (a.subscribed) a.synced = true;
         this.pushBlocks(a);
+        this.syncAccountExtra(a);
       });
       return;
     }
@@ -1219,6 +1233,7 @@ export class WalletsService implements OnDestroy {
         a.tail = a.head;
         a.tailHeight = a.headHeight;
         this.blocks.putBlock(a.head, headBlock, amount.amount);
+        this.syncAccountExtra(a);
       }
     });
   }
@@ -1975,6 +1990,7 @@ export class Account {
   synced: boolean = false;
   subscribed: boolean = false;
   nextSyncAt: number = 0;
+  lastSyncAt: number = -1000000;
   recentBlocks: number = 0;
 
   copyOperationData(other: Account) {
@@ -1993,6 +2009,7 @@ export class Account {
     this.synced = other.synced;
     this.subscribed = other.subscribed;
     this.nextSyncAt = other.nextSyncAt;
+    this.lastSyncAt = other.lastSyncAt;
     this.recentBlocks = other.recentBlocks;
   }
 
