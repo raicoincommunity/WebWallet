@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import {ActivatedRoute, Router} from '@angular/router';
 import { Subject} from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { TokenService, TokenInfo, AccountTokenInfo } from '../../services/token.service';
@@ -27,6 +27,7 @@ export class AssetsComponent implements OnInit {
   tokenSymbol = '';
   tokenName = '';
   tokenDecimals = new U8();
+  tokenType = '';
   detail: AssetInfo | null = null;
   private dnsRegexp = /^[a-z0-9][a-z0-9-\.]{0,252}$/i;
 
@@ -35,6 +36,7 @@ export class AssetsComponent implements OnInit {
 
   constructor(
     private router: Router,
+    private route: ActivatedRoute,
     private wallets: WalletsService,
     private token: TokenService,
     private logo: LogoService,
@@ -45,6 +47,11 @@ export class AssetsComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
+    const add = this.route.snapshot.queryParams.add;
+    if (add) {
+      this.activePanel = 'add_asset';
+    }
+
     const assets = this.settings.getAssets(this.address());
     for (let asset of assets) {
       if (!this.token.tokenInfo(asset.chain, asset.address)) {
@@ -68,11 +75,13 @@ export class AssetsComponent implements OnInit {
         this.tokenSymbol = info.symbol;
         this.tokenName = info.name;
         this.tokenDecimals = info.decimals;
+        this.tokenType = TokenHelper.toTypeStr(info.type);
       } else {
         this.tokenAddressStatus = 2;
         this.tokenSymbol = '';
         this.tokenName = '';
         this.tokenDecimals = new U8(0);
+        this.tokenType= '';
       }
     });
   }
@@ -205,7 +214,7 @@ export class AssetsComponent implements OnInit {
     this.syncTokenAddress();
     if (this.tokenAddressStatus !== 1) return;
     const asset = new AssetSetting(this.selectedChain, this.formatTokenAddress(),
-                                   this.tokenName, this.tokenSymbol, this.tokenDecimals.toDec());
+                                   this.tokenName, this.tokenSymbol, this.tokenDecimals.toDec(), this.tokenType);
     this.settings.addAsset(this.wallets.selectedAccountAddress(), asset);
     this.token.syncAccount(this.wallets.selectedAccountAddress());
     this.activePanel = '';

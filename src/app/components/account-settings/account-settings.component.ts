@@ -7,6 +7,7 @@ import { ActivatedRoute } from "@angular/router";
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { TokenService } from '../../services/token.service';
+import { ServerService } from '../../services/server.service';
 
 @Component({
   selector: 'app-account-settings',
@@ -15,8 +16,8 @@ import { TokenService } from '../../services/token.service';
 })
 export class AccountSettingsComponent implements OnInit, AfterViewInit {
   newRep = '';
-  increaseTxns = '';
-  txnsStatus = 0;
+  inputIncreaseCredit = '';
+  creditStatus = 0;
   increaseCredit = new U16(0);
   newName = '';
   newDns = '';
@@ -30,6 +31,7 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
     private renderer: Renderer2,
     private alias: AliasService,
     private token: TokenService,
+    private server: ServerService,
     private notification: NotificationService) { }
 
   ngOnInit(): void {
@@ -168,8 +170,39 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
     return this.wallets.representative();
   }
 
-  currentDailyTxns(): number {
-    return this.wallets.credit() * 20;
+  credit(): number {
+    return this.wallets.credit();
+  }
+
+  currentDailyTxns(): string {
+    const headTimestamp = this.wallets.headTimestamp();
+    if (headTimestamp === 0) return '';
+    const counter = this.wallets.headCounter();
+    const now = this.server.getTimestamp();
+    const credit = this.wallets.credit();
+    const total = credit * 20;
+    if (headTimestamp - (headTimestamp % 86400) === now - (now % 86400)) {
+      return `${counter} / ${total}`;
+    }
+    else {
+      return `0 / ${total}`;
+    }
+  }
+
+  orders(): string {
+    const credit = this.wallets.credit();
+    if (credit === 0) return '';
+    const orders = this.token.activeOrders();
+    if (!orders) return '';
+    return `${orders.toDec()} / ${credit}`;
+  }
+
+  swaps(): string {
+    const credit = this.wallets.credit();
+    if (credit === 0) return '';
+    const swaps = this.token.activeSwaps();
+    if (!swaps) return '';
+    return `${swaps.toDec()} / ${credit}`;
   }
 
   currentName(): string {
@@ -185,25 +218,27 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
     return this.alias.dns(address);
   }
 
-  checkTxns() {
-    if (!this.increaseTxns) this.txnsStatus = 0;
-    this.txnsStatus = this.convertTxns() ? 2 : 1;
-  }
-
-  convertTxns(): boolean {
+  checkCredit() {
+    if (!this.inputIncreaseCredit) {
+      this.creditStatus = 0;
+      return;
+    }
+    
     try {
-      let txns = new U32(this.increaseTxns);
-      if (txns.eq(0) || txns.mod(20).gt(0) || txns.idiv(20).gt(U16.max())) {
-        this.increaseCredit = new U16(0);
-        return true;
+      this.increaseCredit = new U16(this.inputIncreaseCredit);
+      if (this.wallets.creditCost(this.increaseCredit).gt(this.wallets.balance().value)) {
+        this.creditStatus = 2;
+        return;
       }
 
-      this.increaseCredit = new U16(txns.idiv(20).toBigNumber());
-      return false;
-    }
-    catch (err) {
-      this.increaseCredit = new U16(0);
-      return true;
+      const max = U16.max().minus(this.wallets.credit());
+      if (this.increaseCredit.gt(max)) {
+        this.creditStatus = 2;
+        return;
+      }
+      this.creditStatus = 1;
+    } catch (err) {
+      this.creditStatus = 2;
     }
   }
 
@@ -220,7 +255,8 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
       return;
     }
 
-    if (this.convertTxns()) {
+    this.checkCredit();
+    if (this.creditStatus !== 1) {
       let msg = marker('Invalid increasing number');
       this.translate.get(msg).subscribe(res => msg = res);            
       this.notification.sendError(msg);
@@ -247,11 +283,11 @@ export class AccountSettingsComponent implements OnInit, AfterViewInit {
       return;
     }
 
-    let msg = marker(`Successfully increased daily transactions limit!`);
+    let msg = marker(`Successfully increased account credit!`);
     this.translate.get(msg).subscribe(res => msg = res);
     this.notification.sendSuccess(msg);
-    this.increaseTxns = '';
-    this.txnsStatus = 0;
+    this.inputIncreaseCredit = '';
+    this.creditStatus = 0;
     this.increaseCredit = new U16(0);
   }
 

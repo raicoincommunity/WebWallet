@@ -43,12 +43,12 @@ export class AutoSwapService implements OnInit, OnDestroy {
     for (let w of this.wallets.wallets) {
       if (w.locked()) continue;
       for (let a of w.accounts) {
-        const swap = this.settings.getAutoSwap(a.address());
-        if (swap === false) continue;
+        const autoSwap = this.settings.getAutoSwap(a.address());
+        const paused = autoSwap === false;
         let check = this.wallets.accountActionCheck(a, w);
         if (check !== WalletErrorCode.SUCCESS) continue;
 
-        let result = this.token.processActiveSwaps(a, w);
+        let result = this.token.processActiveSwaps(paused, a, w);
         if (result.returnCode === SwapReturnCode.SUCCESS
           || result.returnCode === SwapReturnCode.WAITING) {
           continue;

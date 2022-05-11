@@ -101,6 +101,7 @@ export enum StorageKey {
   GLOBAL_SETTINGS = 'global_settings',
   ASSETS = 'assets',
   AUTO_SWAP = 'auto_swap',
+  HIDE_COMPLETED_ORDERS = 'hide_completed_orders',
   WALLETCONNECT_DEEPLINK_CHOICE = 'WALLETCONNECT_DEEPLINK_CHOICE',
   WALLET_CONNECT = 'walletconnect',
   WEB3_CONNECT_CACHED_PROVIDER = 'WEB3_CONNECT_CACHED_PROVIDER'

@@ -48,7 +48,8 @@
       <ul class="uk-nav uk-nav-default uk-nav-parent-icon left-nav" uk-nav>
         <li><a routerLink="/send" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Send' | translate }}</a></li>
         <li><a routerLink="/receive" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Receive' | translate }}  <span *ngIf="receivableTxns()" class="uk-badge uk-alert-warning" style="font-size: 14px; padding-bottom: 2px; background:#fff6ee; color: #faa05a">{{receivableTxns()}}</span></a></li>
-        <li><a routerLink="/p2p" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'P2P Market' | translate }}</a></li>
+        <li><a routerLink="/p2p" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'P2P Market' | translate }} <span *ngIf="activeOrders() && !autoSwapPaused()" class="uk-badge uk-alert-warning" style="font-size: 14px; padding-bottom: 2px; background:#fff6ee; color: #faa05a">{{activeOrders()}}</span><span *ngIf="activeOrders() && autoSwapPaused()" class="uk-badge uk-alert-warning" style="font-size: 14px; padding-bottom: 2px; background:#f8f8f8; color: #999">{{activeOrders()}}</span>
+        </a></li>
         <li><a routerLink="/assets" routerLinkActive="active" class="uk-margin-left " uk-toggle="target: #mobile-nav">{{ 'Assets' | translate }}</a></li>
         <li class="uk-parent">
           <a href="#" class="uk-margin-left">{{ 'Apps' | translate }}</a>
@@ -158,7 +159,8 @@
           <li>
             <a routerLink="/receive" routerLinkActive="active" class="uk-margin-left">{{ 'Receive' | translate }} <span *ngIf="receivableTxns()" class="uk-badge uk-alert-warning" style="font-size: 14px; padding-bottom: 2px; background:#fff6ee; color: #faa05a">{{receivableTxns()}}</span></a>
           </li>
-          <li><a routerLink="/p2p" routerLinkActive="active" class="uk-margin-left">{{ 'P2P Market' | translate }}</a></li>
+          <li><a routerLink="/p2p" routerLinkActive="active" class="uk-margin-left">{{ 'P2P Market' | translate }} <span *ngIf="activeOrders() && !autoSwapPaused()" class="uk-badge uk-alert-warning" style="font-size: 14px; padding-bottom: 2px; background:#fff6ee; color: #faa05a">{{activeOrders()}}</span><span *ngIf="activeOrders() && autoSwapPaused()" class="uk-badge uk-alert-warning" style="font-size: 14px; padding-bottom: 2px; background:#f8f8f8; color: #999">{{activeOrders()}}</span>
+          </a></li>
           <li><a routerLink="/assets" routerLinkActive="active" class="uk-margin-left">{{ 'Assets' | translate }}</a></li>
           <li class="uk-parent">
             <a href="#" class="uk-margin-left">{{ 'Apps' | translate }}</a>

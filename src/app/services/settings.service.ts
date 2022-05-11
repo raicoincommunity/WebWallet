@@ -9,17 +9,18 @@ import { Subject } from 'rxjs';
 })
 export class SettingsService {
   private autoReceiveSetting = new AutoReceiveSetting();
-  private lockMimutes = 30;
+  private lockMimutes = 0;
   private lang = '';
   private assets: {[account: string]: AssetSetting[]} = {};
   private autoSwap: {[account: string]: boolean} = {};
+  private hideCompletedOrders: {[account: string]: boolean} = {};
 
   private globalSubject = new Subject<any>();
   public globalSettingChange$ = this.globalSubject.asObservable();
 
   constructor(
     private translate: TranslateService,
-    private storage: LocalStorageService) { 
+    private storage: LocalStorageService) {
     this.loadGlobalSetting();
     translate.addLangs(['en', 'es', 'fr', 'id', 'ru', 'vi', 'zh']);
     translate.setDefaultLang('en');
@@ -33,6 +34,7 @@ export class SettingsService {
     }
     this.loadAssetsSetting();
     this.loadAutoSwapSetting();
+    this.loadHideCompletedOrdersSetting();
     this.storage.changes$.subscribe(event => this.processStorageEvent(event));
   }
 
@@ -86,13 +88,22 @@ export class SettingsService {
     return assets.findIndex(x => x.chain === chain && x.address === address) !== -1;
   }
 
-  addAutoSwap(account: string, enable: boolean) {
+  setAutoSwap(account: string, enable: boolean) {
     this.autoSwap[account] = enable;
     this.saveAutoSwapSetting();
   }
 
   getAutoSwap(account: string): boolean | undefined {
     return this.autoSwap[account];
+  }
+
+  getHideCompletedOrders(account: string): boolean | undefined {
+    return this.hideCompletedOrders[account];
+  }
+
+  setHideCompletedOrders(account: string, enable: boolean) {
+    this.hideCompletedOrders[account] = enable;
+    this.saveHideCompletedOrdersSetting();
   }
 
   loadGlobalSetting() {
@@ -135,9 +146,19 @@ export class SettingsService {
   }
 
   loadAutoSwapSetting() {
-    let autoSwap = this.storage.get(StorageKey.AUTO_SWAP);
+    const autoSwap = this.storage.get(StorageKey.AUTO_SWAP);
     if (!autoSwap) return;
     this.autoSwap = autoSwap;
+  }
+
+  saveHideCompletedOrdersSetting() {
+    this.storage.set(StorageKey.HIDE_COMPLETED_ORDERS, this.hideCompletedOrders);
+  }
+
+  loadHideCompletedOrdersSetting() {
+    const hideCompletedOrders = this.storage.get(StorageKey.HIDE_COMPLETED_ORDERS);
+    if (!hideCompletedOrders) return;
+    this.hideCompletedOrders = hideCompletedOrders;
   }
 
   saveAutoSwapSetting() {
@@ -166,13 +187,16 @@ export class AssetSetting {
   name: string = '';
   symbol: string = '';
   decimals: string = '';
-
-  constructor(_chain: string, _address: string, _name: string, _symbol: string, _decimals: string) {
+  type: string = '';
+  
+  constructor(_chain: string, _address: string, _name: string, _symbol: string,
+    _decimals: string, _type?: string) {
     this.chain = _chain;
     this.address = _address;
     this.name = _name;
     this.symbol = _symbol;
     this.decimals = _decimals;
+    this.type = _type || '';
   }
 
   eq(other: AssetSetting): boolean {
