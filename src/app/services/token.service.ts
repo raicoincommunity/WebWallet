@@ -13,7 +13,7 @@ import { Block } from './blocks.service';
 })
 export class TokenService implements OnDestroy {
   private readonly SERVICE = 'token';
-  private readonly INVALID_ACCOUNT = new U256(0).toAccountAddress();
+  private readonly INVALID_ACCOUNT = U256.zero().toAccountAddress();
   private accounts: {[account: string]: AccountTokensInfo} = {};
   private tokenBlocks: {[accountHeight: string]: TokenBlock} = {};
   private tokenInfos: {[chainAddress: string]: TokenInfo} = {};
@@ -35,6 +35,9 @@ export class TokenService implements OnDestroy {
   private searchOrderSubject = new Subject<{by: string, hash?: U256, fromToken?: TokenKey, toToken?: TokenKey, limitBy?: SearchLimitBy, limitValue?: U256, more?:boolean, orders: OrderInfo[]}>();
   private accountOrdersSubject = new Subject<string>();
   private makersSubject = new Subject();
+  private accountSwapsSubject = new Subject<string>();
+  private swapSubject = new Subject<SwapFullInfo>();
+  private accountTokensSubject = new Subject<string>();
 
   public issuer$ = this.issuerSubject.asObservable();
   public tokenId$ = this.tokenIdSubject.asObservable();
@@ -45,6 +48,9 @@ export class TokenService implements OnDestroy {
   public searchOrder$ = this.searchOrderSubject.asObservable();
   public accountOrders$ = this.accountOrdersSubject.asObservable();
   public makers$ = this.makersSubject.asObservable();
+  public accountSwaps$ = this.accountSwapsSubject.asObservable();
+  public swap$ = this.swapSubject.asObservable();
+  public accountTokens$ = this.accountTokensSubject.asObservable();
 
   constructor(
     private server: ServerService,
@@ -94,8 +100,8 @@ export class TokenService implements OnDestroy {
       this.ongoingSync();
     } else {
       const newMainAccount = !info.hasMainAccount(order.mainAccount);
-      const existing = info.updateOrder(order, now);
-      if (!existing) {
+      const inserted = info.updateOrder(order, now);
+      if (inserted) {
         this.subscribeTopicOrderById(order.hash);
       }
       if (newMainAccount) {
@@ -455,12 +461,16 @@ export class TokenService implements OnDestroy {
       wallet = this.wallets.selectedWallet();
     }
     if (!wallet) {
-      return {errorCode: WalletErrorCode.UNEXPECTED};
+      return { errorCode: WalletErrorCode.UNEXPECTED };
     }
 
     const account = wallet.findAccount({address});
     if (!account) {
-      return {errorCode: WalletErrorCode.UNEXPECTED};
+      return { errorCode: WalletErrorCode.UNEXPECTED };
+    }
+
+    if (this.txnsLimitRemaining(account) < 2) {
+      return { errorCode: WalletErrorCode.CREDIT };
     }
 
     value.op = ExtensionTokenOpStr.SWAP;
@@ -605,6 +615,58 @@ export class TokenService implements OnDestroy {
     return info.orders;
   }
 
+  activeOrders(account?: string): U64 | undefined {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info || !info.swapInfoQueried) return undefined;
+    return info.swapInfo?.activeOrders;
+  }
+
+  moreOrders(account?: string): boolean {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return false;
+    return info.moreOrders;
+  }
+
+  loadMoreOrders(account?: string) {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return;
+    info.expectedRecentOrders += 10;
+    this.syncAccountOrders(account);
+  }
+
+  swaps(account?: string): SwapFullInfo[] {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return [];
+    return info.swaps;
+  }
+
+  activeSwaps(account?: string): U64 | undefined {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info || !info.swapInfoQueried) return undefined;
+    return info.swapInfo?.activeSwaps;
+  }
+
+  moreSwaps(account?: string): boolean {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return false;
+    return info.moreTakerSwaps || info.moreMakerSwaps;
+  }
+
+  loadMoreSwaps(account?: string) {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return;
+    info.expectedRecentSwaps += 10;
+    this.queryMakerSwaps(account);
+    this.queryTakerSwaps(account);
+  }
+
   orderCancelling(account: string, height: U64): boolean {
     const info = this.accounts[account];
     if (!info) return false;
@@ -709,7 +771,7 @@ export class TokenService implements OnDestroy {
     return result;
   }
 
-  processActiveSwaps(account: Account, wallet: Wallet): SwapProcessResult {
+  processActiveSwaps(paused: boolean, account: Account, wallet: Wallet): SwapProcessResult {
     const skipped = { returnCode: SwapReturnCode.SKIPPED };
     const address = account.address();
     const info = this.accounts[address];
@@ -721,21 +783,24 @@ export class TokenService implements OnDestroy {
     for (let swap of purged) {
       this.removeTaker(swap.taker.account);
     }
+    if (purged.length > 0) {
+      this.accountSwapsSubject.next(address);
+    }
 
     const swapping = info.getMakerSwappingItem();
     if (swapping) {
-      return this.processActiveSwap(info, swapping, account, wallet);
+      return this.processActiveSwap(info, swapping, paused, account, wallet);
     }
 
     for (let swap of info.activeSwaps) {
-      const result = this.processActiveSwap(info, swap, account, wallet);
+      const result = this.processActiveSwap(info, swap, paused, account, wallet);
       if (result.returnCode === SwapReturnCode.SKIPPED) continue;
       return result;
     }
     return skipped;
   }
 
-  processActiveSwap(info: AccountTokensInfo, swap: SwapFullInfo, account: Account,
+  processActiveSwap(info: AccountTokensInfo, swap: SwapFullInfo, paused: boolean, account: Account,
     wallet: Wallet): SwapProcessResult {
     const skipped = { returnCode: SwapReturnCode.SKIPPED };
     const address = account.address();
@@ -743,10 +808,12 @@ export class TokenService implements OnDestroy {
     const now = this.server.getTimestamp();
 
     if (address === swap.swap.maker) {
-      const order = info.getOrder(swap.order.orderHeight);
+      let order = info.getOrder(swap.order.orderHeight);
       if (order && (order.cancelSent || order.order.finished())) return skipped;
+      if (swap.order.finished()) return skipped;
 
       if (status === SwapStatus.INQUIRY) {
+        if (paused) return skipped;
         if (swap.inquiryAckSent) return skipped;
         if (swap.swap.timeout.lt(now + 80)) return skipped; // timeout = now + 100 seconds
         if (swap.order.timeout.lte(now)) return skipped;
@@ -757,11 +824,12 @@ export class TokenService implements OnDestroy {
         if (order && order.order.fungiblePair() && order.order.leftOffer.lt(ackValue)) {
             return skipped;
         }
-    
+        if (swap.order.fungiblePair() && swap.order.leftOffer.lt(ackValue)) {
+          return skipped;
+        }
         if (this.txnsLimitRemaining(account) < 1) {
           return skipped;
         }
-
         const result = this.swapInquiryAck(swap, account, wallet);
         if (result.returnCode === SwapReturnCode.SUCCESS) {
           swap.inquiryAckSent = true;
@@ -769,7 +837,6 @@ export class TokenService implements OnDestroy {
         return result;
 
       } else if (status === SwapStatus.TAKE) {
-
         if (swap.takeAckSent) return skipped;
         if (swap.swap.timeout.lt(now + 20)) return skipped;
         if (!account.headHeight.plus(1).eq(swap.swap.tradeHeight)) return skipped;
@@ -795,7 +862,8 @@ export class TokenService implements OnDestroy {
           }
           swap.takeNackBlockStatus = TakeNackBlockStatus.PENDING;
           swap.takeNackBlock = result.walletOpResult!.block!;
-          this.submitTakeNackBlock(address, swap.swap.inquiryHeight, swap.takeNackBlock);
+          this.submitTakeNackBlock(swap.swap.maker, address, swap.swap.inquiryHeight,
+            swap.takeNackBlock);
           return result;
         }
         else if (swap.takeNackBlockStatus === TakeNackBlockStatus.SUBMITTED) {
@@ -836,7 +904,7 @@ export class TokenService implements OnDestroy {
       };
     }
     
-    if (!mainAccount.headHeight.eq(swap.swap.inquiryAckHeight)) return skipped;
+    if (!mainAccount.headHeight.plus(1).eq(swap.swap.inquiryAckHeight)) return skipped;
     if (!mainAccount.headConfirmed()) return { returnCode: SwapReturnCode.WAITING };
     if (!account.headConfirmed()) return { returnCode: SwapReturnCode.WAITING };
 
@@ -943,6 +1011,7 @@ export class TokenService implements OnDestroy {
     value.op = ExtensionTokenOpStr.SWAP;
     value.sub_op = TokenSwapSubOpStr.TAKE;
     value.inquiry_height = swap.swap.inquiryHeight.toDec();
+    value.take_height = swap.swap.takeHeight.toDec();
 
     const extensions = [ { type: ExtensionTypeStr.TOKEN, value } ];
     const result = this.wallets.changeExtensions(extensions, account, wallet);
@@ -1080,6 +1149,8 @@ export class TokenService implements OnDestroy {
       this.querySwapMainAccount(address);
       this.queryAccountActiveSwaps(address);
       this.syncAccountOrders(address);
+      this.queryMakerSwaps(address);
+      this.queryTakerSwaps(address);
 
       info.lastSyncAt = now;
       if (synced) {
@@ -1181,11 +1252,12 @@ export class TokenService implements OnDestroy {
     }
   }
 
-  private submitTakeNackBlock(maker: string, inquiryHeight: U64, block: Block) {
+  private submitTakeNackBlock(maker: string, taker: string, inquiryHeight: U64, block: Block) {
     const message: any = {
       action: 'submit_take_nack_block',
       service: this.SERVICE,
       maker,
+      taker,
       inquiry_height: inquiryHeight.toDec(),
       block: block.json()
     };
@@ -1287,6 +1359,9 @@ export class TokenService implements OnDestroy {
         case 'account_token_link':
           this.processAccountTokenLinkQueryAck(message);
           break;
+        case 'maker_swaps':
+          this.processMakerSwapsQueryAck(message);
+          break;
         case 'next_account_token_links':
           this.processAccountTokenLinksQueryAck(message, false);
           break;
@@ -1307,7 +1382,10 @@ export class TokenService implements OnDestroy {
           break;
         case 'swap_main_account':
           this.processSwapMainAccountAck(message);
-          break;  
+          break;
+        case 'taker_swaps':
+          this.processTakerSwapsQueryAck(message);
+          break;
         case 'token_block':
           this.processTokenBlockQueryAck(message);
           break;
@@ -1471,15 +1549,15 @@ export class TokenService implements OnDestroy {
     if (!message.orders) return;
 
     let sort = false;
-    let existing = false;
+    let inserted = false;
     let minOrderHeight = U64.max();
     for (let i of message.orders) {
       const order = new OrderInfo();
       const error = order.fromJson(i);
       if (error) continue;
-      existing = info.updateOrder(order, false);
+      inserted = info.updateOrder(order, false);
       this.orderInfoSubject.next(order);
-      if (!existing && OrderSwapInfo.DEFAULT_EXPECTED_RECENT_SWAPS > 0) {
+      if (inserted && OrderSwapInfo.DEFAULT_EXPECTED_RECENT_SWAPS > 0) {
         this.queryOrderSwaps(message.account, order.orderHeight)
       }
       sort = true;
@@ -1490,7 +1568,7 @@ export class TokenService implements OnDestroy {
 
     if (sort) info.sortOrders();
 
-    if (existing /* The last order exists */ || minOrderHeight.eq(info.minOrderHeight)) {
+    if (!inserted /* The last order exists */ || minOrderHeight.eq(info.minOrderHeight)) {
       if (!info.moreOrders || info.orders.length >= info.expectedRecentOrders
         || info.minOrderHeight.eq(0)) {
         return;
@@ -1691,6 +1769,48 @@ export class TokenService implements OnDestroy {
 
   }
 
+  private processMakerSwapsQueryAck(message: any) {
+    if (message.error || !message.account || !message.more) return;
+    const account = message.account;
+    const info = this.accounts[account];
+    if (!info) return;
+    info.moreMakerSwaps = message.more === 'true';
+    if (!message.swaps) return;
+
+    let sort = false;
+    let inserted = false;
+    let minHeight = U64.max();
+    for (let i of message.swaps) {
+      const swap = new SwapFullInfo();
+      const error = swap.fromJson(i);
+      if (error) continue;
+      inserted = info.updateSwap(swap, false);
+      if (inserted) sort = true;
+      if (swap.swap.tradeHeight.lt(minHeight)) {
+        minHeight = swap.swap.tradeHeight;
+      }
+    }
+
+    if (sort) {
+      info.sortMakerSwaps();
+    }
+    info.mergeSwaps();
+
+    if (!inserted || minHeight.eq(info.minMakerSwapHeight())) {
+      if (!info.moreMakerSwaps || info.makerSwaps.length >= info.expectedRecentSwaps
+        || info.minMakerSwapHeight().eq(0)) {
+        return;
+      }
+      this.queryMakerSwaps(account, info.minMakerSwapHeight().minus(1),
+        info.expectedRecentSwaps - info.makerSwaps.length);
+    } else {
+      if (minHeight.gt(0)) {
+        this.queryMakerSwaps(account, minHeight.minus(1));
+      }
+    }
+    this.accountSwapsSubject.next(account);
+  }
+
   private processAccountTokenLinksQueryAck(message: any, isPrevious: boolean) {
     if (message.error || !message.token_links) return;
     const account = message.account;
@@ -1761,6 +1881,49 @@ export class TokenService implements OnDestroy {
       if (!message.main_account) return;
       info.swapMainAccountQueried = true;
       info.swapMainAccount = message.main_account;
+    }
+  }
+
+
+  private processTakerSwapsQueryAck(message: any) {
+    if (message.error || !message.account || !message.more) return;
+    const account = message.account;
+    const info = this.accounts[account];
+    if (!info) return;
+    info.moreTakerSwaps = message.more === 'true';
+    if (!message.swaps) return;
+
+    let sort = false;
+    let inserted = false;
+    let minHeight = U64.max();
+    for (let i of message.swaps) {
+      const swap = new SwapFullInfo();
+      const error = swap.fromJson(i);
+      if (error) continue;
+      inserted = info.updateSwap(swap, false);
+      if (inserted) sort = true;
+      if (swap.swap.inquiryHeight.lt(minHeight)) {
+        minHeight = swap.swap.inquiryHeight;
+      }
+    }
+
+    if (sort) {
+      info.sortTakerSwaps();
+    }
+    info.mergeSwaps();
+    this.accountSwapsSubject.next(account);
+
+    if (!inserted || minHeight.eq(info.minTakerSwapHeight())) {
+      if (!info.moreTakerSwaps || info.takerSwaps.length >= info.expectedRecentSwaps
+        || info.minTakerSwapHeight().eq(0)) {
+        return;
+      }
+      this.queryTakerSwaps(account, info.minTakerSwapHeight().minus(1),
+        info.expectedRecentSwaps - info.takerSwaps.length);
+    } else {
+      if (minHeight.gt(0)) {
+        this.queryTakerSwaps(account, minHeight.minus(1));
+      }
     }
   }
 
@@ -1868,7 +2031,10 @@ export class TokenService implements OnDestroy {
   private processSwapInfoNotify(message: any) {
     let swap: SwapFullInfo | null = new SwapFullInfo();
     const error = swap.fromJson(message);
-    if (error) return;
+    if (error) {
+      console.error(`processSwapInfoNotify: parse swap info failed, message: `, message);
+      return;
+    }
 
     const taker = swap.taker.account;
     const maker = swap.order.maker.account;
@@ -1886,6 +2052,19 @@ export class TokenService implements OnDestroy {
 
     let info = this.accounts[taker];
     if (info) {
+      if (info.takerSwapExists(swap)) {
+        info.updateSwap(swap);
+        info.mergeSwaps();
+        this.accountSwapsSubject.next(taker);
+        swap = null;
+      } else {
+        this.queryTakerSwaps(taker);
+      }
+
+      if (!swap) {
+        swap = new SwapFullInfo();
+        swap.fromJson(message);
+      }
       this.updateAccountActiveSwap(info, swap);
       swap = null;
     }
@@ -1896,8 +2075,28 @@ export class TokenService implements OnDestroy {
         swap = new SwapFullInfo();
         swap.fromJson(message);
       }
+      if (info.makerSwapExists(swap)) {
+        info.updateSwap(swap);
+        info.mergeSwaps();
+        this.accountSwapsSubject.next(maker);
+        swap = null;
+      } else {
+        this.queryMakerSwaps(maker);
+      }
+
+      if (!swap) {
+        swap = new SwapFullInfo();
+        swap.fromJson(message);
+      }
       this.updateAccountActiveSwap(info, swap);
+      swap = null;
     }
+
+    if (!swap) {
+      swap = new SwapFullInfo();
+      swap.fromJson(message);
+    }
+    this.swapSubject.next(swap);
   }
 
   private processSwapMainAccountNotify(message: any) {
@@ -2030,7 +2229,7 @@ export class TokenService implements OnDestroy {
       if (!message.hash) return;
       hash = new U256(message.hash, 16);
       this.searchOrderSubject.next({by, hash, orders});
-    } else if (by === 'pair') { 
+    } else if (by === 'pair') {
       if (!message.from_token || !message.to_token) return;
       fromToken = new TokenKey();
       let error = fromToken.fromJson(message.from_token);
@@ -2185,6 +2384,7 @@ export class TokenService implements OnDestroy {
         }
       }
       this.syncTokenBlocks(address, info);
+      this.accountTokensSubject.next(address);
       return false;
     }
     catch (e) {
@@ -2261,7 +2461,7 @@ export class TokenService implements OnDestroy {
 
   private queryAccountTokenIds(account: string, chain: string,
                                address: string, count: number, beginId?: U256) {
-    if (!beginId) beginId = new U256(0);
+    if (!beginId) beginId = U256.zero();
     const message: any = {
       action: 'account_token_ids',
       service: this.SERVICE,
@@ -2546,6 +2746,30 @@ export class TokenService implements OnDestroy {
     this.server.send(message);
   }
 
+  private queryMakerSwaps(account: string, height: U64 = U64.max(), count: number = 10) {
+    const message: any = {
+      action: 'maker_swaps',
+      service: this.SERVICE,
+      account,
+      height: height.toDec(),
+    };
+    if (count) {
+      message.count = `${count}`;
+    }
+    this.server.send(message);
+  }
+
+  private queryTakerSwaps(account: string, height: U64 = U64.max(), count: number = 10) {
+    const message: any = {
+      action: 'taker_swaps',
+      service: this.SERVICE,
+      account,
+      height: height.toDec(),
+      count: `${count}`
+    };
+    this.server.send(message);
+  }
+
   private purgeMakers() {
     const accounts : string[] = [];
     const now = this.server.getTimestamp();
@@ -2657,15 +2881,15 @@ export class AccountTokenInfo {
   chain: string = '';
   chainShown: string = '';
   address: string = ''; // token address
-  addressRaw: U256 = new U256();
+  addressRaw: U256 = U256.zero();
   name: string = '';
   symbol: string = '';
   type: TokenType = TokenType.INVALID;
   decimals: U8 = new U8();
-  balance: U256 = new U256();
+  balance: U256 = U256.zero();
   balanceFormatted: string = '';
   headHeight: U64 = U64.max();
-  tokenBlockCount: U64 = new U64();
+  tokenBlockCount: U64 = U64.zero();
   circulable: boolean = true;
 
   //local data
@@ -2766,6 +2990,11 @@ class AccountTokensInfo {
   minOrderHeight: U64 = U64.max();
   activeSwaps: SwapFullInfo[] = [];
   swapInquiries: {height: U64, timeout: U64}[]= [];
+  swaps: SwapFullInfo[] = [];
+  makerSwaps: SwapFullInfo[] = [];
+  takerSwaps: SwapFullInfo[] = [];
+  moreMakerSwaps: boolean = true;
+  moreTakerSwaps: boolean = true;
 
   tokenBlockLinks: TokenBlockLinks = new TokenBlockLinks();
 
@@ -2773,6 +3002,7 @@ class AccountTokensInfo {
   //local data
   expectedRecentBlocks: number = 10;
   expectedRecentOrders: number = 10;
+  expectedRecentSwaps: number = 10;
   lastPong: number = 0;
 
   updateToken(token: AccountTokenInfo) {
@@ -2791,8 +3021,7 @@ class AccountTokensInfo {
     return this.orders.find(x => x.order.orderHeight.eq(height));
   }
 
-  updateOrder(order: OrderInfo, sort?: boolean): boolean {
-    if (typeof sort === 'undefined') sort = true;
+  updateOrder(order: OrderInfo, sort: boolean = true): boolean {
     const index = this.orders.findIndex(x => x.order.orderHeight.eq(order.orderHeight));
     if (index === -1) {
       const orderSwap = new OrderSwapInfo();
@@ -2808,6 +3037,121 @@ class AccountTokensInfo {
       if (sort) this.sortOrders();
       return false;
     }
+  }
+
+  minMakerSwapHeight(): U64 {
+    if (this.makerSwaps.length === 0) return U64.max();
+    return this.makerSwaps[this.makerSwaps.length - 1].swap.tradeHeight;
+  }
+
+  minTakerSwapHeight(): U64 {
+    if (this.takerSwaps.length === 0) return U64.max();
+    return this.takerSwaps[this.takerSwaps.length - 1].swap.inquiryHeight;
+  }
+
+  updateSwap(swap: SwapFullInfo, sort: boolean = true): boolean {
+    if (swap.swap.maker === this.address) {
+      const inserted = this._updateSwap(this.makerSwaps, swap);
+      if (inserted && sort) this.sortMakerSwaps();
+      return inserted;
+    } else if (swap.swap.taker === this.address) {
+      const inserted = this._updateSwap(this.takerSwaps, swap);
+      if (inserted && sort) this.sortTakerSwaps();
+      return inserted;
+    } else {
+      return false;
+    }
+  }
+
+  private _updateSwap(swaps: SwapFullInfo[], swap: SwapFullInfo): boolean {
+    const index = swaps.findIndex(x => x.eq(swap));
+    if (index === -1) {
+      swaps.push(swap);
+      return true;
+    } else {
+      swaps[index] = swap;
+      return false;
+    }
+  }
+
+  takerSwapExists(swap: SwapFullInfo): boolean {
+    return this.takerSwaps.findIndex(x => x.eq(swap)) !== -1;
+  }
+
+  makerSwapExists(swap: SwapFullInfo): boolean {
+    return this.makerSwaps.findIndex(x => x.eq(swap)) !== -1;
+  }
+
+  sortMakerSwaps() {
+    this.sortSwaps(this.makerSwaps);
+  }
+
+  sortTakerSwaps() {
+    this.sortSwaps(this.takerSwaps);
+  }
+
+  private sortSwaps(swaps: SwapFullInfo[]) {
+    swaps.sort((lhs, rhs) => this.cmpSwap(lhs, rhs));
+  }
+
+  mergeSwaps() {
+    this.swaps = [];
+    let i = 0;
+    let j = 0;
+    while ((i < this.makerSwaps.length || j < this.takerSwaps.length)
+      && this.swaps.length < this.expectedRecentSwaps) {
+      if (i < this.makerSwaps.length && j < this.takerSwaps.length) {
+        const lhs = this.makerSwaps[i];
+        const rhs = this.takerSwaps[j];
+        if (this.cmpSwap(lhs, rhs) < 0) {
+          this.swaps.push(lhs);
+          ++i;
+        } else {
+          this.swaps.push(rhs);
+          ++j;
+        }
+      } else if (i < this.makerSwaps.length) {
+        this.swaps.push(this.makerSwaps[i]);
+        ++i;
+      } else if (j < this.takerSwaps.length) {
+        this.swaps.push(this.takerSwaps[j]);
+        ++j;
+      } else {
+        break;
+      }
+    }
+  }
+
+  cmpSwap(lhs: SwapFullInfo, rhs: SwapFullInfo) {
+    let lhsHeight;
+    let lhsMaker;
+    if (this.address === lhs.swap.maker) {
+      lhsHeight = lhs.swap.tradeHeight;
+      lhsMaker = true;
+    } else {
+      lhsHeight = lhs.swap.inquiryHeight;
+      lhsMaker = false;
+    }
+
+    let rhsHeight;
+    let rhsMaker;
+    if (this.address === rhs.swap.maker) {
+      rhsHeight = rhs.swap.tradeHeight;
+      rhsMaker = true;
+    } else {
+      rhsHeight = rhs.swap.inquiryHeight;
+      rhsMaker = false;
+    }
+
+    if (lhsHeight.gt(rhsHeight)) return -1;
+    if (lhsHeight.lt(rhsHeight)) return 1;
+    if (lhsMaker && !rhsMaker) return -1;
+    if (!lhsMaker && rhsMaker) return 1;
+    if (!lhsMaker && !rhsMaker) return 0;
+    
+    if (lhs.swap.taker < rhs.swap.taker) return -1;
+    if (lhs.swap.taker > rhs.swap.taker) return 1;
+    return 0;
   }
 
   getActiveSwap(taker: string, inquiryHeight: U64): SwapFullInfo | undefined {
@@ -2965,13 +3309,13 @@ class AccountTokensInfo {
 class TokenBlock {
   status: string = '';
   statusCode: U32 = new U32();
-  hash: U256 = new U256();
+  hash: U256 = U256.zero();
   block: any = null;
-  value: U256 = new U256();
+  value: U256 = U256.zero();
   valueOp: string = '';
   chain: string = '';
   address: string = ''; 
-  addressRaw: U256 = new U256();
+  addressRaw: U256 = U256.zero();
   name: string = '';
   symbol: string = '';
   type: TokenType = TokenType.INVALID;
@@ -3101,7 +3445,7 @@ class TokenBlockLinks {
 export class TokenInfo {
   chain: string = '';
   address: string = '';
-  addressRaw: U256 = new U256();
+  addressRaw: U256 = U256.zero();
   type: TokenType = TokenType.INVALID;
   symbol: string = '';
   name: string = '';
@@ -3109,15 +3453,15 @@ export class TokenInfo {
   burnable: boolean = false;
   mintable: boolean = false;
   circulable: boolean = false;
-  holders: U64 = new U64();
-  transfers: U64 = new U64();
-  swaps: U64 = new U64();
-  created_at: U64 = new U64();
-  totalSupply: U256 = new U256();
+  holders: U64 = U64.zero();
+  transfers: U64 = U64.zero();
+  swaps: U64 = U64.zero();
+  created_at: U64 = U64.zero();
+  totalSupply: U256 = U256.zero();
   totalSupplyFormatted: string = '';
-  capSupply: U256 = new U256();
+  capSupply: U256 = U256.zero();
   capSupplyFormatted: string = '';
-  localSupply: U256 = new U256();
+  localSupply: U256 = U256.zero();
   localSupplyFormatted: string = '';
   baseUri: string = '';
 
@@ -3188,7 +3532,7 @@ class IssuerInfo {
 export class TokenReceivableTokenInfo {
   chain: string = '';
   address: string = '';
-  addressRaw: U256 = new U256();
+  addressRaw: U256 = U256.zero();
   type: string = '';
   name: string = '';
   symbol: string = '';
@@ -3224,11 +3568,11 @@ export class TokenReceivable {
   to: string = '';
   token: TokenReceivableTokenInfo = new TokenReceivableTokenInfo();
   chain: string = '';
-  txHash: U256 = new U256();
+  txHash: U256 = U256.zero();
   from: string = '';
-  fromRaw: U256 = new U256();
-  value: U256 = new U256();
-  blockHeight: U64 = new U64();
+  fromRaw: U256 = U256.zero();
+  value: U256 = U256.zero();
+  blockHeight: U64 = U64.zero();
   sourceType: string = '';
   block: any = null;
 
@@ -3275,12 +3619,12 @@ class MaxTokenId {
 
 export class AccountSwapInfo {
   account: string = '';
-  activeOrders: U64 = new U64(0);
-  totalOrders: U64 = new U64(0);
-  activeSwaps: U64 = new U64(0);
-  totalSwaps: U64 = new U64(0);
-  ping: U64 = new U64(0);
-  pong: U64 = new U64(0);
+  activeOrders: U64 = U64.zero();
+  totalOrders: U64 = U64.zero();
+  activeSwaps: U64 = U64.zero();
+  totalSwaps: U64 = U64.zero();
+  ping: U64 = U64.zero();
+  pong: U64 = U64.zero();
   credit: U16 = new U16(0);
   limited: boolean = false;
 
@@ -3308,7 +3652,7 @@ export class AccountSwapInfo {
 export class TokenKey {
   chain: string = '';
   address: string = '';
-  addressRaw: U256 = new U256(0);
+  addressRaw: U256 = U256.zero();
   type: string = '';
 
   fromParams(chain: string, addressRaw: U256, type: string): boolean {
@@ -3365,16 +3709,16 @@ export class OrderInfo {
   mainAccount: string = '';
   tokenOffer: TokenKey = new  TokenKey();
   tokenWant: TokenKey = new TokenKey();
-  valueOffer: U256 = new U256(0);
-  valueWant: U256 = new U256(0);
-  minOffer: U256 = new U256(0);
-  maxOffer: U256 = new U256(0);
-  leftOffer: U256 = new U256(0);
-  timeout: U64 = new U64(0);
+  valueOffer: U256 = U256.zero();
+  valueWant: U256 = U256.zero();
+  minOffer: U256 = U256.zero();
+  maxOffer: U256 = U256.zero();
+  leftOffer: U256 = U256.zero();
+  timeout: U64 = U64.zero();
   finishedBy: string = '';
   finishedHeight: U64 = U64.max();
-  hash: U256 = new U256(0);
-  createdAt: U64 = new U64(0);
+  hash: U256 = U256.zero();
+  createdAt: U64 = U64.zero();
 
   private price: U512 | undefined;
 
@@ -3511,18 +3855,20 @@ export enum SwapStatus {
 export class SwapInfo {
   status: string = '';
   maker: string = '';
-  orderHeight: U64 = new U64(0);
+  orderHeight: U64 = U64.zero();
   taker: string = '';
-  inquiryHeight: U64 = new U64(0);
-  inquiryAckHeight: U64 = new U64(0);
-  takeHeight: U64 = new U64(0);
-  tradeHeight: U64 = new U64(0);
-  timeout: U64 = new U64(0);
-  value: U256 = new U256(0);
-  takerShare: U256 = new U256(0);
-  makerShare: U256 = new U256(0);
+  inquiryHeight: U64 = U64.zero();
+  inquiryAckHeight: U64 = U64.zero();
+  takeHeight: U64 = U64.zero();
+  tradeHeight: U64 = U64.zero();
+  timeout: U64 = U64.zero();
+  value: U256 = U256.zero();
+  takerShare: U256 = U256.zero();
+  makerShare: U256 = U256.zero();
   makerSignature: U512 = new U512(0);
-  tradePrevious: U256 = new U256(0);
+  tradePrevious: U256 = U256.zero();
+  hash: U256 = U256.zero();
+  createdAt: U64 = U64.zero();
 
   success(): boolean {
     return this.status === SwapStatus.TAKE_ACK;
@@ -3553,6 +3899,8 @@ export class SwapInfo {
       this.makerShare = new U256(json.maker_share, 16);
       this.makerSignature = new U512(json.maker_signature, 16);
       this.tradePrevious = new U256(json.trade_previous, 16);
+      this.hash = new U256(json.hash, 16);
+      this.createdAt = new U64(json.created_at);
       return false;
     }
     catch (e) {
@@ -3619,7 +3967,6 @@ export class SwapFullInfo {
   order: OrderInfo = new OrderInfo();
   taker: AccountSwapInfo = new AccountSwapInfo();
   swap: SwapInfo = new SwapInfo();
-  takerBalance: U256 = new U256(0);
 
   // local data
   inquiryAckSent: boolean = false;
@@ -3628,6 +3975,7 @@ export class SwapFullInfo {
   takeNackSentTime: number = 0;
   takeNackBlockStatus: string = TakeNackBlockStatus.INIT;
   takeNackBlock: any = null;
+  _ackValue: U256 | undefined;
 
   eq(other: SwapFullInfo): boolean {
     return this.swap.taker === other.swap.taker
@@ -3641,6 +3989,7 @@ export class SwapFullInfo {
     this.takeNackSentTime = other.takeNackSentTime;
     this.takeNackBlockStatus = other.takeNackBlockStatus;
     this.takeNackBlock = other.takeNackBlock;
+    this._ackValue = other._ackValue;
   }
 
   swapping(): boolean {
@@ -3650,15 +3999,18 @@ export class SwapFullInfo {
   }
 
   ackValue(): U256 | undefined {
+    if (this._ackValue) return this._ackValue;
     if (this.order.fungiblePair()) {
       const secure = new U512(this.swap.value).mul(this.order.valueOffer);
       if (!secure.mod(this.order.valueWant).eq(0)) return undefined;
       const ack = secure.idiv(this.order.valueWant);
       if (ack.gt(this.order.leftOffer)) return undefined;
-      return new U256(ack.toDec());
+      this._ackValue = new U256(ack.toDec());
+      return this._ackValue;
     } else {
       if (!this.swap.value.eq(this.order.valueWant)) return undefined;
-      return this.order.valueOffer;
+      this._ackValue = this.order.valueOffer;
+      return this._ackValue;
     }
   }
 
@@ -3670,7 +4022,6 @@ export class SwapFullInfo {
       if (error) return true;
       error = this.swap.fromJson(json);
       if (error) return true;
-      this.takerBalance = new U256(json.taker_balance.balance);
       return false;
     }
     catch (e) {
@@ -3713,11 +4064,11 @@ export class MakerInfo {
       if (!this.mainAccounts[order.mainAccount]) {
         this.mainAccounts[order.mainAccount] = new AccountHead();
       }
-      return false;
+      return true;
     } else {
       this.orders[index].order = order;
       this.orders[index].status = this.calcOrderActionStatus(order, now);
-      return true;
+      return false;
     }
   }
 
@@ -3806,7 +4157,7 @@ export class MakerInfo {
 
 export class AccountHead {
   account: string = '';
-  hash: U256 = new U256(0);
+  hash: U256 = U256.zero();
   block: any = null;
 
   fromJson(json: any): boolean {

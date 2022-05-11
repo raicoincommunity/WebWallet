@@ -58,7 +58,7 @@
 
     <div class="uk-card uk-card-default uk-margin" id="set-daily-limit">
       <div class="uk-card-header">
-        <h3 class="uk-card-title">{{ 'Account Daily Transactions' | translate }}</h3>
+        <h3 class="uk-card-title">{{ 'Account Credit & Limits' | translate }}</h3>
       </div>
       <div class="uk-card-body">
         <div uk-grid>
@@ -66,10 +66,51 @@
           <div class="uk-width-1-1" *ngIf="changable()">
             <div class="uk-form-horizontal">
               <div class="uk-margin">
-                <label class="uk-form-label" for="form-horizontal-text3">{{ 'Current Daily Transactions Limit' | translate }} </label>
+                <label class="uk-form-label" for="input-credit">{{ 'Current Credit' | translate }} </label>
                 <div class="uk-form-controls">
                   <div class="uk-inline uk-width-1-1">
-                    <input [value]="currentDailyTxns()" class="uk-input" disabled id="form-horizontal-text3" type="text">
+                    <input [value]="credit()" class="uk-input" disabled id="input-credit" type="text">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1" *ngIf="changable()">
+            <div class="uk-form-horizontal">
+              <div class="uk-margin">
+                <label class="uk-form-label" for="input-daily-txns">{{ 'Daily Transactions Limit' | translate }} </label>
+                <div class="uk-form-controls">
+                  <div class="uk-inline uk-width-1-1">
+                    <input [value]="currentDailyTxns()" class="uk-input" disabled id="input-daily-txns" type="text">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1" *ngIf="changable()">
+            <div class="uk-form-horizontal">
+              <div class="uk-margin">
+                <label class="uk-form-label" for="input-open-orders">{{ 'Orders Concurrency Limit' | translate }} <span uk-icon="icon: info; ratio: 0.8;" uk-tooltip
+                  title="{{ 'How many orders can be placed concurrently, completed or cancelled orders are not counted.' | translate }}"></span></label>
+                <div class="uk-form-controls">
+                  <div class="uk-inline uk-width-1-1">
+                    <input [value]="orders()" class="uk-input" disabled id="input-open-orders" type="text">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1" *ngIf="changable()">
+            <div class="uk-form-horizontal">
+              <div class="uk-margin">
+                <label class="uk-form-label" for="input-failed-swaps">{{ 'Swaps Limit' | translate }} <span uk-icon="icon: info; ratio: 0.8;" uk-tooltip
+                  title="{{ 'One failed or expired swap costs one credit.' | translate }}"></span></label>
+                <div class="uk-form-controls">
+                  <div class="uk-inline uk-width-1-1">
+                    <input [value]="swaps()" class="uk-input" disabled id="input-failed-swaps" type="text">
                   </div>
                 </div>
               </div>
@@ -82,7 +123,7 @@
                 <label class="uk-form-label" for="form-horizontal-text4">{{ 'Increase By' | translate }} </label>
                 <div class="uk-form-controls">
                   <div *ngIf="!locked()" class="uk-inline uk-width-1-1">
-                    <input [(ngModel)]="increaseTxns" class="uk-input" id="form-horizontal-text4" type="text" placeholder="{{ 'Must be multiples of 20' | translate }}" (keyup)="checkTxns()" (change)="checkTxns()" [ngClass]="{ 'uk-form-success': txnsStatus === 1, 'uk-form-danger': txnsStatus === 2 }">
+                    <input [(ngModel)]="inputIncreaseCredit" class="uk-input" id="form-horizontal-text4" type="text" (keyup)="checkCredit()" (change)="checkCredit()" [ngClass]="{ 'uk-form-success': creditStatus === 1, 'uk-form-danger': creditStatus === 2 }">
                   </div>
                   <div *ngIf="locked()" class="uk-inline uk-width-1-1">
                     <input class="uk-input" disabled id="form-horizontal-text4" type="text" placeholder="{{ 'Unlock wallet first' | translate }}">
@@ -183,12 +224,12 @@
           <div class="uk-width-1-1" *ngIf="changable()">
             <div class="uk-form-horizontal">
               <div class="uk-margin uk-margin-remove-bottom">
-                <label class="uk-form-label" for="input-current-alias">{{ 'Current Domain' | translate }} </label>
+                <label class="uk-form-label" for="input-current-domain">{{ 'Current Domain' | translate }} </label>
                 <div class="uk-form-controls">
                   <div class="uk-inline uk-width-1-1">
                     <a *ngIf="showDnsVerified()" class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px;" uk-tooltip title="{{ 'Verified' | translate }}"><span uk-icon="icon: check;" class="uk-text-success"></span></a>
                     <a *ngIf="showDnsUnverified()" class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px;" uk-tooltip title="{{ 'Unverified' | translate }}"><span uk-icon="icon: warning;" class="uk-text-warning"></span></a>
-                    <input [value]="currentDns()" class="uk-input" disabled id="input-current-alias" type="text">
+                    <input [value]="currentDns()" class="uk-input" disabled id="input-current-domain" type="text">
                   </div>
                   <div  class="uk-width-1-1 uk-margin-remove" *ngIf="showDnsUnverified()">
                     <div class="uk-text-warning">

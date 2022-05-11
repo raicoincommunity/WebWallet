@@ -129,6 +129,14 @@ const testVerifiedTokens: VerifiedToken[] = [
   },
   {
     chain: Chain.RAICOIN_TEST,
+    address:'rai_1taim3p6qd1no7tdtnmhq15kifhg51p5yg45pi9i7wsiozmwugbfq8wh747h',
+    type:TokenType._20,
+    name:'Ethereum',
+    symbol:'ETH',
+    decimals: 18
+  },
+  {
+    chain: Chain.RAICOIN_TEST,
     address:'rai_38ssase4ppphh4qio8bucsuobp5khgmm6zig5fm9rx46okrfk1h3azip3pjr',
     type:TokenType._20,
     name:'Tether USDT',

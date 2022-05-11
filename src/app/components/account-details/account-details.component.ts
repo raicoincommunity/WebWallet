@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from "@angular/router";
 import { NotificationService } from '../../services/notification.service';
-import { WalletsService, Amount } from '../../services/wallets.service';
+import { WalletsService, Amount, BlockStatus } from '../../services/wallets.service';
 import { Block, BlockInfo } from '../../services/blocks.service';
 import { ServerService } from '../../services/server.service';
 import { TranslateService } from '@ngx-translate/core';
@@ -176,6 +176,7 @@ export class AccountDetailsComponent implements OnInit {
     }
   }
 
+  @cacheBlockStatus()
   status(block: Block) {
     return this.wallets.blockStatus(block);
   }
@@ -228,8 +229,9 @@ function cacheBlockInfo() {
   return (target: any, key: string, descriptor: PropertyDescriptor) => {
     const method = descriptor.value;
     descriptor.value = function (info: BlockInfo) {
+
       const self = this as AccountDetailsComponent;
-      const hash = info.block.hash().toHex();
+      let hash = info.block.hash().toHex();
       const cached = self.cache[hash]?.[key];
       if (cached) return cached;
       const result = method.call(self, info);
@@ -242,6 +244,26 @@ function cacheBlockInfo() {
         if (result !== 'change') {
           self.cache[hash][key] = result;
         }
+      }
+      return result;
+    };
+    return descriptor;
+  };
+}
+
+
+function cacheBlockStatus() {
+  return (target: any, key: string, descriptor: PropertyDescriptor) => {
+    const method = descriptor.value;
+    descriptor.value = function (block: Block) {
+      const self = this as AccountDetailsComponent;
+      let hash = block.hash().toHex();
+      const cached = self.cache[hash]?.[key];
+      if (cached) return cached;
+      const result = method.call(self, block);
+      if (!self.cache[hash]) self.cache[hash] = {};
+      if (result === BlockStatus.CONFIRMED) {
+        self.cache[hash][key] = result;
       }
       return result;
     };

@@ -642,6 +642,14 @@ export class U64 extends Uint {
     }
     return U64._MAX;
   }
+
+  static _ZERO: U64 | undefined;
+  static zero(): U64 {
+    if (!U64._ZERO) {
+      U64._ZERO = new U64(0);
+    }
+    return U64._ZERO;
+  }
   
   readonly size = U64.SIZE;
   constructor(from: UintFrom = 0, base?: number, check: boolean = true) {
@@ -1241,23 +1249,23 @@ const chainMaps: ChainMap[] = [
   [Chain.BINANCE_SMART_CHAIN_TEST, ChainStr.BINANCE_SMART_CHAIN_TEST, ChainShown.BINANCE_SMART_CHAIN_TEST]
 ]
 
-const crossChains: {[current: string]: Chain[]} = {
+const crossChainsMap: {[current: string]: Chain[]} = {
   'raicoin': [
     Chain.RAICOIN
     // todo:
   ],
 
-  'raicoin test': [
+  'raicoin testnet': [
     Chain.RAICOIN_TEST
   ]
 }
 
-const crossChainStrs: {[current: string]: ChainStr[]} = {
+const crossChainStrsMap: {[current: string]: ChainStr[]} = {
   'raicoin': [
     ChainStr.RAICOIN
   ],
 
-  'raicoin test': [
+  'raicoin testnet': [
     ChainStr.RAICOIN_TEST
   ]
 }
@@ -1363,13 +1371,13 @@ export class ChainHelper {
   }
 
   static crossChains(currentChain: string): Chain[] {
-    if (!crossChains[currentChain]) return [];
-    return crossChains[currentChain];
+    if (!crossChainsMap[currentChain]) return [];
+    return crossChainsMap[currentChain];
   }
 
   static crossChainStrs(currentChain: string): ChainStr[] {
-    if (!crossChainStrs[currentChain]) return [];
-    return crossChainStrs[currentChain];
+    if (!crossChainStrsMap[currentChain]) return [];
+    return crossChainStrsMap[currentChain];
   }
 
   static tokenTypeShown(chain: string, type: TokenTypeStr): string {
@@ -1933,7 +1941,7 @@ const tokenSwapExtensionCodecs: {[op: string]: ExtensionTokenSwapCodec} = {
       error = takeHeight.fromArray(array, offset);
       if (error) throw streamError;
       offset += takeHeight.size;
-      value.inquiry_height = takeHeight.toDec();
+      value.take_height = takeHeight.toDec();
 
       const tokenValue = new U256();
       error = tokenValue.fromArray(array, offset);

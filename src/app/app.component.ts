@@ -127,6 +127,18 @@ export class AppComponent implements OnInit, OnDestroy {
     return `${txns}`;
   }
 
+  autoSwapPaused(): boolean {
+    const autoSwap = this.settings.getAutoSwap(this.selectedAccountAddress());
+    return autoSwap === false;
+  }
+
+  activeOrders(): string {
+    const orders = this.token.activeOrders();
+    if (!orders || orders.eq(0)) return '';
+    if (orders.gte(100)) return '100+';
+    return `${orders.toDec()}`;
+  }
+
   connected(): boolean {
     return this.state === ServerState.CONNECTED;
   }

@@ -133,7 +133,7 @@
       <div [hidden]="searchOrderCollapsed" class="uk-card-footer uk-text-right">
         <div uk-grid>
           <div class="uk-width-1-2@m">
-            <button (click)="search()" class="uk-button uk-button-secondary uk-width-1-1">+ {{ 'Custom Token' |
+            <button routerLink="/assets" [queryParams]="{ add: 1}" class="uk-button uk-button-secondary uk-width-1-1">+ {{ 'Custom Token' |
               translate }}</button>
           </div>
           <div class="uk-width-1-2@m">
@@ -143,7 +143,8 @@
         </div>
       </div>
     </div>
-    <div [hidden]="activePanel !== '' || searchOrderCollapsed" uk-grid style="margin-top: 25px;">
+
+    <div [hidden]="activePanel !== '' || searchOrderCollapsed || !searching()" uk-grid style="margin-top: 25px;">
       <div class="uk-width-1-1">
         <h3 class="uk-heading-divider uk-text-center" style="margin-bottom: 0;">{{ 'Search Results' | translate }}
         </h3>
@@ -184,6 +185,41 @@
       </div>
     </div>
 
+    <div [hidden]="activePanel !== ''" uk-grid style="margin-top: 25px;">
+      <div class="uk-width-1-1">
+        <h3 class="uk-heading-divider uk-text-center" style="margin-bottom: 0;">{{ 'Your Trade History' | translate }}
+        </h3>
+        <table class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
+          <thead>
+            <tr>
+              <th class="uk-width-1-5@m uk-visible@m  uk-text-left">{{ 'Date' | translate }}</th>
+              <th class="uk-width-1-5@m uk-width-1-6 uk-text-left">{{ 'Role' | translate }}</th>
+              <th class="uk-width-1-5@m uk-width-1-3 uk-text-center">{{ 'You Pay' | translate }}</th>
+              <th class="uk-width-1-5@m uk-width-1-3 uk-text-center">{{ 'You Get' | translate }}</th>
+              <th class="uk-width-1-5@m uk-width-1-6 uk-text-center">{{ 'Status' | translate }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let swap of swaps()">
+              <td (click)="selectSwap(swap)" class="uk-visible@m">{{ swapCreatedAt(swap) * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+              <td (click)="selectSwap(swap)" class="uk-text-left">{{ swapRole(swap) }}</td>
+              <td (click)="selectSwap(swap)" class="uk-text-center">{{ swapPayValue(swap) }}<span style="font-size: 12px;"> {{ swapPayTokenTypeShown(swap) }}</span></td>
+              <td (click)="selectSwap(swap)" class="uk-text-center">{{ swapGetValue(swap) }}<span style="font-size: 12px;"> {{ swapGetTokenTypeShown(swap) }}</span></td>
+              <td (click)="selectSwap(swap)" class="uk-text-center" title="{{ swap.swap.status }}" uk-tooltip>{{ swapStatus(swap) }}</td>
+            </tr>
+            <tr *ngIf="noSwaps()">
+              <td colspan="5" style="text-align: center;">{{ 'No trade history' | translate }}</td>
+            </tr>
+            <tr *ngIf="moreSwaps()">
+              <td colspan="5" style="text-align: center;">
+                <a (click)="loadMoreSwaps()" class="uk-link-text">{{ 'Load More Results' | translate }}</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Place Order Panel-->
     <div *ngIf="shouldShowMainAccountTips()" class="uk-alert-warning" uk-alert>
       <p><b>{{ 'Tips' | translate }}:</b> {{ 'The main acccount (#1 account of a wallet) is reserved for Raicoin P2P protocol, please add or switch to a secondary account to place order.' | translate }}</p>
@@ -205,7 +241,7 @@
 
       <div [hidden]="placeOrderCollapsed" class="uk-card-body">
         <div class="uk-form-horizontal">
-          <app-asset-widget #placeAssetWidget (raiChange)="onPlaceAssetChanged()"></app-asset-widget>
+          <app-asset-widget #placeAssetWidget (raiChange)="onPlaceAssetChanged()" raiAmountHint="The amount to swap" [raiShowRaicoin]="false"></app-asset-widget>
 
           <div class="uk-margin">
             <app-token-widget raiLabel="{{'Exchange For'}}" (raiChange)="syncPrice()" #placeToTokenWidget>
@@ -296,8 +332,8 @@
         <h3 class="uk-heading-divider uk-text-center" style="margin-bottom: 0;">{{ 'Your Order History' | translate }}
         </h3>
         <div class="uk-width-1-1 uk-text-center">
-          <input class="uk-checkbox" type="checkbox"> {{ 'Pause all orders' | translate }} &nbsp;&nbsp;
-          <input class="uk-checkbox" type="checkbox"> {{ 'Hide completed orders' | translate }}
+          <input [checked]="ordersPaused()" (click)="toggleOrdersPaused()" class="uk-checkbox" type="checkbox"> {{ 'Pause all orders' | translate }} &nbsp;&nbsp;
+          <input [checked]="hideCompletedOrders()" (click)="toggleHideCompletedOrders()" class="uk-checkbox" type="checkbox"> {{ 'Hide completed orders' | translate }}
         </div>
 
         <table class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
@@ -323,6 +359,14 @@
                   uk-tooltip></a></td>
               <td class="uk-text-center uk-hidden@m"><a ngxClipboard
                 [cbContent]="orderHash(order) " (cbOnSuccess)="orderIdCopied()" uk-icon="icon: copy" title="{{ 'Copy Order ID' | translate }}" uk-tooltip></a><a (click)="selectOrder(order)" uk-icon="icon: more;" title="{{ 'Show order details' | translate }}" uk-tooltip></a>
+              </td>
+            </tr>
+            <tr *ngIf="noOrders()">
+              <td colspan="6" style="text-align: center;">{{ 'No order history' | translate }}</td>
+            </tr>
+            <tr *ngIf="moreOrders()">
+              <td colspan="6" style="text-align: center;">
+                <a (click)="loadMoreOrders()" class="uk-link-text">{{ 'Load More Orders' | translate }}</a>
               </td>
             </tr>
           </tbody>
@@ -516,7 +560,7 @@
                   </div>
                   <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
                     <a ngxClipboard
-                      [cbContent]="selectedOrderMaker() " (cbOnSuccess)="selectedOrderMakerCopied()" uk-icon="icon: copy" title="{{ 'Copy Order ID' | translate }}" uk-tooltip></a>
+                      [cbContent]="selectedOrderMaker() " (cbOnSuccess)="makerCopied()" uk-icon="icon: copy" title="{{ 'Copy Maker Account' | translate }}" uk-tooltip></a>
                   </div>
                 </div>
               </div>
@@ -666,7 +710,6 @@
 
     </div>
 
-
     <!-- Confirm Cancel Order Panel-->
     <div *ngIf="activePanel === 'confirm_cancel_order'" uk-grid class="uk-margin">
       <div class="uk-width-1-1">
@@ -814,7 +857,7 @@
                   </div>
                   <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
                     <a ngxClipboard
-                      [cbContent]="selectedOrderMaker() " (cbOnSuccess)="selectedOrderMakerCopied()" uk-icon="icon: copy" title="{{ 'Copy Order ID' | translate }}" uk-tooltip></a>
+                      [cbContent]="selectedOrderMaker() " (cbOnSuccess)="makerCopied()" uk-icon="icon: copy" title="{{ 'Copy Maker Account' | translate }}" uk-tooltip></a>
                   </div>
                 </div>
               </div>
@@ -1167,6 +1210,225 @@
         </div>
 
       </div>
+    </div>
+
+    <!-- Swap Details Panel-->
+    <div [hidden]="activePanel !== 'swap_details'" class="uk-card uk-card-default uk-margin">
+      <div class="uk-card-header">
+        <div uk-grid>
+          <h3 class="uk-card-title">{{ 'Swap Details' | translate }}</h3>
+        </div>
+      </div>
+
+      <div class="uk-card-body uk-padding-remove uk-form-horizontal">
+        <div class="uk-padding-small" uk-grid>
+          <div class="uk-width-1-1">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Swap ID' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                <div uk-grid>
+                  <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                    {{ selectedSwapHash() }}
+                  </div>
+                  <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                    <a ngxClipboard
+                      [cbContent]="selectedSwapHash() " (cbOnSuccess)="swapIdCopied()" uk-icon="icon: copy" title="{{ 'Copy Swap ID' | translate }}" uk-tooltip></a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Status' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                {{ selectedSwapStatus() }}
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Creation Date' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                {{ selectedSwapCreatedAt() * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Expire Date' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                {{ selectedSwapExpiredAt() * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Order ID' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                <div uk-grid>
+                  <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                    {{ selectedSwapOrderHash() }}
+                  </div>
+                  <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                    <a ngxClipboard
+                      [cbContent]="selectedSwapOrderHash() " (cbOnSuccess)="orderIdCopied()" uk-icon="icon: copy" title="{{ 'Copy Order ID' | translate }}" uk-tooltip></a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Maker' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                <div uk-grid>
+                  <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                    {{ selectedSwapMaker() }}
+                  </div>
+                  <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                    <a ngxClipboard
+                      [cbContent]="selectedSwapMaker() " (cbOnSuccess)="makerCopied()" uk-icon="icon: copy" title="{{ 'Copy Maker Account' | translate }}" uk-tooltip></a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Taker' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                <div uk-grid>
+                  <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                    {{ selectedSwapTaker() }}
+                  </div>
+                  <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                    <a ngxClipboard
+                      [cbContent]="selectedSwapTaker() " (cbOnSuccess)="takerCopied()" uk-icon="icon: copy" title="{{ 'Copy Taker Account' | translate }}" uk-tooltip></a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Your Role' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                {{ selectedSwapRole() }}
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'You Pay' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                <div uk-grid>
+                  <div *ngIf="selectedSwapTokenTrusted(true)" class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                    {{ selectedSwapTokenSymbol(true) }} <span style="font-size: 12px;">{{ selectedSwapTokenTypeAddress(true) }}</span>
+                  </div>
+                  <div *ngIf="!selectedSwapTokenTrusted(true)" class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                    {{ selectedSwapTokenSymbol(true) }} <span style="font-size: 12px;">{{ selectedSwapTokenTypeShown(true) }}</span>
+                  </div>
+                  <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                    <a ngxClipboard
+                      [cbContent]="selectedSwapTokenAddress(true) " (cbOnSuccess)="tokenAddressCopied()" uk-icon="icon: copy" title="{{ 'Copy Token Address' | translate }}" uk-tooltip></a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Amount' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left uk-text-break">
+                {{ selectedSwapTokenAmount(true) }}
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'You Get' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                <div uk-grid>
+                  <div *ngIf="selectedSwapTokenTrusted(false)" class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                    {{ selectedSwapTokenSymbol(false) }} <span style="font-size: 12px;">{{ selectedSwapTokenTypeAddress(false) }}</span>
+                  </div>
+                  <div *ngIf="!selectedSwapTokenTrusted(false)" class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                    {{ selectedSwapTokenSymbol(false) }} <span style="font-size: 12px;">{{ selectedSwapTokenTypeShown(false) }}</span>
+                  </div>
+                  <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                    <a ngxClipboard
+                      [cbContent]="selectedSwapTokenAddress(false) " (cbOnSuccess)="tokenAddressCopied()" uk-icon="icon: copy" title="{{ 'Copy Token Address' | translate }}" uk-tooltip></a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Amount' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left uk-text-break">
+                {{ selectedSwapTokenAmount(false) }}
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Price' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left uk-text-break">
+                {{ selectedSwapOrderFromValue() }}<span *ngIf="selectedSwapPairWithSameSymbol()" style="font-size: 12px;"> {{ selectedSwapFromTokenTypeShown() }}</span> = {{ selectedSwapOrderToValue() }}<span *ngIf="selectedSwapPairWithSameSymbol()" style="font-size: 12px;"> {{ selectedSwapToTokenTypeShown() }}</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="uk-card-footer uk-text-right">
+        <div class="uk-width-1-1">
+          <button class="uk-button uk-button-secondary" (click)="unselectSwap()">{{ 'Back'
+            | translate }}</button>
+        </div>
+      </div>
+
     </div>
 
 

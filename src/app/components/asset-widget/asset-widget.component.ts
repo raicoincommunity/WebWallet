@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef, HostListener, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, HostListener, Input, Output, EventEmitter } from '@angular/core';
 import { WalletsService } from '../../services/wallets.service';
 import { LogoService } from '../../services/logo.service';
 import { ChainHelper, U256, U8, TokenTypeStr, TokenHelper } from '../../services/util.service';
@@ -16,6 +16,8 @@ import { VerifiedTokensService } from '../../services/verified-tokens.service';
   styleUrls: ['./asset-widget.component.css']
 })
 export class AssetWidgetComponent implements OnInit {
+  @Input('raiAmountHint') defualtAmountHint: string = marker('The amount to send');
+  @Input('raiShowRaicoin') showRaicoin: boolean = true;
   @Output("raiChange") eventAssetSelected = new EventEmitter<AssetItem | undefined>();
 
   @ViewChild('assetDropdown') assetDropdown! : ElementRef;
@@ -86,7 +88,7 @@ export class AssetWidgetComponent implements OnInit {
 
   assets(): AssetItem[] {
     const items: AssetItem[] = [];
-    if (this.wallets.selectedAccount()?.synced) {
+    if (this.wallets.selectedAccount()?.synced && this.showRaicoin) {
       items.push(this.defautlAssetItem());
     }
     if (this.token.synced(this.selectedAccount())) {
@@ -196,7 +198,7 @@ export class AssetWidgetComponent implements OnInit {
 
   amountHint(): string {
     if (!this.selectedAsset) {
-      let msg = marker(`The amount to send`);
+      let msg = this.defualtAmountHint;
       this.translate.get(msg).subscribe(res => msg = res);
       return msg;
     } else {

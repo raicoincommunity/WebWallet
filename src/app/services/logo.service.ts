@@ -77,6 +77,7 @@ const tokenLogoMaps: TokenLogoMap[] = [
   /* testnet */
   [Chain.RAICOIN_TEST, '', 'raicoin.png'],
   [Chain.RAICOIN_TEST, 'rai_3uejbias6jjryyh6uqydfjxyce1uqk8b666hazu9tb6owjg6b363hhwifiuz', 'bitcoin.png'],
+  [Chain.RAICOIN_TEST, 'rai_1taim3p6qd1no7tdtnmhq15kifhg51p5yg45pi9i7wsiozmwugbfq8wh747h', 'ethereum.png'],
   [Chain.RAICOIN_TEST, 'rai_38ssase4ppphh4qio8bucsuobp5khgmm6zig5fm9rx46okrfk1h3azip3pjr', 'usdt.png'],
   [Chain.RAICOIN_TEST, 'rai_1timaah5teuxjjqeu43qby9k3jruyrjp8t8b4jh7z6bkud59g3eyb58oeejh', 'ens.png'],
   /* Raicoin Testnet End */
