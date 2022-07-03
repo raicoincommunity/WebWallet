@@ -13,10 +13,10 @@ export const environment = {
   ],
   epoch_timestamp: 1595894400,
   current_chain: 'raicoin',
-  bsc_network: 'binance',
+  bsc_chain: 'binance smart chain',
   bsc_chain_id: 56,
   rpc_options: {
-    //1: 'https://mainnet.infura.io/v3/b06ff656dd6349909e805f50ff2d8250',
+    1: 'https://rpc.ankr.com/eth',
     //97: 'https://data-seed-prebsc-1-s1.binance.org:8545/',
     56: 'https://bsc-dataseed.binance.org/'
   },

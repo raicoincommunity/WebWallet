@@ -1,0 +1,204 @@
+<h2>{{ 'Cross Chain' | translate }} Map</h2>
+
+<app-account-widget raiTitle="{{ 'Your account' | translate }}"></app-account-widget>
+
+<p><b>MAP = </b> {{ 'transfer token from it\'s original chain to Raicoin chain.' | translate }} <br />
+  <b>UNMAP = </b> {{ 'transfer token from Raicoin chain back to it\'s original chain.' | translate }}
+</p>
+<div uk-grid *ngIf="activePanel == 0 || activePanel == 1">
+  <div class="uk-width-1-1">
+    <div class="uk-button-group uk-width-1-1">
+      <button (click)="setPanel(0)" class="uk-button uk-width-1-2"
+        [ngClass]="{ 'uk-button-primary': activePanel == 0, 'uk-button-secondary': activePanel != 0 }">Map</button>
+      <button (click)="setPanel(1)" class="uk-button uk-width-1-2"
+        [ngClass]="{ 'uk-button-primary': activePanel == 1, 'uk-button-secondary': activePanel != 1 }">Unmap</button>
+    </div>
+  </div>
+</div>
+
+<div class="uk-card uk-card-default" [hidden]="activePanel !== 0">
+  <div class="uk-card-body">
+    <div class="uk-form-horizontal">
+
+      <div class="uk-margin">
+        <app-token-widget raiLabel="{{ 'Select Token' | translate }}" #mapTokenWidget (raiChange)="onMapTokenChange()">
+        </app-token-widget>
+      </div>
+
+      <div *ngIf="mapTokenType() === '20'" class="uk-margin">
+        <label class="uk-form-label" for="form-input-map-amount">
+          {{ 'Amount' | translate }} *
+        </label>
+        <div class="uk-form-controls">
+          <div uk-grid>
+            <div class="uk-width-1-1">
+              <div class="uk-inline uk-width-1-1">
+                <a class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px; width: auto;">{{ mapTokenFormat()
+                  }}</a>
+                <input (change)="syncMapAmount()" (keyup)="syncMapAmount()" [(ngModel)]="inputMapAmount"
+                  class="uk-input" id="form-input-map-amount" type="text"
+                  placeholder="{{ 'Amount to transfer' | translate }}"
+                  [ngClass]="{ 'uk-form-success': mapAmountStatus === 1, 'uk-form-danger': mapAmountStatus === 2 }">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="mapTokenType() === '721'" class="uk-margin">
+        <label class="uk-form-label" for="form-input-map-token-id">
+          {{ 'Token ID' | translate }} *
+        </label>
+        <div class="uk-form-controls">
+          <div uk-grid>
+            <div class="uk-width-1-1">
+              <div class="uk-inline uk-width-1-1">
+                <a class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px; width: auto;">{{ mapTokenFormat()
+                  }}</a>
+                <input (change)="syncMapTokenId()" (keyup)="syncMapTokenId()" [(ngModel)]="inputMapTokenId"
+                  class="uk-input" id="form-input-map-token-id" type="text"
+                  placeholder="{{ 'Token ID to transfer' | translate }}"
+                  [ngClass]="{ 'uk-form-success': mapTokenIdStatus === 1, 'uk-form-danger': mapTokenIdStatus === 2 }">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-margin">
+        <label class="uk-form-label" for="form-map-sender">{{ 'Sender' | translate }}</label>
+        <div class="uk-form-controls">
+          <div class="uk-inline uk-width-1-1">
+            <input [ngModel]="mapSender()" class="uk-input" id="form-map-sender" type="text" disabled autocomplete="off"
+              placeholder="{{ 'Connect wallet to show' | translate }}">
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-margin">
+        <label class="uk-form-label" for="form-map-recipient">{{ 'Recipient' | translate }}</label>
+        <div class="uk-form-controls">
+          <div class="uk-inline uk-width-1-1">
+            <input [ngModel]="raiShortAccount()" class="uk-input" id="form-map-recipient" type="text" disabled
+              autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="uk-card-footer uk-text-right uk-hidden@m">
+    <div uk-grid>
+      <div class="uk-width-1-2@m">
+        <button *ngIf="mapWalletConnected()" class="uk-button uk-button-primary uk-width-1-1" (click)="map()">
+          Map</button>
+        <button *ngIf="!mapWalletConnected()" class="uk-button uk-button-disabled uk-width-1-1">
+          Map</button>
+      </div>
+      <div *ngIf="mapShowConnectWallet()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-primary uk-width-1-1" (click)="mapConnectWallet()">
+          {{ 'Connect Wallet' | translate }}</button>
+      </div>
+      <div *ngIf="mapShowDisconnectWallet()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-danger uk-width-1-1" (click)="mapDisconnectWallet()">
+          {{ 'Disconnect Wallet' | translate }}</button>
+      </div>
+      <div class="uk-width-1-2@m">
+        <button routerLink="/assets" [queryParams]="{ add: 1}" class="uk-button uk-button-secondary uk-width-1-1">+ {{
+          'Custom Token' |
+          translate }}</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="uk-card-footer uk-text-right uk-visible@m">
+    <div class="uk-button-group">
+      <button *ngIf="mapWalletConnected()" class="uk-button uk-button-primary uk-margin-right"
+        (click)="map()">Map</button>
+      <button *ngIf="!mapWalletConnected()" class="uk-button uk-button-disabled uk-margin-right">Map</button>
+      <button *ngIf="mapShowConnectWallet()" class="uk-button uk-button-primary uk-margin-right"
+        (click)="mapConnectWallet()">{{ 'Connect Wallet' | translate }}</button>
+      <button *ngIf="mapShowDisconnectWallet()" class="uk-button uk-button-danger uk-margin-right"
+        (click)="mapDisconnectWallet()">{{ 'Disconnect Wallet' | translate }}</button>
+      <button routerLink="/assets" [queryParams]="{ add: 1}" class="uk-button uk-button-secondary uk-margin-right">+ {{
+        'Custom Token' | translate }}</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Map Confirmation Panel -->
+<div uk-grid *ngIf="activePanel === 2" class="uk-animation-slide-left">
+  <div class="uk-width-1-1">
+    <div class="uk-card uk-card-default uk-width-1-1 uk-text-center">
+      <span style="display: block; padding-top: 8px;">{{ 'You are about to' | translate }} MAP</span>
+      <span style="display:block; font-size: 32px;">{{ mapShowAmount() }}</span>
+    </div>
+
+    <br />
+
+    <div uk-grid>
+
+      <div class="uk-width-1-2@m">
+        <div class="uk-card uk-card-default">
+          <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+            <span class="confirm-title uk-text-truncate">
+              <div>
+                <span class="confirm-title uk-text-truncate">{{ mapSender() | shortAccount:7 }}</span>
+                <span class="confirm-subtitle">{{ 'Sender' | translate }}</span>
+                <br class="br-spacer" />
+              </div>
+            </span>
+          </div>
+          <div class="uk-card-body" style="padding: 20px 20px;">
+            <div uk-grid>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ mapFromChain() }}</span>
+                <span class="confirm-subtitle">{{ 'From Chain' | translate }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-2@m">
+        <div class="uk-card uk-card-default">
+          <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+            <span class="confirm-title uk-text-truncate">
+              <div>
+                <span class="confirm-title uk-text-truncate">{{ raiAccount() | shortAccount:7 }}</span>
+                <span class="confirm-subtitle">{{ 'Recipient' | translate }}</span>
+                <br class="br-spacer" />
+              </div>
+            </span>
+          </div>
+          <div class="uk-card-body" style="padding: 20px 20px;">
+            <div uk-grid>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ currentChain() }}</span>
+                <span class="confirm-subtitle">{{ 'To Chain' | translate }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div uk-grid>
+      <div class="uk-width-1-2@s">
+        <button (click)="activePanel = 0" class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate
+          }}</button>
+      </div>
+      <div class="uk-width-1-2@s">
+        <button class="uk-button uk-button-primary uk-width-1-1" (click)="mapConfirm()">{{ 'Confirm' | translate
+          }}</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<m-web3-modal title="Please choose a web3 protocol" description="" descriptionGray="" dismissText="Cancel">
+</m-web3-modal>

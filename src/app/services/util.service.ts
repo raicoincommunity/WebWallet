@@ -1432,6 +1432,25 @@ export class ChainHelper {
     }
   }
 
+  static isEvmChain(chain: string | Chain): boolean {
+    if (typeof chain === 'string') {
+      chain = ChainHelper.toChain(chain);
+    }
+    switch (chain) {
+      case Chain.ETHEREUM:
+      case Chain.ETHEREUM_TEST_GOERLI:
+      case Chain.BINANCE_SMART_CHAIN:
+      case Chain.BINANCE_SMART_CHAIN_TEST:
+      {
+        return true;
+      }
+      default:
+      {
+        return false;
+      }
+    }
+  }
+
 }
 
 interface ExtensionTokenSwapCodec {

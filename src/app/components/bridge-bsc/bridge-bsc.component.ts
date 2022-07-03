@@ -8,7 +8,7 @@ import { WalletsService, WalletErrorCode, Account, Amount } from '../../services
 import { U128, U256 } from '../../services/util.service';
 import { BscBridgeService, BscMintItem, BscRedeemItem } from '../../services/bsc-bridge.service';
 import { Block } from '../../services/blocks.service';
-import { BscWeb3Service } from '../../services/bsc-web3.service';
+import { Web3Service } from '../../services/web3.service';
 
 @Component({
   selector: 'app-bridge-bsc',
@@ -36,7 +36,7 @@ export class BridgeBscComponent implements OnInit {
     private notification: NotificationService,
     private wallets: WalletsService,
     private bridge: BscBridgeService,
-    private web3: BscWeb3Service
+    private web3: Web3Service
   ) {
     const account = this.wallets.selectedAccount();
     if (account) {

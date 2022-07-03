@@ -13,10 +13,11 @@ export const environment = {
   ],
   epoch_timestamp: 1585699200,
   current_chain: 'raicoin testnet',
-  bsc_network: 'binance-testnet',
+  bsc_chain: 'binance smart chain testnet',
   bsc_chain_id: 97,
   rpc_options: {
     //1: 'https://mainnet.infura.io/v3/b06ff656dd6349909e805f50ff2d8250',
+    5: 'https://rpc.ankr.com/eth_goerli',
     97: 'https://data-seed-prebsc-1-s1.binance.org:8545/',
   },
   bsc_contract_address: '0xDF4c22DD5a4D12C7d4EeE5064B09e1A31EC552AB',

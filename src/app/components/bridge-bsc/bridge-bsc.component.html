@@ -1,5 +1,5 @@
 <h2>RAI ⇄ BSC {{ 'Bridge' | translate }}</h2>
-<p>{{ 'BEP20 RAI is the 1:1 Raicoin backed token on Binace Smart Chain (BSC), use this bridge to convert RAI to BEP20 RAI or vice versa.' | translate }} <br />
+<p>{{ 'BEP20 RAI is the 1:1 Raicoin backed token on Binance Smart Chain (BSC), use this bridge to convert RAI to BEP20 RAI or vice versa.' | translate }} <br />
     {{ 'The BSC contract address is ' | translate }} <b>{{ contractAddress() }}</b> <span ngxClipboard [cbContent]="contractAddress()" (cbOnSuccess)="copied()" uk-icon="icon: copy" title="{{ 'Copy Contract Address' | translate }}" uk-tooltip></span> 
     <a href="https://pancakeswap.info/token/0x64EF755D5A2627538CAA3Eb62ee07f96f9B608E4" target="_blank"><span uk-icon="icon: link" title="{{ 'Go to pancakeswap' | translate }}" uk-tooltip></span></a>
 </p>

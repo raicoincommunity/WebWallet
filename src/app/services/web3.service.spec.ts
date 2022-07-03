@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 
-import { BscWeb3Service } from './bsc-web3.service';
+import { Web3Service } from './web3.service';
 
-describe('BscWeb3Service', () => {
-  let service: BscWeb3Service;
+describe('Web3Service', () => {
+  let service: Web3Service;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    service = TestBed.inject(BscWeb3Service);
+    service = TestBed.inject(Web3Service);
   });
 
   it('should be created', () => {
