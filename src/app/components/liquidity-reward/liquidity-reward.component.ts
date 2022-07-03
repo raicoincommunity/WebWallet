@@ -3,7 +3,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { U64 } from '../../services/util.service'
 import { ServerService } from '../../services/server.service';
 import { WalletsService, Account } from '../../services/wallets.service';
-import { BscWeb3Service } from '../../services/bsc-web3.service';
+import { Web3Service } from '../../services/web3.service';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { TranslateService } from '@ngx-translate/core';
 import { NotificationService, NotificationId } from '../../services/notification.service';
@@ -22,7 +22,7 @@ export class LiquidityRewardComponent implements OnInit, OnDestroy {
     private notification: NotificationService,
     private server: ServerService,
     private wallets: WalletsService,
-    private web3: BscWeb3Service,
+    private web3: Web3Service,
     private lr: LiquidityRewardService
   ) {
     this.selectedRecipient = this.wallets.selectedAccountAddress();

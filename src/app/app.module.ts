@@ -8,7 +8,6 @@ import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { Web3ModalModule, Web3ModalService } from '@mindsorg/web3modal-angular';
-import WalletConnectProvider from "@walletconnect/web3-provider";
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -37,25 +36,10 @@ import { AssetsComponent } from './components/assets/assets.component';
 import { AssetWidgetComponent } from './components/asset-widget/asset-widget.component';
 import { P2pComponent } from './components/p2p/p2p.component';
 import { TokenWidgetComponent } from './components/token-widget/token-widget.component';
-
-const providerOptions = {
-  walletconnect: {
-    package: WalletConnectProvider, // required
-    options: {
-      rpc: environment.rpc_options,
-      bridge: 'https://pancakeswap.bridge.walletconnect.org/',
-      qrcodeModalOptions: {
-        mobileLinks: [
-          'Trust Wallet',
-          "Metamask",
-          'MathWallet',
-          'SafePal',
-          'TokenPocket'
-        ]
-      }
-    },
-  }
-};
+import { MapComponent } from './components/map/map.component';
+import { WrapComponent } from './components/wrap/wrap.component';
+import { Web3Service } from './services/web3.service';
+import { ChainStr } from './services/util.service';
 
 @NgModule({
   declarations: [
@@ -83,7 +67,9 @@ const providerOptions = {
     AssetsComponent,
     AssetWidgetComponent,
     P2pComponent,
-    TokenWidgetComponent
+    TokenWidgetComponent,
+    MapComponent,
+    WrapComponent
   ],
   imports: [
     BrowserModule,
@@ -110,12 +96,7 @@ const providerOptions = {
     {
       provide: Web3ModalService,
       useFactory: () => {
-        return new Web3ModalService({
-          network: environment.bsc_network, // optional
-          cacheProvider: false, // optional
-          providerOptions, // required
-          disableInjectedProvider: false
-        });
+        return new Web3ModalService(Web3Service.providerControllerOptions(environment.bsc_chain as ChainStr)!);
       },
     },
 

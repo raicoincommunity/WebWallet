@@ -437,7 +437,6 @@ export class P2pComponent implements OnInit {
     }
   }
 
-
   syncSearchFilterId() {
     if (this.inputSearchFilterId === '') {
       this.searchFilterIdStatus = 0;

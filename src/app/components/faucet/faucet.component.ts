@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { TranslateService } from '@ngx-translate/core';
 import { WalletsService, Account } from '../../services/wallets.service';
-import { BscWeb3Service } from '../../services/bsc-web3.service';
+import { Web3Service } from '../../services/web3.service';
 import { FaucetService, HistoryItem } from '../../services/faucet.service';
 import { toChecksumAddress } from 'web3-utils'
 import { U128 } from 'src/app/services/util.service';
@@ -21,7 +21,7 @@ export class FaucetComponent implements OnInit {
   constructor(
     private translate: TranslateService,
     private notification: NotificationService,
-    private web3: BscWeb3Service,
+    private web3: Web3Service,
     private server: ServerService,
     private wallets: WalletsService,
     private faucet: FaucetService
