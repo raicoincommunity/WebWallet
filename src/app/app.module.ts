@@ -92,7 +92,7 @@ import { ChainStr } from './services/util.service';
     }),
   ],
   providers: [
-    {provide: LocationStrategy, useClass: HashLocationStrategy},
+    { provide: LocationStrategy, useClass: HashLocationStrategy },
     {
       provide: Web3ModalService,
       useFactory: () => {

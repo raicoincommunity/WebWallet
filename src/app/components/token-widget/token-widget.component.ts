@@ -17,6 +17,7 @@ export class TokenWidgetComponent implements OnInit {
   @Input('raiLabel') label: string = '';
   @Input('raiChangable') changable: boolean = true;
   @Input('raiMaxItems') maxShownItems: number = 10;
+  @Input('raiTokenFilter') tokenFilter: (token: TokenItem) => boolean = () => true;
 
   @Output("raiChange") eventTokenSelected = new EventEmitter<TokenItem | undefined>();
 
@@ -223,6 +224,7 @@ export class TokenWidgetComponent implements OnInit {
   }
 
   private filter(item: TokenItem): boolean {
+    if (!this.tokenFilter(item)) return false;
     if (this.tokenInputText.includes('<')) return true;
     return item.symbol.toUpperCase().includes(this.tokenInputText.toUpperCase());
   }

@@ -218,7 +218,7 @@ export class BridgeBscComponent implements OnInit {
   async sendMintRequest(item: BscMintItem): Promise<any> {
     try {
       this.addMintingTxn(item);
-      await this.web3.contract.methods.mint('0x' + item.source_txn.toHex(), item.to, item.amount.toDec(), '0x' + item.v.toHex(), '0x' + item.r.toHex(), '0x' + item.s.toHex()).send({ from: this.bscAccount() });
+      await this.web3.bscContract.methods.mint('0x' + item.source_txn.toHex(), item.to, item.amount.toDec(), '0x' + item.v.toHex(), '0x' + item.r.toHex(), '0x' + item.s.toHex()).send({ from: this.bscAccount() });
     } catch (error) {
       console.log('sendMintRequest error:', error);
     }
@@ -228,7 +228,7 @@ export class BridgeBscComponent implements OnInit {
     try {
       let publicKey = new U256();
       if (publicKey.fromAccountAddress(to)) return;
-      await this.web3.contract.methods.redeem('0x' + publicKey.toHex(), '0x' + amount.toHex()).send(
+      await this.web3.bscContract.methods.redeem('0x' + publicKey.toHex(), '0x' + amount.toHex()).send(
         { from: this.bscAccount() }
       );
     } catch (error) {
