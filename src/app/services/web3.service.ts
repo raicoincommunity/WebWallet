@@ -9,6 +9,9 @@ import { Subject } from 'rxjs';
 import WalletConnectProvider from "@walletconnect/web3-provider";
 
 import ABI_BSC from '../abi/bsc.json';
+import ABI_EVM_CHAIN_CORE from '../abi/evm_chain_core.json';
+import ABI_ERC20 from '../abi/erc20.json';
+import ABI_ERC721 from '../abi/erc721.json';
 import { environment } from '../../environments/environment';
 import { NotificationService } from './notification.service';
 import { LocalStorageService, StorageKey } from './local-storage.service';
@@ -49,8 +52,10 @@ export class Web3Service implements OnDestroy {
   public accounts: any = [];
   public web3: Web3 | null = null;
   public provider: any = null;
-  public contract: any = null;
+  public bscContract: any = null;
+  public evmCoreContract: any = null;
   public chainId = 0;
+  public chainStr = '';
 
   private accountSubject = new Subject<{from: string; to:string}>();
   private prev_account = '';
@@ -86,6 +91,9 @@ export class Web3Service implements OnDestroy {
     if (!chainStr) {
       chainStr = environment.bsc_chain as ChainStr;
     }
+    if (this.connected() && this.chainStr === chainStr) {
+      return;
+    }
     await this.disconnectWallet();
     try {
       const options = Web3Service.providerControllerOptions(chainStr);
@@ -120,6 +128,7 @@ export class Web3Service implements OnDestroy {
       this.notification.sendError(msg);
       return;
     }
+    this.chainStr = chainStr;
 
     this.prev_account = this.account();
     this.accounts = await this.web3.eth.getAccounts();
@@ -130,30 +139,54 @@ export class Web3Service implements OnDestroy {
     }
 
     if (chainStr === environment.bsc_chain) {
-      this.contract = new this.web3.eth.Contract((ABI_BSC as unknown) as AbiItem, environment.bsc_contract_address);
+      this.bscContract = new this.web3.eth.Contract((ABI_BSC as unknown) as AbiItem, environment.bsc_contract_address);
+    }
+
+    const coreAddress = Web3Service.getCoreContractAddress(chainStr);
+    if (coreAddress) {
+      this.evmCoreContract = new this.web3.eth.Contract((ABI_EVM_CHAIN_CORE as unknown) as AbiItem, coreAddress);
+    } else {
+      await this.disconnectWallet();
+      this.evmCoreContract = null;
+      console.error('No core contract address for ', chainStr);
     }
   }
 
   async disconnectWallet(): Promise<any> {
     if (this.provider) {
+      if (this.provider.disconnect) {
+        try {
+          this.provider.disconnect();
+        } catch (err) {
+          console.error('Failed to disconnect provider,', err);
+        }
+      }
+
       if (this.provider.close) {
-        await this.provider.close();
+        try {
+          await this.provider.close();
+        } catch (err) {
+          console.error('Failed to close provider,', err);
+        }
       }
 
       if (this.provider.clearCachedProvider) {
-        await this.provider.clearCachedProvider();
-      }
-
-      if (this.provider.disconnect) {
-        this.provider.disconnect();
+        try {
+          await this.provider.clearCachedProvider();
+        } catch (err) {
+          console.error('Failed to clear cached provider,', err);
+        }
       }
     }
 
+    this.web3 = null;
     this.provider = null;
     this.prev_account = this.account();
     this.accounts = [];
-    this.web3 = null;
-    this.contract = null;
+    this.bscContract = null;
+    this.evmCoreContract = null;
+    this.chainId = 0;
+    this.chainStr = '';
     this.storage.clear(StorageKey.WALLETCONNECT_DEEPLINK_CHOICE);
     this.storage.clear(StorageKey.WALLET_CONNECT);
     this.storage.clear(StorageKey.WEB3_CONNECT_CACHED_PROVIDER);
@@ -166,10 +199,19 @@ export class Web3Service implements OnDestroy {
     if (!chainStr) {
       chainStr = environment.bsc_chain as ChainStr;
     }
-    const networkId = Web3Service.getChainNetworkId(chainStr);
-    if (this.chainId != networkId) return false;
+    if (this.chainStr != chainStr) return false;
 
     return true;
+  }
+
+  makeErc20Contract(address: string): any {
+    if (!this.web3) return null;
+    return new this.web3.eth.Contract((ABI_ERC20 as unknown) as AbiItem, address);
+  }
+
+  makeErc721Contract(address: string): any {
+    if (!this.web3) return null;
+    return new this.web3.eth.Contract((ABI_ERC721 as unknown) as AbiItem, address);
   }
 
   watchProvider(): void {
@@ -231,6 +273,15 @@ export class Web3Service implements OnDestroy {
       providerOptions, // required
       disableInjectedProvider: false
     };
+  }
+
+  static getCoreContractAddress(chainStr: ChainStr): string {
+    for (let i of environment.cross_chain) {
+      if (i.chain === chainStr) {
+        return i.contract;
+      }
+    }
+    return '';
   }
 
 }

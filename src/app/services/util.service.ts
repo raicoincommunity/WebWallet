@@ -378,6 +378,10 @@ class Uint {
     return uint8ToHex(this.bytes);
   }
 
+  to0xHex(): string {
+    return '0x' + uint8ToHex(this.bytes);
+  }
+
   toDec(): string {
     return this.toBigNumber().toFixed();
   }
@@ -1251,22 +1255,30 @@ const chainMaps: ChainMap[] = [
 
 const crossChainsMap: {[current: string]: Chain[]} = {
   'raicoin': [
-    Chain.RAICOIN
+    Chain.RAICOIN,
+    Chain.ETHEREUM,
+    Chain.BINANCE_SMART_CHAIN,
     // todo:
   ],
 
   'raicoin testnet': [
-    Chain.RAICOIN_TEST
+    Chain.RAICOIN_TEST,
+    Chain.ETHEREUM_TEST_GOERLI,
+    Chain.BINANCE_SMART_CHAIN_TEST,
   ]
 }
 
 const crossChainStrsMap: {[current: string]: ChainStr[]} = {
   'raicoin': [
-    ChainStr.RAICOIN
+    ChainStr.RAICOIN,
+    ChainStr.ETHEREUM,
+    ChainStr.BINANCE_SMART_CHAIN,
   ],
 
   'raicoin testnet': [
-    ChainStr.RAICOIN_TEST
+    ChainStr.RAICOIN_TEST,
+    ChainStr.ETHEREUM_TEST_GOERLI,
+    ChainStr.BINANCE_SMART_CHAIN_TEST,
   ]
 }
 

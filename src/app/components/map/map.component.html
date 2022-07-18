@@ -5,23 +5,24 @@
 <p><b>MAP = </b> {{ 'transfer token from it\'s original chain to Raicoin chain.' | translate }} <br />
   <b>UNMAP = </b> {{ 'transfer token from Raicoin chain back to it\'s original chain.' | translate }}
 </p>
-<div uk-grid *ngIf="activePanel == 0 || activePanel == 1">
+<div uk-grid *ngIf="activePanel == 'map' || activePanel == 'unmap'">
   <div class="uk-width-1-1">
     <div class="uk-button-group uk-width-1-1">
-      <button (click)="setPanel(0)" class="uk-button uk-width-1-2"
-        [ngClass]="{ 'uk-button-primary': activePanel == 0, 'uk-button-secondary': activePanel != 0 }">Map</button>
-      <button (click)="setPanel(1)" class="uk-button uk-width-1-2"
-        [ngClass]="{ 'uk-button-primary': activePanel == 1, 'uk-button-secondary': activePanel != 1 }">Unmap</button>
+      <button (click)="setPanel('map')" class="uk-button uk-width-1-2"
+        [ngClass]="{ 'uk-button-primary': activePanel == 'map', 'uk-button-secondary': activePanel != 'map' }">Map</button>
+      <button (click)="setPanel('unmap')" class="uk-button uk-width-1-2"
+        [ngClass]="{ 'uk-button-primary': activePanel == 'unmap', 'uk-button-secondary': activePanel != 'unmap' }">Unmap</button>
     </div>
   </div>
 </div>
 
-<div class="uk-card uk-card-default" [hidden]="activePanel !== 0">
+<!-- Map Panel -->
+<div class="uk-card uk-card-default" [hidden]="activePanel != 'map'">
   <div class="uk-card-body">
     <div class="uk-form-horizontal">
 
       <div class="uk-margin">
-        <app-token-widget raiLabel="{{ 'Select Token' | translate }}" #mapTokenWidget (raiChange)="onMapTokenChange()">
+        <app-token-widget raiLabel="{{ 'Select Token' | translate }}" #mapTokenWidget (raiChange)="onMapTokenChange()" [raiTokenFilter]="mapAllowedToken">
         </app-token-widget>
       </div>
 
@@ -69,7 +70,7 @@
         <label class="uk-form-label" for="form-map-sender">{{ 'Sender' | translate }}</label>
         <div class="uk-form-controls">
           <div class="uk-inline uk-width-1-1">
-            <input [ngModel]="mapSender()" class="uk-input" id="form-map-sender" type="text" disabled autocomplete="off"
+            <input [ngModel]="shortMapSender()" class="uk-input" id="form-map-sender" type="text" disabled autocomplete="off"
               placeholder="{{ 'Connect wallet to show' | translate }}">
           </div>
         </div>
@@ -90,10 +91,16 @@
 
   <div class="uk-card-footer uk-text-right uk-hidden@m">
     <div uk-grid>
-      <div class="uk-width-1-2@m">
-        <button *ngIf="mapWalletConnected()" class="uk-button uk-button-primary uk-width-1-1" (click)="map()">
-          Map</button>
-        <button *ngIf="!mapWalletConnected()" class="uk-button uk-button-disabled uk-width-1-1">
+      <div *ngIf="mapApprovable()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-primary uk-width-1-1" (click)="mapApprove()">
+          {{ 'Enable' | translate }}</button>
+      </div>
+      <div *ngIf="!mapApprovable() && !mapable()" class="uk-width-1-2@m">
+        <button *ngIf="mapApproveStatus != 'checking'" class="uk-button uk-button-disabled uk-width-1-1">{{ 'Enable' | translate }}</button>
+        <button *ngIf="mapApproveStatus == 'checking'" class="uk-button uk-button-disabled uk-width-1-1">{{ 'Checking' | translate }}...</button>
+      </div>
+      <div *ngIf="mapable()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-primary uk-width-1-1" (click)="map()">
           Map</button>
       </div>
       <div *ngIf="mapShowConnectWallet()" class="uk-width-1-2@m">
@@ -114,9 +121,14 @@
 
   <div class="uk-card-footer uk-text-right uk-visible@m">
     <div class="uk-button-group">
-      <button *ngIf="mapWalletConnected()" class="uk-button uk-button-primary uk-margin-right"
+      <button *ngIf="mapApprovable()"
+        class="uk-button uk-button-primary uk-margin-right" (click)="mapApprove()">{{ 'Enable' | translate }}</button>
+      <button *ngIf="!mapApprovable() && !mapable() && mapApproveStatus != 'checking'"
+        class="uk-button uk-button-disabled uk-margin-right">{{ 'Enable' | translate }}</button>
+      <button *ngIf="!mapApprovable() && !mapable() && mapApproveStatus == 'checking'"
+        class="uk-button uk-button-disabled uk-margin-right">{{ 'Checking' | translate }}...</button>
+      <button *ngIf="mapable()" class="uk-button uk-button-primary uk-margin-right"
         (click)="map()">Map</button>
-      <button *ngIf="!mapWalletConnected()" class="uk-button uk-button-disabled uk-margin-right">Map</button>
       <button *ngIf="mapShowConnectWallet()" class="uk-button uk-button-primary uk-margin-right"
         (click)="mapConnectWallet()">{{ 'Connect Wallet' | translate }}</button>
       <button *ngIf="mapShowDisconnectWallet()" class="uk-button uk-button-danger uk-margin-right"
@@ -129,7 +141,7 @@
 </div>
 
 <!-- Map Confirmation Panel -->
-<div uk-grid *ngIf="activePanel === 2" class="uk-animation-slide-left">
+<div uk-grid *ngIf="activePanel === 'map_confirm'" class="uk-animation-slide-left">
   <div class="uk-width-1-1">
     <div class="uk-card uk-card-default uk-width-1-1 uk-text-center">
       <span style="display: block; padding-top: 8px;">{{ 'You are about to' | translate }} MAP</span>
@@ -139,7 +151,6 @@
     <br />
 
     <div uk-grid>
-
       <div class="uk-width-1-2@m">
         <div class="uk-card uk-card-default">
           <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
@@ -156,6 +167,10 @@
               <div class="uk-width-1-1 uk-text-muted">
                 <span class="confirm-currency">{{ mapFromChain() }}</span>
                 <span class="confirm-subtitle">{{ 'From Chain' | translate }}</span>
+              </div>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ mapFeeAndGas() }}</span>
+                <span class="confirm-subtitle">{{ 'Fee & Gas (estimated)' | translate }}</span>
               </div>
             </div>
           </div>
@@ -188,12 +203,13 @@
 
     <div uk-grid>
       <div class="uk-width-1-2@s">
-        <button (click)="activePanel = 0" class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate
+        <button (click)="mapCancel()" class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate
           }}</button>
       </div>
       <div class="uk-width-1-2@s">
-        <button class="uk-button uk-button-primary uk-width-1-1" (click)="mapConfirm()">{{ 'Confirm' | translate
-          }}</button>
+        <button *ngIf="mapFeeAndGas() !== ''" class="uk-button uk-button-primary uk-width-1-1" (click)="mapConfirm()">{{ 'Confirm' | translate }}</button>
+        <button *ngIf="mapFeeAndGas() === '' && !mapInsufficientFunds" class="uk-button uk-button-disabled uk-width-1-1" >{{ 'Confirm' | translate }}</button>
+        <button *ngIf="mapFeeAndGas() === '' && mapInsufficientFunds" class="uk-button uk-button-disabled uk-width-1-1" >{{ 'Insufficient Funds' | translate }}</button>
       </div>
     </div>
 

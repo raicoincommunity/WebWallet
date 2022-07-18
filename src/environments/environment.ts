@@ -22,6 +22,12 @@ export const environment = {
   },
   bsc_contract_address: '0xDF4c22DD5a4D12C7d4EeE5064B09e1A31EC552AB',
   bsc_bridge_address: 'rai_3wacx85yoau7hejaiu1xyfzof6btdcwnx68nyn6ei7ocrcbr4ptabu169t8m',
+  cross_chain: [
+    {
+      chain: 'binance smart chain testnet',
+      contract: '0xC777f5b390E79c9634c9d07AF45Dc44b11893055',
+    },
+  ],
 };
 
 /*
