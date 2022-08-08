@@ -196,5 +196,16 @@ const testVerifiedTokens: VerifiedToken[] = [
   },
 
   /* end of Binance Smart Chain Testnet */
-  
+
+
+
+  {
+    chain: Chain.ETHEREUM_TEST_GOERLI,
+    address:'',
+    type:TokenType._20,
+    name:'Goerli',
+    symbol:'ETH',
+    decimals: 18
+  },
+  /* end of Goerli Testnet */
 ]

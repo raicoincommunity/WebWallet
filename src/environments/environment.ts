@@ -25,7 +25,11 @@ export const environment = {
   cross_chain: [
     {
       chain: 'binance smart chain testnet',
-      contract: '0xC777f5b390E79c9634c9d07AF45Dc44b11893055',
+      contract: '0x68CF8517a569565F0B30f8856F0555d55d539307',
+    },
+    {
+      chain: 'ethereum goerli testnet',
+      contract: '0xfC113A7B68074642cA2FC74733A9BF325C045F14',
     },
   ],
 };

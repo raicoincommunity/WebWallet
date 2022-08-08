@@ -31,8 +31,8 @@ export class AssetsComponent implements OnInit {
   detail: AssetInfo | null = null;
   private dnsRegexp = /^[a-z0-9][a-z0-9-\.]{0,252}$/i;
 
-
   private tokenAddressSubject = new Subject<string>();
+  private chainsCache: string[] = [];
 
   constructor(
     private router: Router,
@@ -147,7 +147,11 @@ export class AssetsComponent implements OnInit {
   }
 
   chains(): string[] {
-    return ChainHelper.crossChainStrs(environment.current_chain);
+    if (this.chainsCache.length == 0) {
+      this.chainsCache.push(environment.current_chain);
+      this.chainsCache = this.chainsCache.concat(ChainHelper.crossChainStrs(true));
+    }
+    return this.chainsCache;
   }
 
   showChain(chain: string): string {

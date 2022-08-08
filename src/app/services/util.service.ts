@@ -1240,7 +1240,7 @@ type ChainMap = [Chain, ChainStr, ChainShown];
 const chainMaps: ChainMap[] = [
   [Chain.INVALID, ChainStr.INVALID, ChainShown.INVALID],
   [Chain.RAICOIN, ChainStr.RAICOIN, ChainShown.RAICOIN],
-  [Chain.BITCOIN, ChainStr.BITCOIN, ChainShown.RAICOIN_TEST],
+  [Chain.BITCOIN, ChainStr.BITCOIN, ChainShown.BITCOIN],
   [Chain.ETHEREUM, ChainStr.ETHEREUM, ChainShown.ETHEREUM],
   [Chain.BINANCE_SMART_CHAIN, ChainStr.BINANCE_SMART_CHAIN, ChainShown.BINANCE_SMART_CHAIN],
 
@@ -1253,34 +1253,45 @@ const chainMaps: ChainMap[] = [
   [Chain.BINANCE_SMART_CHAIN_TEST, ChainStr.BINANCE_SMART_CHAIN_TEST, ChainShown.BINANCE_SMART_CHAIN_TEST]
 ]
 
-const crossChainsMap: {[current: string]: Chain[]} = {
-  'raicoin': [
-    Chain.RAICOIN,
+const mapableChains: Chain[] = [
     Chain.ETHEREUM,
     Chain.BINANCE_SMART_CHAIN,
-    // todo:
-  ],
+]
 
-  'raicoin testnet': [
-    Chain.RAICOIN_TEST,
+const mapableTestChains: Chain[] = [
     Chain.ETHEREUM_TEST_GOERLI,
     Chain.BINANCE_SMART_CHAIN_TEST,
-  ]
-}
+]
 
-const crossChainStrsMap: {[current: string]: ChainStr[]} = {
-  'raicoin': [
-    ChainStr.RAICOIN,
+const mapableChainStrs: ChainStr[] = [
     ChainStr.ETHEREUM,
     ChainStr.BINANCE_SMART_CHAIN,
-  ],
+]
 
-  'raicoin testnet': [
-    ChainStr.RAICOIN_TEST,
+const mapableTestChainStrs: ChainStr[] = [
     ChainStr.ETHEREUM_TEST_GOERLI,
     ChainStr.BINANCE_SMART_CHAIN_TEST,
-  ]
-}
+]
+
+const wrapableChains: Chain[] = [
+  Chain.ETHEREUM,
+  Chain.BINANCE_SMART_CHAIN,
+]
+
+const wrapableTestChains: Chain[] = [
+  Chain.ETHEREUM_TEST_GOERLI,
+  Chain.BINANCE_SMART_CHAIN_TEST,
+]
+
+const wrapableChainStrs: ChainStr[] = [
+  ChainStr.ETHEREUM,
+  ChainStr.BINANCE_SMART_CHAIN,
+]
+
+const wrapableTestChainStrs: ChainStr[] = [
+  ChainStr.ETHEREUM_TEST_GOERLI,
+  ChainStr.BINANCE_SMART_CHAIN_TEST,
+]
 
 export class ChainHelper {
   static toChain(str: string): Chain {
@@ -1382,14 +1393,57 @@ export class ChainHelper {
     }
   }
 
-  static crossChains(currentChain: string): Chain[] {
-    if (!crossChainsMap[currentChain]) return [];
-    return crossChainsMap[currentChain];
+  static crossChains(map: boolean): Chain[] {
+    if (typeof map !== 'boolean') return [];
+    let test: boolean | undefined;
+    if (environment.current_chain == ChainStr.RAICOIN_TEST) {
+      test = true;
+    } else if (environment.current_chain == ChainStr.RAICOIN) {
+      test = false;
+    } else {
+      return [];
+    }
+
+    if (map) {
+      if (test) {
+        return mapableTestChains;
+      } else {
+        return mapableChains;
+      }
+    } else {
+      if (test) {
+        return wrapableTestChains;
+      } else {
+        return wrapableChains;
+      }
+    }
   }
 
-  static crossChainStrs(currentChain: string): ChainStr[] {
-    if (!crossChainStrsMap[currentChain]) return [];
-    return crossChainStrsMap[currentChain];
+  // todo: check reference
+  static crossChainStrs(map: boolean): ChainStr[] {
+    if (typeof map !== 'boolean') return [];
+    let test: boolean | undefined;
+    if (environment.current_chain == ChainStr.RAICOIN_TEST) {
+      test = true;
+    } else if (environment.current_chain == ChainStr.RAICOIN) {
+      test = false;
+    } else {
+      return [];
+    }
+
+    if (map) {
+      if (test) {
+        return mapableTestChainStrs;
+      } else {
+        return mapableChainStrs;
+      }
+    } else {
+      if (test) {
+        return wrapableTestChainStrs;
+      } else {
+        return wrapableChainStrs;
+      }
+    }
   }
 
   static tokenTypeShown(chain: string, type: TokenTypeStr): string {

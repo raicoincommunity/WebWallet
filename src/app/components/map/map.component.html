@@ -22,7 +22,18 @@
     <div class="uk-form-horizontal">
 
       <div class="uk-margin">
-        <app-token-widget raiLabel="{{ 'Select Token' | translate }}" #mapTokenWidget (raiChange)="onMapTokenChange()" [raiTokenFilter]="mapAllowedToken">
+        <label class="uk-form-label" for="form-select-map-original-chain">{{ 'Original Chain' | translate }} *</label>
+        <div class="uk-form-controls">
+          <div class="uk-inline uk-width-1-1">
+            <select class="uk-select" [(ngModel)]="selectedMapOriginalChain" (ngModelChange)="mapOriginalChainChanged($event)" id="form-select-map-original-chain">
+              <option *ngFor="let option of mapOriginalChains()" [value]="option" >{{ showChain(option) }}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-margin">
+        <app-token-widget raiLabel="{{ 'Select Token' | translate }}" #mapTokenWidget (raiChange)="onMapTokenChange()" [raiTokenFilter]="filterMapToken">
         </app-token-widget>
       </div>
 

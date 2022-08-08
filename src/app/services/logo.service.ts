@@ -66,6 +66,7 @@ const chainLogoMaps: ChainLogoMap[] = [
 
   [Chain.RAICOIN_TEST, 'raicoin.png'],
   [Chain.BINANCE_SMART_CHAIN_TEST, 'binance-smart-chain.png'],
+  [Chain.ETHEREUM_TEST_GOERLI, 'ethereum.png'],
 ]
 
 // upload logo.png in src/assets/logos/ and 
@@ -86,4 +87,6 @@ const tokenLogoMaps: TokenLogoMap[] = [
   [Chain.BINANCE_SMART_CHAIN_TEST, '0x6ce8dA28E2f864420840cF74474eFf5fD80E65B8', 'bitcoin.png'],
   [Chain.BINANCE_SMART_CHAIN_TEST, '0xd66c6B4F0be8CE5b39D52E0Fd1344c389929B378', 'ethereum.png'],
   [Chain.BINANCE_SMART_CHAIN_TEST, '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd', 'usdt.png'],
+
+  [Chain.ETHEREUM_TEST_GOERLI, '', 'ethereum.png'],
 ]
