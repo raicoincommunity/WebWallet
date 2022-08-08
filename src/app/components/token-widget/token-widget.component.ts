@@ -1,4 +1,4 @@
-import { Component, OnInit, Input, ViewChild, ElementRef, HostListener, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, OnChanges, Input, ViewChild, ElementRef, HostListener, Output, EventEmitter } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { WalletsService } from '../../services/wallets.service';
 import { LogoService } from '../../services/logo.service';
@@ -40,7 +40,7 @@ export class TokenWidgetComponent implements OnInit {
   searchResultShown: boolean = false;
 
   private filtedToken: {chain: string, addressRaw: U256} | undefined;
-  private allowedTokes: TokenItem[] | undefined;
+  private allowedTokens: TokenItem[] | undefined;
   private defaultTokens: TokenItem[] | undefined;
   private customTokens: TokenItem[] = [];
 
@@ -57,6 +57,10 @@ export class TokenWidgetComponent implements OnInit {
     this.getCustomTokens();
   }
 
+  ngOnChanges() {
+    this.clear();
+  }   
+
   tokenValid(chain: string, addressRaw: U256, type: string): boolean {
     const custom = this.getCustomToken(chain, addressRaw, type);
     if (custom) return true;
@@ -68,10 +72,10 @@ export class TokenWidgetComponent implements OnInit {
 
   addToken(token: TokenItem, replace: boolean = true) {
     if (replace) {
-      this.allowedTokes = [token];
+      this.allowedTokens = [token];
     } else {
-      if (!this.allowedTokes) this.allowedTokes = [];
-      this.allowedTokes.push(token);
+      if (!this.allowedTokens) this.allowedTokens = [];
+      this.allowedTokens.push(token);
     }
     if (!this.changable) {
       this.selectedToken = token;
@@ -174,7 +178,7 @@ export class TokenWidgetComponent implements OnInit {
   }
 
   tokens(): TokenItem[] {
-    if (this.allowedTokes) return this.allowedTokes;
+    if (this.allowedTokens) return this.allowedTokens;
     if (this.defaultTokens) return this.defaultTokens;
 
     const result: TokenItem[] = [];

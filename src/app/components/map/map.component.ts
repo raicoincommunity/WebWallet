@@ -23,10 +23,11 @@ export class MapComponent implements OnInit {
   // map
   inputMapAmount = '';
   inputMapTokenId = '';
+  selectedMapOriginalChain = '';
   mapAmountStatus = 0;
   mapTokenIdStatus = 0;
-  private mapAmount = new U256(0);
-  private mapTokenId = new U256(0);
+  private mapAmount = U256.zero();
+  private mapTokenId = U256.zero();
   private mapGasCache: U256 | undefined;
   mapInsufficientFunds = false;
 
@@ -35,13 +36,17 @@ export class MapComponent implements OnInit {
   private gasTimer: any = null;
   private approveTimer: any = null;
 
+  filterMapToken: any;
+
   constructor(
     private notification: NotificationService,
     private translate: TranslateService,
     private wallets: WalletsService,
     private web3: Web3Service,
     private validator: ValidatorService
-  ) { }
+  ) {
+    this.filterMapToken = (token: TokenItem) => this.mapAllowedToken(token);
+  }
 
   ngOnInit(): void {
     this.gasTimer = setInterval(() => this.updateGas(), 15000);
@@ -77,6 +82,20 @@ export class MapComponent implements OnInit {
     this.activePanel = panel as Panel;
   }
 
+  mapOriginalChainChanged(selected: string) {
+    if (this.mapTokenWidget) {
+      this.mapTokenWidget.clear();
+    }
+  }
+
+  mapOriginalChains(): string[] {
+    return ChainHelper.crossChainStrs(true);
+  }
+
+  showChain(chain: string): string {
+    return ChainHelper.toChainShown(chain);
+  }
+  
   onMapTokenChange() {
     this.syncMapAmount();
     this.syncMapTokenId();
@@ -86,6 +105,9 @@ export class MapComponent implements OnInit {
 
   mapAllowedToken(token: TokenItem): boolean {
     if (ChainHelper.isRaicoin(token.chain)) {
+      return false;
+    }
+    if (token.chain !== this.selectedMapOriginalChain) {
       return false;
     }
     return true;
@@ -362,6 +384,21 @@ export class MapComponent implements OnInit {
     } else {
       console.error(`Unsupported chain: ${token.chain}`);
     }
+    this.mapReset();
+  }
+
+  mapReset() {
+    this.inputMapAmount = '';
+    this.inputMapTokenId = '';
+    this.selectedMapOriginalChain = '';
+    this.mapAmountStatus = 0;
+    this.mapTokenIdStatus = 0;
+    this.mapAmount = U256.zero();
+    this.mapTokenId = U256.zero();
+    this.mapGasCache = undefined;
+    this.mapInsufficientFunds = false;
+    this.mapApproveStatus= ApproveStatus.NONE;  
+    this.activePanel = Panel.MAP;
   }
 
   mapShowAmount(): string {
