@@ -57,14 +57,12 @@ export class VerifiedTokensService {
   }
 
   token(chain: string, address: string | U256): VerifiedToken | undefined {
-    if (address instanceof U256) {
-      if (ChainHelper.isNative(chain, address)) {
-       address = '';
-      } else {
-        const ret = ChainHelper.rawToAddress(chain, address);
-        if (ret.error) return undefined;
-        address = ret.address!;
-      }
+    if (ChainHelper.isNative(chain, address)) {
+      address = '';
+    } else if (address instanceof U256) {
+      const ret = ChainHelper.rawToAddress(chain, address);
+      if (ret.error) return undefined;
+      address = ret.address!;
     }
 
     if (environment.current_chain === ChainStr.RAICOIN) {

@@ -189,7 +189,7 @@ export class TokenWidgetComponent implements OnInit {
         if (tokenInfo) {
           i.type = TokenHelper.toTypeStr(tokenInfo.type);
         } else {
-          this.token.queryTokenInfo(i.chain, i.address);
+          this.token.queryTokenInfo(i.chain, i.address, false);
         }
         continue;
       }
@@ -241,7 +241,7 @@ export class TokenWidgetComponent implements OnInit {
           if (tokenInfo) {
             i.type = TokenHelper.toTypeStr(tokenInfo.type);
           } else {
-            this.token.queryTokenInfo(i.chain, i.address);
+            this.token.queryTokenInfo(i.chain, i.address, false);
           }
         }
         if (i.type === type) return i;

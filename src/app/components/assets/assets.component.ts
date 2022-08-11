@@ -12,6 +12,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { NotificationService } from '../../services/notification.service';
 import { AliasService } from '../../services/alias.service';
+import { VerifiedTokensService } from '../../services/verified-tokens.service';
 
 @Component({
   selector: 'app-assets',
@@ -42,6 +43,7 @@ export class AssetsComponent implements OnInit {
     private logo: LogoService,
     private alias: AliasService,
     private settings: SettingsService,
+    private verified: VerifiedTokensService,
     private translate: TranslateService,
     private notification: NotificationService
   ) { }
@@ -55,7 +57,7 @@ export class AssetsComponent implements OnInit {
     const assets = this.settings.getAssets(this.address());
     for (let asset of assets) {
       if (!this.token.tokenInfo(asset.chain, asset.address)) {
-        this.token.queryTokenInfo(asset.chain, asset.address);
+        this.token.queryTokenInfo(asset.chain, asset.address, true);
       }
       if (ChainHelper.isRaicoin(asset.chain)) {
         this.alias.addAccount(asset.address);
@@ -72,7 +74,7 @@ export class AssetsComponent implements OnInit {
         const info = result.info;
         if (!info) return;
         this.tokenAddressStatus = 1;
-        this.tokenSymbol = info.symbol;
+        this.tokenSymbol = this.queryTokenSymbol(info.chain, info.address, info.symbol);
         this.tokenName = info.name;
         this.tokenDecimals = info.decimals;
         this.tokenType = TokenHelper.toTypeStr(info.type);
@@ -103,7 +105,7 @@ export class AssetsComponent implements OnInit {
       const item =  new AssetInfo();
       item.chain = i.chain;
       item.address = i.address;
-      item.asset = i.symbol;
+      item.asset = this.queryTokenSymbol(i.chain, i.address, i.symbol);
       item.chainShown = ChainHelper.toChainShown(i.chain);
       const decimals = new U8(i.decimals);
       item.balance = this.token.balance(i.chain, i.address).amount.toBalanceStr(decimals);
@@ -127,7 +129,7 @@ export class AssetsComponent implements OnInit {
       const item = new AssetInfo();
       item.chain = i.chain;
       item.address = i.address;
-      item.asset = i.symbol;
+      item.asset = this.queryTokenSymbol(i.chain, i.address, i.symbol);
       item.chainShown = i.chainShown;
       item.balance = i.balance.toBalanceStr(i.decimals);
       item.chainLogo = this.logo.getChainLogo(i.chain);
@@ -186,12 +188,12 @@ export class AssetsComponent implements OnInit {
 
       const info = this.token.tokenInfo(address, this.selectedChain);
       if (info) {
-        this.tokenSymbol = info.symbol;
+        this.tokenSymbol = this.queryTokenSymbol(info.chain, info.address, info.symbol);
         this.tokenName = info.name;
         this.tokenDecimals = info.decimals;
         this.tokenAddressStatus = 1;
       } else {
-        this.token.queryTokenInfo(this.selectedChain, address);
+        this.token.queryTokenInfo(this.selectedChain, address, true);
         this.tokenAddressStatus = 3;
       }
     } catch (err) {
@@ -248,7 +250,7 @@ export class AssetsComponent implements OnInit {
       return;
     };
     const info = this.token.tokenInfo(asset.address, asset.chain);
-    if (!info) this.token.queryTokenInfo(asset.chain, asset.address);
+    if (!info) this.token.queryTokenInfo(asset.chain, asset.address, true);
     this.detail = asset;
     this.activePanel = 'asset_details';
   }
@@ -270,9 +272,19 @@ export class AssetsComponent implements OnInit {
     return info.token?.name || info.account?.name || '';
   }
 
-  symbol(): string {
-    const info = this.getInfo();
-    return info.token?.symbol || info.account?.symbol || '';
+  symbol(info?: {token?: TokenInfo, account?: AccountTokenInfo}): string {
+    if (info === undefined) {
+      info = this.getInfo();
+    }
+    if (info.token) {
+      const token = info.token;
+      return this.queryTokenSymbol(token.chain, token.address, token.symbol);
+    }
+    if (info.account) {
+      const account = info.account;
+      return this.queryTokenSymbol(account.chain, account.address, account.symbol);
+    }
+    return '';
   }
 
   balance(): string {
@@ -334,7 +346,7 @@ export class AssetsComponent implements OnInit {
   totalSupply(): string {
     const info = this.getInfo();
     if (!info.token) return '';
-    return info.token.totalSupply.toBalanceStr(info.token.decimals) + ' ' + info.token.symbol;
+    return info.token.totalSupply.toBalanceStr(info.token.decimals) + ' ' + this.symbol(info);
   }
 
   circulable(): string {
@@ -397,6 +409,22 @@ export class AssetsComponent implements OnInit {
     let msg = bool ? marker(`Yes`) : marker(`No`);
     this.translate.get(msg).subscribe(res => msg = res);
     return msg;
+  }
+
+  private queryTokenSymbol(chain: string, address: string, fallback: string = ''): string {
+    const verified = this.verified.token(chain, address);
+    if (verified) {
+      return verified.symbol;
+    }
+
+    const tokenInfo = this.token.tokenInfo(address, chain);
+    if (tokenInfo && tokenInfo.symbol) {
+      return tokenInfo.symbol;
+    } else {
+      this.token.queryTokenSymbol(chain, address, false);
+    }
+
+    return fallback;
   }
 
 }

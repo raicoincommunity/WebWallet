@@ -9,6 +9,7 @@ import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { AliasService } from '../../services/alias.service';
 import { TokenService } from '../../services/token.service';
 import { U128, U256, U8, TokenType, TokenHelper, ExtensionTokenOp, ExtensionTokenOpStr } from '../../services/util.service';
+import { VerifiedTokensService } from '../../services/verified-tokens.service';
 
 @Component({
   selector: 'app-account-details',
@@ -30,6 +31,7 @@ export class AccountDetailsComponent implements OnInit {
     private server: ServerService,
     private alias: AliasService,
     private token: TokenService,
+    private verified: VerifiedTokensService,
     private notification: NotificationService) {
 
   }
@@ -99,7 +101,8 @@ export class AccountDetailsComponent implements OnInit {
     } else {
       result.amount = '';
       result.sign = 0;
-      const { type, symbol, decimals } = tokenBlock;
+      const { type, chain, address, decimals } = tokenBlock;
+      const symbol = this.queryTokenSymbol(chain, address, tokenBlock.symbol);
       if (!info.block.hash().eq(tokenBlock.hash) || !tokenBlock.statusCode.eq(0)) {
         return result;
       }
@@ -216,6 +219,23 @@ export class AccountDetailsComponent implements OnInit {
       return '';
     }
   }
+
+  private queryTokenSymbol(chain: string, address: string, fallback: string = ''): string {
+    const verified = this.verified.token(chain, address);
+    if (verified) {
+      return verified.symbol;
+    }
+
+    const tokenInfo = this.token.tokenInfo(address, chain);
+    if (tokenInfo && tokenInfo.symbol) {
+      return tokenInfo.symbol;
+    } else {
+      this.token.queryTokenSymbol(chain, address, false);
+    }
+
+    return fallback;
+  }
+
 }
 
 class AmountShown {

@@ -12,7 +12,7 @@ import { WalletsService, WalletErrorCode } from '../../services/wallets.service'
 import { OrderSwapInfo, TokenService, OrderInfo, TokenKey, SearchLimitBy, SwapInfo, AccountSwapInfo, OrderActionStatus, SwapFullInfo } from '../../services/token.service';
 import { ServerService } from '../../services/server.service'
 import { VerifiedTokensService } from '../../services/verified-tokens.service';
-import { SettingsService } from '../../services/settings.service'
+import { SettingsService } from '../../services/settings.service';
 
 @Component({
   selector: 'app-p2p',
@@ -2464,7 +2464,9 @@ export class P2pComponent implements OnInit {
     if (tokenInfo) {
       const queriedType = TokenHelper.toTypeStr(tokenInfo.type);
       if (type === queriedType) {
-        return new TokenMetaInfo(tokenInfo.name, tokenInfo.symbol, type, tokenInfo.decimals.toNumber(), false);
+        const { chain, address } = tokenInfo;
+        const symbol = this.queryTokenSymbol(chain, address, tokenInfo.symbol);
+        return new TokenMetaInfo(tokenInfo.name, symbol, type, tokenInfo.decimals.toNumber(), false);
       }
     } else {
       this.token.queryTokenInfo(chain, address, false);
@@ -2578,6 +2580,22 @@ export class P2pComponent implements OnInit {
   private selectedOrderCacheClear() {
     this.selectedOrderFromTokenAmountCache = '';
     this.selectedOrderToTokenAmountCache = '';
+  }
+
+  private queryTokenSymbol(chain: string, address: string, fallback: string = ''): string {
+    const verified = this.verified.token(chain, address);
+    if (verified) {
+      return verified.symbol;
+    }
+
+    const tokenInfo = this.token.tokenInfo(address, chain);
+    if (tokenInfo && tokenInfo.symbol) {
+      return tokenInfo.symbol;
+    } else {
+      this.token.queryTokenSymbol(chain, address, false);
+    }
+
+    return fallback;
   }
 
 }

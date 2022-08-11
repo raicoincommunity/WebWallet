@@ -58,7 +58,7 @@
             {{ receivable.from }}
           </td>
           <td class="uk-text-right">
-            {{ receivable.valueFormatted() }}
+            {{ formatTokenValue(receivable) }}
           </td>
           <td class="uk-text-left uk-text-truncate">
             {{ receivable.txHash.toHex() }}

@@ -1,11 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import { WalletsService, WalletErrorCode } from '../../services/wallets.service';
 import { Receivable } from '../../services/blocks.service';
-import { U256 } from '../../services/util.service';
+import { U256, ChainHelper } from '../../services/util.service';
 import { NotificationService } from '../../services/notification.service';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { TokenService, TokenReceivable } from '../../services/token.service';
+import { SettingsService } from '../../services/settings.service';
+import { VerifiedTokensService } from '../../services/verified-tokens.service';
 
 @Component({
   selector: 'app-receive',
@@ -21,6 +23,8 @@ export class ReceiveComponent implements OnInit {
     private translate: TranslateService,
     private wallets: WalletsService, 
     private token: TokenService,
+    private settings: SettingsService,
+    private verified: VerifiedTokensService,
     private notification: NotificationService) { }
 
   ngOnInit(): void {
@@ -32,6 +36,12 @@ export class ReceiveComponent implements OnInit {
 
   tokenReceivables(): TokenReceivable[] {
     return this.token.receivables();
+  }
+
+  formatTokenValue(receivable: TokenReceivable): string {
+    return receivable.valueFormatted(
+      this.queryTokenSymbol(receivable.token.chain, receivable.token.address)
+    );
   }
 
   receive() {
@@ -163,6 +173,26 @@ export class ReceiveComponent implements OnInit {
 
   empty(): boolean {
     return this.wallets.receivables().length === 0 && this.token.receivables().length === 0;
+  }
+
+  address(): string {
+    return this.wallets.selectedAccountAddress();
+  }
+
+  private queryTokenSymbol(chain: string, address: string): string {
+    const verified = this.verified.token(chain, address);
+    if (verified) {
+      return verified.symbol;
+    }
+
+    const tokenInfo = this.token.tokenInfo(address, chain);
+    if (tokenInfo && tokenInfo.symbol) {
+      return tokenInfo.symbol;
+    } else {
+      this.token.queryTokenSymbol(chain, address, false);
+    }
+
+    return '';
   }
 
 }
