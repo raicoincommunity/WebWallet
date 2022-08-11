@@ -2597,7 +2597,7 @@ export class TokenService implements OnDestroy {
     this.server.send(message);
   }
 
-  queryTokenInfo(chain: string, address: string | U256, force: boolean = true) {
+  queryTokenInfo(chain: string, address: string | U256, force: boolean = false) {
     let addressRaw;
     let addressEncoded;
     if (address instanceof U256) {
@@ -2634,6 +2634,10 @@ export class TokenService implements OnDestroy {
     };
 
     this.server.send(message);
+  }
+
+  queryTokenSymbol(chain: string, address: string | U256, force: boolean = false) {
+    // todo:
   }
 
   private queryTokenIdInfo(address: string, id: U256, chain?: string) {
@@ -3586,6 +3590,14 @@ export class TokenReceivable {
       this.txHash = new U256(json.tx_hash, 16);
       this.from = json.from;
       this.fromRaw = new U256(json.from_raw, 16);
+      if (!this.from) {
+        const ret = ChainHelper.rawToAddress(this.chain, this.fromRaw);
+        if (ret.error) {
+          console.error(`TokenReceivable.fromJson: convert raw to address failed, chain: ${this.chain}, raw: ${this.fromRaw.toHex()}`);
+          return true;
+        }
+        this.from = ret.address!;
+      }
       this.value = new U256(json.value);
       this.blockHeight = new U64(json.block_height);
       this.sourceType = json.source;
@@ -3602,12 +3614,15 @@ export class TokenReceivable {
     return `${this.to}_${this.token.chain}_${this.token.address}_${this.chain}_${this.txHash.toHex()}`
   }
 
-  valueFormatted(): string {
+  valueFormatted(symbol: string = ''): string {
+    if (!symbol) {
+      symbol = this.token.symbol;
+    }
     if (this.token.type === TokenTypeStr._721) {
-      return '1 ' + this.token.symbol;
+      return '1 ' + symbol;
     }
 
-    return this.value.toBalanceStr(this.token.decimals) + ' ' + this.token.symbol;
+    return this.value.toBalanceStr(this.token.decimals) + ' ' + symbol;
   }
 
 }

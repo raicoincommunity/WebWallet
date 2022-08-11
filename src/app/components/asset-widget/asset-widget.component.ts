@@ -269,12 +269,13 @@ export class AssetWidgetComponent implements OnInit {
       return this.amount.toBalanceStr(new U8(9), true) + ' ' + asset.symbol;
     }
 
+    const symbol = asset.symbol;
     const info = this.token.accountTokenInfo(asset.chain, asset.address);
     if (!info) return '';
     if (info.type === TokenType._20) {
-      return this.amount.toBalanceStr(info.decimals, true) + ' ' + info.symbol;
+      return this.amount.toBalanceStr(info.decimals, true) + ' ' + symbol;
     } else if (info.type === TokenType._721) {
-      return `1 ${info.symbol} (${this.tokenId.toDec()})`;
+      return `1 ${symbol} (${this.tokenId.toDec()})`;
     } else {
       return '';
     }
@@ -289,7 +290,7 @@ export class AssetWidgetComponent implements OnInit {
     }
     const info = this.token.accountTokenInfo(asset.chain, asset.address);
     if (!info) return '';
-    return info.balance.toBalanceStr(info.decimals, true) + ' ' + info.symbol;
+    return info.balance.toBalanceStr(info.decimals, true) + ' ' + asset.symbol;
   }
 
   transferable(from: string, to: string): boolean {
@@ -322,7 +323,7 @@ export class AssetWidgetComponent implements OnInit {
       item.tokenLogo = this.logo.getTokenLogo(item.chain, item.address);
     }
     item.chainLogo = this.logo.getChainLogo(item.chain);
-    item.symbol = token.symbol;
+    item.symbol = this.queryTokenSymbol(token.chain, token.address, token.symbol);
     item.decimals = token.decimals;
     item.balance = token.balance;
     return item;
@@ -342,6 +343,22 @@ export class AssetWidgetComponent implements OnInit {
     item.isRaicoin = true;
     item.isNative = true;
     return item;
+  }
+
+  private queryTokenSymbol(chain: string, address: string, fallback: string = ''): string {
+    const verified = this.verified.token(chain, address);
+    if (verified) {
+      return verified.symbol;
+    }
+
+    const tokenInfo = this.token.tokenInfo(address, chain);
+    if (tokenInfo && tokenInfo.symbol) {
+      return tokenInfo.symbol;
+    } else {
+      this.token.queryTokenSymbol(chain, address, false);
+    }
+
+    return fallback;
   }
 
 }

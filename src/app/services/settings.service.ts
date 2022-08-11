@@ -82,6 +82,12 @@ export class SettingsService {
     return this.assets[account];
   }
 
+  getAsset(account: string, chain: string, address: string): AssetSetting | undefined {
+    const assets = this.assets[account];
+    if (!assets) return undefined;
+    return assets.find(x => x.chain === chain && x.address === address);
+  }
+
   hasAsset(account: string, chain: string, address: string): boolean {
     const assets = this.assets[account];
     if (!assets) return false;
