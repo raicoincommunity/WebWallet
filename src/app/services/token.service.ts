@@ -13,6 +13,7 @@ import { Block } from './blocks.service';
 })
 export class TokenService implements OnDestroy {
   private readonly SERVICE = 'token';
+  private readonly VALIDATOR_SERVICE = 'validator';
   private readonly INVALID_ACCOUNT = U256.zero().toAccountAddress();
   private accounts: {[account: string]: AccountTokensInfo} = {};
   private tokenBlocks: {[accountHeight: string]: TokenBlock} = {};
@@ -25,11 +26,23 @@ export class TokenService implements OnDestroy {
   private timerSync: any = null;
   private timerSwapData: any = null;
   private tokenInfoQueries: {[chainAddress: string]: number} = {};
+  private tokenSymbols: {[chain: string]: {[address: string]: string}} = {};
+  private tokenSymbolQueries: {[chainAddress: string]: number} = {};
+  private tokenNames: {[chain: string]: {[address: string]: string}} = {};
+  private tokenNameQueries: {[chainAddress: string]: number} = {};
+  private tokenTypes: {[chain: string]: {[address: string]: TokenType}} = {};
+  private tokenTypeQueries: {[chainAddress: string]: number} = {};
+  private tokenDecimalsEntries: {[chain: string]: {[address: string]: number}} = {};
+  private tokenDecimalsQueries: {[chainAddress: string]: number} = {};
   private issuerSubject = new Subject<{account: string, created: boolean}>();
   private tokenIdSubject = new Subject<{ chain: string, address: string, id: U256, existing: boolean }>();
   private accountSyncedSubject = new Subject<{account: string, synced: boolean}>();
   private tokenInfoSubject = new Subject<{ chain: string, address: string, existing: boolean,
                                            info?: TokenInfo }>();
+  private tokenSymbolSubject = new Subject<{ chain: string, address: string, symbol: string }>();
+  private tokenNameSubject = new Subject<{ chain: string, address: string, name: string }>();
+  private tokenTypeSubject = new Subject<{ chain: string, address: string, type: TokenType }>();
+  private tokenDecimalsSubject = new Subject<{ chain: string, address: string, decimals: number }>();
   private accountSwapInfoSubject = new Subject<AccountSwapInfo>();
   private orderInfoSubject = new Subject<OrderInfo>();
   private searchOrderSubject = new Subject<{by: string, hash?: U256, fromToken?: TokenKey, toToken?: TokenKey, limitBy?: SearchLimitBy, limitValue?: U256, more?:boolean, orders: OrderInfo[]}>();
@@ -43,6 +56,10 @@ export class TokenService implements OnDestroy {
   public tokenId$ = this.tokenIdSubject.asObservable();
   public accountSynced$ = this.accountSyncedSubject.asObservable();
   public tokenInfo$ = this.tokenInfoSubject.asObservable();
+  public tokenSymbol$ = this.tokenSymbolSubject.asObservable();
+  public tokenName$ = this.tokenNameSubject.asObservable();
+  public tokenType$ = this.tokenTypeSubject.asObservable();
+  public tokenDecimals$ = this.tokenDecimalsSubject.asObservable();
   public accountSwapInfo$ = this.accountSwapInfoSubject.asObservable();
   public orderInfo$ = this.orderInfoSubject.asObservable();
   public searchOrder$ = this.searchOrderSubject.asObservable();
@@ -60,6 +77,7 @@ export class TokenService implements OnDestroy {
   ) {
     this.server.state$.subscribe(state => this.processServerState(state));
     this.server.message$.subscribe(message => this.processMessage(message));
+    this.server.message$.subscribe(message => this.processValidatorMessage(message));
     this.timerSync = setInterval(() => this.ongoingSync(), 3000);
     this.timerSwapData = setInterval(() => this.ongoingUpateSwapData(), 3000);
     this.wallets.addAccount$.subscribe(address => this.addAccount(address));
@@ -238,6 +256,54 @@ export class TokenService implements OnDestroy {
       address = ret.raw!;
     }
     return this.getTokenInfo(chain, address);
+  }
+
+  tokenSymbol(address: string | U256, chain: string): string | undefined {
+    if (address instanceof U256) {
+      const ret = ChainHelper.rawToAddress(chain, address);
+      if (ret.error) {
+        console.error(`TokenService::tokenSymbol: failed to convert raw to address, ${address.toHex()}`);
+        return undefined;
+      }
+      address = ret.address!;
+    }
+    return this.tokenSymbols[chain]?.[address];
+  }
+
+  tokenName(address: string | U256, chain: string): string | undefined {
+    if (address instanceof U256) {
+      const ret = ChainHelper.rawToAddress(chain, address);
+      if (ret.error) {
+        console.error(`TokenService::tokenName: failed to convert raw to address, ${address.toHex()}`);
+        return undefined;
+      }
+      address = ret.address!;
+    }
+    return this.tokenNames[chain]?.[address];
+  }
+
+  tokenType(address: string | U256, chain: string): TokenType | undefined {
+    if (address instanceof U256) {
+      const ret = ChainHelper.rawToAddress(chain, address);
+      if (ret.error) {
+        console.error(`TokenService::tokenType: failed to convert raw to address, ${address.toHex()}`);
+        return undefined;
+      }
+      address = ret.address!;
+    }
+    return this.tokenTypes[chain]?.[address];
+  }
+
+  tokenDecimals(address: string | U256, chain: string): number | undefined {
+    if (address instanceof U256) {
+      const ret = ChainHelper.rawToAddress(chain, address);
+      if (ret.error) {
+        console.error(`TokenService::tokenDecimals: failed to convert raw to address, ${address.toHex()}`);
+        return undefined;
+      }
+      address = ret.address!;
+    }
+    return this.tokenDecimalsEntries[chain]?.[address];
   }
 
   tokenIdOwner(token: TokenKey, tokenId: U256): string {
@@ -1467,6 +1533,30 @@ export class TokenService implements OnDestroy {
     }
   }
 
+  private processValidatorMessage(message: any) {
+    if (!message.service || message.service !== this.VALIDATOR_SERVICE) return;
+    if (message.ack) {
+      switch (message.ack) {
+        case 'token_symbol':
+          this.processTokenSymbolAck(message);
+          break;
+        case 'token_name':
+          this.processTokenNameAck(message);
+          break;
+        case 'token_type':
+          this.processTokenTypeAck(message);
+          break;
+        case 'token_decimals':
+          this.processTokenDecimalsAck(message);
+          break;
+        default:
+          break;
+      }
+
+    }
+    // todo:
+  }
+
   private processServiceSubscribe(message: any) {
     if (!message.request_id) {
       return;
@@ -1974,6 +2064,8 @@ export class TokenService implements OnDestroy {
     const tokenInfo = new TokenInfo();
     let error = tokenInfo.fromJson(message);
     if (error) return;
+    tokenInfo.symbol = this.tokenSymbols[tokenInfo.chain]?.[tokenInfo.address] || tokenInfo.symbol;
+    tokenInfo.name = this.tokenNames[tokenInfo.chain]?.[tokenInfo.address] || tokenInfo.name;
     this.putTokenInfo(tokenInfo.chain, tokenInfo.addressRaw, tokenInfo);
 
     if (this.isRaicoin(tokenInfo.chain)) {
@@ -2111,6 +2203,8 @@ export class TokenService implements OnDestroy {
     const tokenInfo = new TokenInfo();
     let error = tokenInfo.fromJson(message);
     if (error) return;
+    tokenInfo.symbol = this.tokenSymbols[tokenInfo.chain]?.[tokenInfo.address] || tokenInfo.symbol;
+    tokenInfo.name = this.tokenNames[tokenInfo.chain]?.[tokenInfo.address] || tokenInfo.name;
     this.putTokenInfo(tokenInfo.chain, tokenInfo.addressRaw, tokenInfo);
 
     const address = tokenInfo.address;
@@ -2364,6 +2458,90 @@ export class TokenService implements OnDestroy {
     if (message.status === 'submitted') {
       swap.takeNackBlockStatus = TakeNackBlockStatus.SUBMITTED;
     }
+  }
+
+  private processTokenSymbolAck(message: any) {
+    if (!message.chain || !message.address_raw || !message.symbol) return;
+    const info = this.getTokenInfo(message.chain, message.address_raw);
+    if (info) {
+      info.symbol = message.symbol;
+      this.putTokenInfo(message.chain, message.address_raw, info);
+      this.tokenInfoSubject.next({
+        chain: message.chain,
+        address: message.address,
+        existing: true,
+        info
+      });
+    }
+    if (!this.tokenSymbols[message.chain]) {
+      this.tokenSymbols[message.chain] = {};
+    }
+    this.tokenSymbols[message.chain][message.address] = message.symbol;
+    this.tokenSymbolSubject.next({
+      chain: message.chain,
+      address: message.address,
+      symbol: message.symbol
+    });
+  }
+
+  private processTokenNameAck(message: any) {
+    if (!message.chain || !message.address_raw || !message.name) return;
+    const info = this.getTokenInfo(message.chain, message.address_raw);
+    if (info) {
+      info.name = message.name;
+      this.putTokenInfo(message.chain, message.address_raw, info);
+      this.tokenInfoSubject.next({
+        chain: message.chain,
+        address: message.address,
+        existing: true,
+        info
+      });
+    }
+    if (!this.tokenNames[message.chain]) {
+      this.tokenNames[message.chain] = {};
+    }
+    this.tokenNames[message.chain][message.address] = message.name;
+    this.tokenNameSubject.next({
+      chain: message.chain,
+      address: message.address,
+      name: message.name
+    });
+  }
+
+  private processTokenTypeAck(message: any) {
+    if (!message.chain || !message.address) return;
+    const chain = message.chain;
+    const address = message.address;
+    let type = TokenType.INVALID;
+    if (message.type) {
+      type = TokenHelper.toType(message.type);
+    }
+
+    if (type !== TokenType.INVALID) {
+      if (!this.tokenTypes[chain]) {
+        this.tokenTypes[chain] = {};
+      }
+      this.tokenTypes[chain][address] = type;
+    }
+    this.tokenTypeSubject.next({ chain, address, type });
+  }
+
+  private processTokenDecimalsAck(message: any) {
+    if (!message.chain || !message.address) return;
+    const chain = message.chain;
+    const address = message.address;
+    
+    let decimals = -1;
+    if (message.decimals) {
+      decimals = +message.decimals;
+    }
+    if (decimals !== -1) {
+      if (!this.tokenDecimalsEntries[chain]) {
+        this.tokenDecimalsEntries[chain] = {};
+      }
+      this.tokenDecimalsEntries[chain][address] = decimals;
+    }
+    this.tokenDecimalsSubject.next({ chain, address, decimals });
   }
 
   private updateAccountTokensInfo(address: string, json: any) {
@@ -2637,7 +2815,171 @@ export class TokenService implements OnDestroy {
   }
 
   queryTokenSymbol(chain: string, address: string | U256, force: boolean = false) {
-    // todo:
+    if (ChainHelper.isRaicoin(chain)) return;
+    let addressRaw;
+    let addressEncoded;
+    if (address instanceof U256) {
+      const ret = ChainHelper.rawToAddress(chain, address);
+      if (ret.error) {
+        console.error(`queryTokenSymbol: convert raw to address failed, chain=${chain}, raw=${address.toHex()}`);
+        return;
+      }
+      addressRaw = address.toHex();
+      addressEncoded = ret.address;
+    } else {
+      const ret = ChainHelper.addressToRaw(chain, address);
+      if (ret.error) { 
+        console.error(`queryTokenSymbol: convert address to raw failed, chain=${chain}, address=${address}`);
+        return;
+      }
+      addressRaw = ret.raw!.toHex();
+      addressEncoded = address;
+    }
+
+    if (!force) {
+      const key = `${chain}_${addressRaw}`;
+      const lastQuery = this.tokenSymbolQueries[key];
+      if (lastQuery && lastQuery > (this.server.getTimestamp() - 300)) return;
+      this.tokenSymbolQueries[key] = this.server.getTimestamp();
+    }
+
+    const chainId = ChainHelper.toChain(chain)
+    const message: any = {
+      action: 'token_symbol',
+      service: this.VALIDATOR_SERVICE,
+      chain,
+      chain_id: `${chainId}`,
+      address: addressEncoded,
+      address_raw: addressRaw,
+    };
+
+    this.server.send(message);
+  }
+
+  queryTokenName(chain: string, address: string | U256, force: boolean = false) {
+    if (ChainHelper.isRaicoin(chain)) return;
+    let addressRaw;
+    let addressEncoded;
+    if (address instanceof U256) {
+      const ret = ChainHelper.rawToAddress(chain, address);
+      if (ret.error) {
+        console.error(`queryTokenName: convert raw to address failed, chain=${chain}, raw=${address.toHex()}`);
+        return;
+      }
+      addressRaw = address.toHex();
+      addressEncoded = ret.address;
+    } else {
+      const ret = ChainHelper.addressToRaw(chain, address);
+      if (ret.error) { 
+        console.error(`queryTokenName: convert address to raw failed, chain=${chain}, address=${address}`);
+        return;
+      }
+      addressRaw = ret.raw!.toHex();
+      addressEncoded = address;
+    }
+
+    if (!force) {
+      const key = `${chain}_${addressRaw}`;
+      const lastQuery = this.tokenNameQueries[key];
+      if (lastQuery && lastQuery > (this.server.getTimestamp() - 300)) return;
+      this.tokenNameQueries[key] = this.server.getTimestamp();
+    }
+
+    const chainId = ChainHelper.toChain(chain)
+    const message: any = {
+      action: 'token_name',
+      service: this.VALIDATOR_SERVICE,
+      chain,
+      chain_id: `${chainId}`,
+      address: addressEncoded,
+      address_raw: addressRaw,
+    };
+
+    this.server.send(message);
+  }
+
+  queryTokenType(chain: string, address: string | U256, force: boolean = false) {
+    if (ChainHelper.isRaicoin(chain)) return;
+    let addressRaw;
+    let addressEncoded;
+    if (address instanceof U256) {
+      const ret = ChainHelper.rawToAddress(chain, address);
+      if (ret.error) {
+        console.error(`queryTokenType: convert raw to address failed, chain=${chain}, raw=${address.toHex()}`);
+        return;
+      }
+      addressRaw = address.toHex();
+      addressEncoded = ret.address;
+    } else {
+      const ret = ChainHelper.addressToRaw(chain, address);
+      if (ret.error) {
+        console.error(`queryTokenType: convert address to raw failed, chain=${chain}, address=${address}`);
+        return;
+      }
+      addressRaw = ret.raw!.toHex();
+      addressEncoded = address;
+    }
+
+    if (!force) {
+      const key = `${chain}_${addressRaw}`;
+      const lastQuery = this.tokenTypeQueries[key];
+      if (lastQuery && lastQuery > (this.server.getTimestamp() - 300)) return;
+      this.tokenTypeQueries[key] = this.server.getTimestamp();
+    }
+
+    const chainId = ChainHelper.toChain(chain)
+    const message: any = {
+      action: 'token_type',
+      service: this.VALIDATOR_SERVICE,
+      chain,
+      chain_id: `${chainId}`,
+      address: addressEncoded,
+      address_raw: addressRaw,
+    };
+
+    this.server.send(message);
+  }
+
+  queryTokenDecimals(chain: string, address: string | U256, force: boolean = false) {
+    if (ChainHelper.isRaicoin(chain)) return;
+    let addressRaw;
+    let addressEncoded;
+    if (address instanceof U256) {
+      const ret = ChainHelper.rawToAddress(chain, address);
+      if (ret.error) {
+        console.error(`queryTokenDecimals: convert raw to address failed, chain=${chain}, raw=${address.toHex()}`);
+        return;
+      }
+      addressRaw = address.toHex();
+      addressEncoded = ret.address;
+    } else {
+      const ret = ChainHelper.addressToRaw(chain, address);
+      if (ret.error) {
+        console.error(`queryTokenDecimals: convert address to raw failed, chain=${chain}, address=${address}`);
+        return;
+      }
+      addressRaw = ret.raw!.toHex();
+      addressEncoded = address;
+    }
+
+    if (!force) {
+      const key = `${chain}_${addressRaw}`;
+      const lastQuery = this.tokenDecimalsQueries[key];
+      if (lastQuery && lastQuery > (this.server.getTimestamp() - 300)) return;
+      this.tokenDecimalsQueries[key] = this.server.getTimestamp();
+    }
+
+    const chainId = ChainHelper.toChain(chain)
+    const message: any = {
+      action: 'token_decimals',
+      service: this.VALIDATOR_SERVICE,
+      chain,
+      chain_id: `${chainId}`,
+      address: addressEncoded,
+      address_raw: addressRaw,
+    };
+
+    this.server.send(message);
   }
 
   private queryTokenIdInfo(address: string, id: U256, chain?: string) {
@@ -2801,16 +3143,22 @@ export class TokenService implements OnDestroy {
     return this.tokenBlocks[key];
   }
 
-  private putTokenInfo(chain: string, addressRaw: U256, info: TokenInfo) {
-    const key = `${chain}_${addressRaw.toHex()}`;
+  private putTokenInfo(chain: string, addressRaw: U256 | string, info: TokenInfo) {
+    if (addressRaw instanceof U256) {
+      addressRaw = addressRaw.toHex();
+    }
+    const key = `${chain}_${addressRaw}`;
     this.tokenInfos[key] = info;
   }
 
-  private getTokenInfo(chain: string | Chain, addressRaw: U256): TokenInfo | undefined {
+  private getTokenInfo(chain: string | Chain, addressRaw: U256 | string): TokenInfo | undefined {
     if (typeof chain === 'number') {
       chain = ChainHelper.toChainStr(chain);
     }
-    const key = `${chain}_${addressRaw.toHex()}`;
+    if (addressRaw instanceof U256) {
+      addressRaw = addressRaw.toHex();
+    }
+    const key = `${chain}_${addressRaw}`;
     return this.tokenInfos[key];
   }
 

@@ -9,6 +9,7 @@ import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { TranslateService } from '@ngx-translate/core';
 import { environment } from '../../../environments/environment';
 import { ValidatorService } from '../../services/validator.service';
+import { AssetWidgetComponent, AssetItem } from '../asset-widget/asset-widget.component';
 
 @Component({
   selector: 'app-map',
@@ -17,6 +18,7 @@ import { ValidatorService } from '../../services/validator.service';
 })
 export class MapComponent implements OnInit {
   @ViewChild('mapTokenWidget') mapTokenWidget!: TokenWidgetComponent;
+  @ViewChild('unmapAssetWidget') unmapAssetWidget! : AssetWidgetComponent;
 
   activePanel: string = Panel.MAP;
 
@@ -30,13 +32,16 @@ export class MapComponent implements OnInit {
   private mapTokenId = U256.zero();
   private mapGasCache: U256 | undefined;
   mapInsufficientFunds = false;
-
   mapApproveStatus: string = ApproveStatus.NONE;
+
+  // unmap
+  private unmapGasCache: U256 | undefined;
 
   private gasTimer: any = null;
   private approveTimer: any = null;
 
   filterMapToken: any;
+  filterUnmapAsset: any;
 
   constructor(
     private notification: NotificationService,
@@ -46,6 +51,7 @@ export class MapComponent implements OnInit {
     private validator: ValidatorService
   ) {
     this.filterMapToken = (token: TokenItem) => this.mapAllowedToken(token);
+    this.filterUnmapAsset = (asset: AssetItem) => this.unmapAllowedAsset(asset);
   }
 
   ngOnInit(): void {
@@ -61,8 +67,6 @@ export class MapComponent implements OnInit {
     if (!this.approveTimer) return;
     if (this.activePanel == Panel.MAP) {
       if (this.mapApproveStatus != ApproveStatus.APPROVED) return;
-    } else if (this.activePanel == Panel.UNMAP) {
-      // todo: unmap
     } else {
       // pass
     }
@@ -108,6 +112,13 @@ export class MapComponent implements OnInit {
       return false;
     }
     if (token.chain !== this.selectedMapOriginalChain) {
+      return false;
+    }
+    return true;
+  }
+
+  unmapAllowedAsset(asset: AssetItem): boolean {
+    if (ChainHelper.isRaicoin(asset.chain)) {
       return false;
     }
     return true;
@@ -579,8 +590,6 @@ export class MapComponent implements OnInit {
   updateApproveStatus() {
     if (this.activePanel == Panel.MAP) {
       this.mapCheckApproved();
-    } else if (this.activePanel == Panel.UNMAP) {
-      // todo
     } else {
       // pass
     }
@@ -764,6 +773,101 @@ export class MapComponent implements OnInit {
     const info = this.validator.chainInfo(chain as ChainStr);
     if (!info) return undefined;
     return info.fee;
+  }
+
+  unmapOriginalChain(): string {
+    if (!this.unmapAssetWidget) return '';
+    const asset = this.unmapAssetWidget.selectedAsset;
+    if (!asset) return '';
+    return this.showChain(asset.chain);
+  }
+
+  shortUnmapRecipient(): string {
+    const asset = this.selectedUnmapAsset();
+    if (!asset) return '';
+    if (ChainHelper.isEvmChain(asset.chain)) {
+      if (!this.web3.connected(asset.chain as ChainStr)) {
+        return '';
+      }
+      const recipient = this.web3.account();
+      if (!recipient) return '';
+      return `${recipient.substr(0, 7)}...${recipient.substr(-5)}`;
+    }
+    return '';
+  }
+
+  selectedUnmapAsset(): AssetItem | undefined {
+    if (!this.unmapAssetWidget || !this.unmapAssetWidget.selectedAsset) {
+      return undefined;
+    }
+
+    return this.unmapAssetWidget.selectedAsset;
+  }
+
+  onUnmapAssetChanged() {
+    // todo:
+  }
+
+  unmapWalletConnected(): boolean {
+    const asset = this.selectedUnmapAsset();
+    if (!asset) return false;
+    return this.walletConnected(asset.chain as ChainStr);
+  }
+
+  unmapShowConnectWallet(): boolean {
+    const asset = this.selectedUnmapAsset();
+    if (!asset) return false;
+    if (ChainHelper.isEvmChain(asset.chain)) {
+      return !this.walletConnected(asset.chain as ChainStr);
+    }
+    return false;
+  }
+
+  unmapShowDisconnectWallet(): boolean {
+    const asset = this.selectedUnmapAsset();
+    if (!asset) return false;
+    if (ChainHelper.isEvmChain(asset.chain)) {
+      return this.walletConnected(asset.chain as ChainStr);
+    }
+    return false;
+  }
+
+  unmapable(): boolean {
+    const asset = this.selectedUnmapAsset();
+    if (!asset) return false;
+    if (!this.raiAccount()) return false;
+    if (!this.unmapWalletConnected()) return false;
+    return true;
+  }
+
+  async unmapConnectWallet() {
+    const asset = this.selectedUnmapAsset();
+    if (!asset) return;
+    await this.connectWallet(asset.chain as ChainStr);
+  }
+
+  async unmapDisconnectWallet() {
+    const asset = this.selectedUnmapAsset();
+    if (!asset) return;
+    await this.disconnectWallet(asset.chain as ChainStr);
+  }
+
+  unmap() {
+    const asset = this.selectedUnmapAsset();
+    if (!asset) {
+      let msg = marker(`Please select an asset`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    }
+
+    // todo:
+
+    this.activePanel = Panel.UNMAP_CONFIRM;
+    this.unmapGasCache = undefined;
+    this.updateGas();
+    this.validator.addChain(asset.chain as ChainStr);
+    // todo:
   }
 
 }

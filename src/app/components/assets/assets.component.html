@@ -104,6 +104,13 @@
             </div>
           </div>
 
+          <div *ngIf="tokenAddressStatus === 1 && tokenType === '20'" class="uk-margin">
+            <label class="uk-form-label" for="form-input-token-symbol">{{ 'Decimals' | translate }}</label>
+            <div class="uk-form-controls">
+              <input [value]="tokenDecimals" class="uk-input" disabled id="form-input-token-symbol" type="text">
+            </div>
+          </div>
+
           <div *ngIf="tokenAddressStatus === 1 && tokenDomain()" class="uk-margin">
             <label class="uk-form-label" for="form-input-token-domain">{{ 'Issuer Site' | translate }}</label>
             <div class="uk-form-controls">

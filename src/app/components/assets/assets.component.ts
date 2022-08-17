@@ -27,7 +27,8 @@ export class AssetsComponent implements OnInit {
   inputTokenAddress = '';
   tokenSymbol = '';
   tokenName = '';
-  tokenDecimals = new U8();
+  tokenDecimals = 0;
+  tokenDecimalsValid = false;
   tokenType = '';
   detail: AssetInfo | null = null;
   private dnsRegexp = /^[a-z0-9][a-z0-9-\.]{0,252}$/i;
@@ -73,19 +74,70 @@ export class AssetsComponent implements OnInit {
       if (result.existing) {
         const info = result.info;
         if (!info) return;
-        this.tokenAddressStatus = 1;
         this.tokenSymbol = this.queryTokenSymbol(info.chain, info.address, info.symbol);
-        this.tokenName = info.name;
-        this.tokenDecimals = info.decimals;
+        this.tokenName = this.queryTokenName(info.chain, info.address, info.name);
+        this.tokenDecimals = info.decimals.toNumber();
+        this.tokenDecimalsValid = true;
         this.tokenType = TokenHelper.toTypeStr(info.type);
+        if (this.tokenInfoValid()) {
+          this.tokenAddressStatus = 1;
+        }
       } else {
         this.tokenAddressStatus = 2;
         this.tokenSymbol = '';
         this.tokenName = '';
-        this.tokenDecimals = new U8(0);
+        this.tokenDecimals = 0;
+        this.tokenDecimalsValid = false;
         this.tokenType= '';
       }
     });
+
+    this.token.tokenSymbol$.subscribe(result => {
+      if (result.chain !== this.selectedChain) return;
+      if (result.address !== this.formatTokenAddress()) return;
+      this.tokenSymbol = result.symbol;
+      if (this.tokenInfoValid()) {
+        this.tokenAddressStatus = 1;
+      }
+    });
+
+    this.token.tokenName$.subscribe(result => {
+      if (result.chain !== this.selectedChain) return;
+      if (result.address !== this.formatTokenAddress()) return;
+      this.tokenName = result.name;
+      if (this.tokenInfoValid()) {
+        this.tokenAddressStatus = 1;
+      }
+    });
+
+    this.token.tokenType$.subscribe(result => {
+      if (result.chain !== this.selectedChain) return;
+      if (result.address !== this.formatTokenAddress()) return;
+      if (result.type === TokenType.INVALID) {
+        this.tokenType = '';
+        this.tokenAddressStatus = 2;
+        return;
+      }
+      this.tokenType = TokenHelper.toTypeStr(result.type);
+      if (this.tokenInfoValid()) {
+        this.tokenAddressStatus = 1;
+      } else if (this.tokenType == TokenTypeStr._20 && this.tokenDecimals < 0) {
+        this.tokenAddressStatus = 2;
+      }
+    });
+
+    this.token.tokenDecimals$.subscribe(result => {
+      if (result.chain !== this.selectedChain) return;
+      if (result.address !== this.formatTokenAddress()) return;
+      this.tokenDecimals = result.decimals;
+      this.tokenDecimalsValid = true;
+      if (this.tokenInfoValid()) {
+        this.tokenAddressStatus = 1;
+      } else if (this.tokenType == TokenTypeStr._20 && this.tokenDecimals < 0) {
+        this.tokenAddressStatus = 2;
+      }
+    });
+    
   }
 
   tokens(): AssetInfo[] {
@@ -144,6 +196,14 @@ export class AssetsComponent implements OnInit {
     return result;
   }
 
+  tokenInfoValid(): boolean {
+    if (!this.tokenSymbol) return false;
+    if (!this.tokenName) return false;
+    if (!this.tokenType) return false;
+    if (this.tokenType == TokenTypeStr._20 && !this.tokenDecimalsValid) return false;
+    return true;
+  }
+
   empty(): boolean {
     return this.tokens().length === 0;
   }
@@ -182,19 +242,39 @@ export class AssetsComponent implements OnInit {
         return;
       }
 
+      const chain = this.selectedChain;
       if (ChainHelper.isRaicoin(this.selectedChain)) {
         this.alias.addAccount(address);
-      }
-
-      const info = this.token.tokenInfo(address, this.selectedChain);
-      if (info) {
-        this.tokenSymbol = this.queryTokenSymbol(info.chain, info.address, info.symbol);
-        this.tokenName = info.name;
-        this.tokenDecimals = info.decimals;
-        this.tokenAddressStatus = 1;
+        const info = this.token.tokenInfo(address, chain);
+        if (info) {
+          this.tokenSymbol = this.queryTokenSymbol(info.chain, info.address, info.symbol);
+          this.tokenName = info.name;
+          this.tokenDecimals = info.decimals.toNumber();
+          this.tokenDecimalsValid = true;
+          this.tokenType = TokenHelper.toTypeStr(info.type);
+          if (this.tokenInfoValid()) {
+            this.tokenAddressStatus = 1;
+          } else {
+            this.tokenAddressStatus = 3;
+          }
+        } else {
+          this.token.queryTokenInfo(chain, address, true);
+          this.tokenAddressStatus = 3;
+        }
       } else {
-        this.token.queryTokenInfo(this.selectedChain, address, true);
-        this.tokenAddressStatus = 3;
+        this.tokenSymbol = this.queryTokenSymbol(chain, address, '');
+        this.tokenName = this.queryTokenName(chain, address, '');
+        this.tokenType = this.queryTokenType(chain, address, '');
+        const decimals = this.queryTokenDecimals(chain, address, '');
+        if (decimals !== undefined) {
+          this.tokenDecimals = decimals;
+          this.tokenDecimalsValid = true;
+        }
+        if (this.tokenInfoValid()) {
+          this.tokenAddressStatus = 1;
+        } else {
+          this.tokenAddressStatus = 3;
+        }
       }
     } catch (err) {
       this.tokenAddressStatus = 2;
@@ -219,8 +299,13 @@ export class AssetsComponent implements OnInit {
   addAsset() {
     this.syncTokenAddress();
     if (this.tokenAddressStatus !== 1) return;
+    let decimals = '0';
+    if (this.tokenType == TokenTypeStr._20) {
+      decimals = `${this.tokenDecimals}`
+    }
     const asset = new AssetSetting(this.selectedChain, this.formatTokenAddress(),
-                                   this.tokenName, this.tokenSymbol, this.tokenDecimals.toDec(), this.tokenType);
+                                   this.tokenName, this.tokenSymbol, decimals,
+                                   this.tokenType);
     this.settings.addAsset(this.wallets.selectedAccountAddress(), asset);
     this.token.syncAccount(this.wallets.selectedAccountAddress());
     this.activePanel = '';
@@ -230,7 +315,8 @@ export class AssetsComponent implements OnInit {
     this.tokenAddressChanged();
     this.tokenSymbol = '';
     this.tokenName = '';
-    this.tokenDecimals = new U8();
+    this.tokenDecimals = 0;
+    this.tokenDecimalsValid = false;
     this.tokenAddressSubject.next('');
   }
 
@@ -416,15 +502,95 @@ export class AssetsComponent implements OnInit {
     if (verified) {
       return verified.symbol;
     }
+    
+    const account = this.wallets.selectedAccountAddress();
+    const asset = this.settings.getAsset(account, chain, address);
+    if (asset !== undefined) {
+      return asset.symbol;
+    }
 
     const tokenInfo = this.token.tokenInfo(address, chain);
     if (tokenInfo && tokenInfo.symbol) {
       return tokenInfo.symbol;
-    } else {
-      this.token.queryTokenSymbol(chain, address, false);
     }
+    
+    const symbol = this.token.tokenSymbol(address, chain);
+    if (symbol) return symbol;
+    this.token.queryTokenSymbol(chain, address, false);
 
     return fallback;
+  }
+
+  private queryTokenName(chain: string, address: string, fallback: string = ''): string {
+    const verified = this.verified.token(chain, address);
+    if (verified) {
+      return verified.name;
+    }
+    
+    const account = this.wallets.selectedAccountAddress();
+    const asset = this.settings.getAsset(account, chain, address);
+    if (asset !== undefined) {
+      return asset.name;
+    }
+
+    const tokenInfo = this.token.tokenInfo(address, chain);
+    if (tokenInfo && tokenInfo.name) {
+      return tokenInfo.name;
+    }
+    
+    const name = this.token.tokenName(address, chain);
+    if (name) return name;
+    this.token.queryTokenName(chain, address, false);
+
+    return fallback;
+  }
+
+  private queryTokenType(chain: string, address: string, fallback: string = ''): string {
+    const verified = this.verified.token(chain, address);
+    if (verified) {
+      return TokenHelper.toTypeStr(verified.type);
+    }
+    
+    const account = this.wallets.selectedAccountAddress();
+    const asset = this.settings.getAsset(account, chain, address);
+    if (asset !== undefined) {
+      return asset.type;
+    }
+
+    const tokenInfo = this.token.tokenInfo(address, chain);
+    if (tokenInfo && tokenInfo.type !== TokenType.INVALID) {
+      return TokenHelper.toTypeStr(tokenInfo.type);
+    }
+    
+    const type = this.token.tokenType(address, chain);
+    if (type) return TokenHelper.toTypeStr(type);
+    this.token.queryTokenType(chain, address, false);
+
+    return fallback;
+  }
+
+  private queryTokenDecimals(chain: string, address: string, fallback: string = ''): number | undefined {
+    const verified = this.verified.token(chain, address);
+    if (verified) {
+      return verified.decimals;
+    }
+    
+    const account = this.wallets.selectedAccountAddress();
+    const asset = this.settings.getAsset(account, chain, address);
+    if (asset !== undefined) {
+      return +asset.decimals;
+    }
+
+    const tokenInfo = this.token.tokenInfo(address, chain);
+    if (tokenInfo && tokenInfo.type != TokenType.INVALID) {
+      return tokenInfo.decimals.toNumber();
+    }
+    
+    const decimals = this.token.tokenDecimals(address, chain);
+    if (decimals === undefined) {
+      this.token.queryTokenDecimals(chain, address, false);
+    }
+    return decimals;
   }
 
 }
