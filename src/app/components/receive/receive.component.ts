@@ -179,20 +179,28 @@ export class ReceiveComponent implements OnInit {
     return this.wallets.selectedAccountAddress();
   }
 
-  private queryTokenSymbol(chain: string, address: string): string {
+  private queryTokenSymbol(chain: string, address: string, fallback: string = ''): string {
     const verified = this.verified.token(chain, address);
     if (verified) {
       return verified.symbol;
+    }
+    
+    const account = this.wallets.selectedAccountAddress();
+    const asset = this.settings.getAsset(account, chain, address);
+    if (asset !== undefined) {
+      return asset.symbol;
     }
 
     const tokenInfo = this.token.tokenInfo(address, chain);
     if (tokenInfo && tokenInfo.symbol) {
       return tokenInfo.symbol;
-    } else {
-      this.token.queryTokenSymbol(chain, address, false);
     }
+    
+    const symbol = this.token.tokenSymbol(address, chain);
+    if (symbol) return symbol;
+    this.token.queryTokenSymbol(chain, address, false);
 
-    return '';
+    return fallback;
   }
 
 }

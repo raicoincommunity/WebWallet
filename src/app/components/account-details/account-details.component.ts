@@ -10,6 +10,7 @@ import { AliasService } from '../../services/alias.service';
 import { TokenService } from '../../services/token.service';
 import { U128, U256, U8, TokenType, TokenHelper, ExtensionTokenOp, ExtensionTokenOpStr } from '../../services/util.service';
 import { VerifiedTokensService } from '../../services/verified-tokens.service';
+import { SettingsService } from '../../services/settings.service';
 
 @Component({
   selector: 'app-account-details',
@@ -32,8 +33,8 @@ export class AccountDetailsComponent implements OnInit {
     private alias: AliasService,
     private token: TokenService,
     private verified: VerifiedTokensService,
+    private settings: SettingsService,
     private notification: NotificationService) {
-
   }
 
   ngOnInit(): void {
@@ -225,13 +226,21 @@ export class AccountDetailsComponent implements OnInit {
     if (verified) {
       return verified.symbol;
     }
+    
+    const account = this.wallets.selectedAccountAddress();
+    const asset = this.settings.getAsset(account, chain, address);
+    if (asset !== undefined) {
+      return asset.symbol;
+    }
 
     const tokenInfo = this.token.tokenInfo(address, chain);
     if (tokenInfo && tokenInfo.symbol) {
       return tokenInfo.symbol;
-    } else {
-      this.token.queryTokenSymbol(chain, address, false);
     }
+    
+    const symbol = this.token.tokenSymbol(address, chain);
+    if (symbol) return symbol;
+    this.token.queryTokenSymbol(chain, address, false);
 
     return fallback;
   }

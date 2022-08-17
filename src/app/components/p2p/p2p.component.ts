@@ -2587,13 +2587,21 @@ export class P2pComponent implements OnInit {
     if (verified) {
       return verified.symbol;
     }
+    
+    const account = this.wallets.selectedAccountAddress();
+    const asset = this.settings.getAsset(account, chain, address);
+    if (asset !== undefined) {
+      return asset.symbol;
+    }
 
     const tokenInfo = this.token.tokenInfo(address, chain);
     if (tokenInfo && tokenInfo.symbol) {
       return tokenInfo.symbol;
-    } else {
-      this.token.queryTokenSymbol(chain, address, false);
     }
+    
+    const symbol = this.token.tokenSymbol(address, chain);
+    if (symbol) return symbol;
+    this.token.queryTokenSymbol(chain, address, false);
 
     return fallback;
   }

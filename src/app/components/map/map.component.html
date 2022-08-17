@@ -81,8 +81,7 @@
         <label class="uk-form-label" for="form-map-sender">{{ 'Sender' | translate }}</label>
         <div class="uk-form-controls">
           <div class="uk-inline uk-width-1-1">
-            <input [ngModel]="shortMapSender()" class="uk-input" id="form-map-sender" type="text" disabled autocomplete="off"
-              placeholder="{{ 'Connect wallet to show' | translate }}">
+            <input [ngModel]="shortMapSender()" class="uk-input" id="form-map-sender" type="text" disabled autocomplete="off" placeholder="{{ 'Connect wallet to show' | translate }}">
           </div>
         </div>
       </div>
@@ -225,6 +224,59 @@
     </div>
 
   </div>
+</div>
+
+<!-- Unmap Panel -->
+<div class="uk-card uk-card-default" [hidden]="activePanel != 'unmap'">
+  <div class="uk-card-body">
+    <div class="uk-form-horizontal">
+      <app-asset-widget #unmapAssetWidget (raiChange)="onUnmapAssetChanged()" raiAmountHint="The amount to unmap" [raiShowRaicoin]="false" [raiAssetFilter]="filterUnmapAsset"></app-asset-widget>
+
+      <div class="uk-margin">
+        <label class="uk-form-label" for="form-input-unmap-original-chain">{{ 'Original Chain'  | translate }}</label>
+        <div class="uk-form-controls">
+          <input [value]="unmapOriginalChain()" class="uk-input" disabled id="form-input-unmap-original-chain" type="text">
+        </div>
+      </div>
+
+      <div class="uk-margin">
+        <label class="uk-form-label" for="form-unmap-sender">{{ 'Sender' | translate }}</label>
+        <div class="uk-form-controls">
+          <div class="uk-inline uk-width-1-1">
+            <input [ngModel]="raiShortAccount()" class="uk-input" id="form-unmap-sender" type="text" disabled autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-margin">
+        <label class="uk-form-label" for="form-unmap-recipient">{{ 'Recipient' | translate }}</label>
+        <div class="uk-form-controls">
+          <div class="uk-inline uk-width-1-1">
+            <input [ngModel]="shortUnmapRecipient()" class="uk-input" id="form-unmap-recipient" type="text" disabled autocomplete="off" placeholder="{{ 'Connect wallet to show' | translate }}">
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="uk-card-footer uk-text-right uk-hidden@m">
+    <div uk-grid>
+      <div *ngIf="unmapable()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-primary uk-width-1-1" (click)="unmap()">
+          Unmap</button>
+      </div>
+      <div *ngIf="unmapShowConnectWallet()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-primary uk-width-1-1" (click)="unmapConnectWallet()">
+          {{ 'Connect Wallet' | translate }}</button>
+      </div>
+      <div *ngIf="unmapShowDisconnectWallet()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-danger uk-width-1-1" (click)="unmapDisconnectWallet()">
+          {{ 'Disconnect Wallet' | translate }}</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <m-web3-modal title="Please choose a web3 protocol" description="" descriptionGray="" dismissText="Cancel">

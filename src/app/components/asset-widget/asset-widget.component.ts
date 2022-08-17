@@ -9,6 +9,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { TokenType } from '../../services/util.service';
 import { VerifiedTokensService } from '../../services/verified-tokens.service';
+import  { SettingsService } from '../../services/settings.service';
 
 @Component({
   selector: 'app-asset-widget',
@@ -18,6 +19,7 @@ import { VerifiedTokensService } from '../../services/verified-tokens.service';
 export class AssetWidgetComponent implements OnInit {
   @Input('raiAmountHint') defualtAmountHint: string = marker('The amount to send');
   @Input('raiShowRaicoin') showRaicoin: boolean = true;
+  @Input('raiAssetFilter') assetFilter: (token: AssetItem) => boolean = () => true;
   @Output("raiChange") eventAssetSelected = new EventEmitter<AssetItem | undefined>();
 
   @ViewChild('assetDropdown') assetDropdown! : ElementRef;
@@ -49,6 +51,7 @@ export class AssetWidgetComponent implements OnInit {
     private logo: LogoService,
     private token: TokenService,
     private verified: VerifiedTokensService,
+    private settings: SettingsService,
     private translate: TranslateService
   ) { 
   }
@@ -99,6 +102,7 @@ export class AssetWidgetComponent implements OnInit {
       }  
     }
     return items.filter(item => {
+      if (!this.assetFilter(item)) return false;
       if (this.assetInputText.includes('<')) return true;
        return item.symbol.toUpperCase().includes(this.assetInputText.toUpperCase());
       });
@@ -350,20 +354,28 @@ export class AssetWidgetComponent implements OnInit {
     if (verified) {
       return verified.symbol;
     }
+    
+    const account = this.wallets.selectedAccountAddress();
+    const asset = this.settings.getAsset(account, chain, address);
+    if (asset !== undefined) {
+      return asset.symbol;
+    }
 
     const tokenInfo = this.token.tokenInfo(address, chain);
     if (tokenInfo && tokenInfo.symbol) {
       return tokenInfo.symbol;
-    } else {
-      this.token.queryTokenSymbol(chain, address, false);
     }
+    
+    const symbol = this.token.tokenSymbol(address, chain);
+    if (symbol) return symbol;
+    this.token.queryTokenSymbol(chain, address, false);
 
     return fallback;
   }
 
 }
 
-class AssetItem {
+export class AssetItem {
   chain: string = '';
   address: string = '';
   addressRaw: U256 = new U256();
