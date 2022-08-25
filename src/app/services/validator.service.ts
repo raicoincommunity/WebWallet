@@ -76,7 +76,7 @@ export class ValidatorService implements OnDestroy {
     this.server.send(message);
   }
 
-  private queryChainInfo(chain: string) {
+  queryChainInfo(chain: string) {
     const message: any = {
       action: 'chain_info',
       service: this.SERVICE,
@@ -150,7 +150,9 @@ export class ValidatorService implements OnDestroy {
 
 export class CrossChainInfo {
   chain: Chain = Chain.INVALID;
+  confirmations: number = 0;
   fee: U256 = new U256(0);
+  height: number = 0;
   valid: boolean = false;
 
   // local data
@@ -162,7 +164,9 @@ export class CrossChainInfo {
     try {
       this.valid = false;
       this.chain = +json.chain_id;
+      this.confirmations = +this.confirmations;
       this.fee = new U256(json.fee);
+      this.height = +json.height;
       this.valid = true;
       return false;
     }

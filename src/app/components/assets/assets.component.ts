@@ -265,7 +265,7 @@ export class AssetsComponent implements OnInit {
         this.tokenSymbol = this.queryTokenSymbol(chain, address, '');
         this.tokenName = this.queryTokenName(chain, address, '');
         this.tokenType = this.queryTokenType(chain, address, '');
-        const decimals = this.queryTokenDecimals(chain, address, '');
+        const decimals = this.queryTokenDecimals(chain, address);
         if (decimals !== undefined) {
           this.tokenDecimals = decimals;
           this.tokenDecimalsValid = true;
@@ -354,13 +354,17 @@ export class AssetsComponent implements OnInit {
   }
 
   name(): string {
-    const info = this.getInfo();
-    return info.token?.name || info.account?.name || '';
+    if (!this.detail) return '';
+    return this.queryTokenName(this.detail.chain, this.detail.address, '');
   }
 
   symbol(info?: {token?: TokenInfo, account?: AccountTokenInfo}): string {
     if (info === undefined) {
-      info = this.getInfo();
+      if (this.detail) {
+        return this.queryTokenSymbol(this.detail.chain, this.detail.address, '');
+      } else {
+        return '';
+      }
     }
     if (info.token) {
       const token = info.token;
@@ -380,8 +384,7 @@ export class AssetsComponent implements OnInit {
   }
 
   tokenAddress(): string {
-    const info = this.getInfo();
-    const address = info.token?.address || info.account?.address;
+    const address = this.detail?.address;
     if (!address) return '';
     if (ChainHelper.isNative(this.chain(), address)) {
       return 'N/A';
@@ -402,16 +405,8 @@ export class AssetsComponent implements OnInit {
   }
 
   type(): string {
-    const info = this.getInfo();
-    let type: TokenType = TokenType.INVALID;
-    if (info.token) {
-      type = info.token.type;
-    } else if (info.account) {
-      type = info.account.type;
-    } else {
-      return '';
-    }
-    return TokenHelper.toTypeStr(type);
+    if (!this.detail) return '';
+    return this.queryTokenType(this.detail.chain, this.detail.address, '');
   }
 
   typeShown(): string {
@@ -419,8 +414,10 @@ export class AssetsComponent implements OnInit {
   }
 
   decimals(): string {
-    const info = this.getInfo();
-    return info.token?.decimals.toDec() || info.account?.decimals.toDec() || '';
+    if (!this.detail) return '';
+    const decimals = this.queryTokenDecimals(this.detail.chain, this.detail.address);
+    if (!decimals) return '';
+    return `${decimals}`;
   }
 
   baseUri(): string {
@@ -429,10 +426,10 @@ export class AssetsComponent implements OnInit {
     return info.token?.baseUri || '';
   }
 
-  totalSupply(): string {
+  localSupply(): string {
     const info = this.getInfo();
     if (!info.token) return '';
-    return info.token.totalSupply.toBalanceStr(info.token.decimals) + ' ' + this.symbol(info);
+    return info.token.localSupply.toBalanceStr(info.token.decimals) + ' ' + this.symbol(info);
   }
 
   circulable(): string {
@@ -569,7 +566,7 @@ export class AssetsComponent implements OnInit {
     return fallback;
   }
 
-  private queryTokenDecimals(chain: string, address: string, fallback: string = ''): number | undefined {
+  private queryTokenDecimals(chain: string, address: string): number | undefined {
     const verified = this.verified.token(chain, address);
     if (verified) {
       return verified.decimals;

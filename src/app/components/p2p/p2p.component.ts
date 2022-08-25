@@ -931,7 +931,7 @@ export class P2pComponent implements OnInit {
   place() {
     if (this.placeCheck()) return;
 
-    const wallet = this.wallets.selectedWallet()
+    const wallet = this.wallets.selectedWallet();
     if (!wallet) {
       let msg = marker(`Please configure a wallet first`);
       this.translate.get(msg).subscribe(res => msg = res);

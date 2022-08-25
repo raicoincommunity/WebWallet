@@ -7,6 +7,8 @@ import { environment } from '../../../environments/environment';
 import { ChainHelper, TokenHelper, TokenTypeStr, U256 } from '../../services/util.service';
 import { SettingsService } from '../../services/settings.service'
 import { TokenService } from '../../services/token.service';
+import { NotificationService } from '../../services/notification.service';
+import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 
 @Component({
   selector: 'app-token-widget',
@@ -50,6 +52,7 @@ export class TokenWidgetComponent implements OnInit {
     private verified: VerifiedTokensService,
     private settings: SettingsService,
     private token: TokenService,
+    private notification: NotificationService,
     private translate: TranslateService
   ) { }
 
@@ -225,6 +228,20 @@ export class TokenWidgetComponent implements OnInit {
 
   address(): string {
     return this.wallets.selectedAccountAddress();
+  }
+
+  copy(): string {
+    if (!this.selectedToken) return '';
+    return this.selectedToken.address;
+  }
+
+  copied() {
+    const address = this.copy();
+    if (!address) return;
+    let msg = marker('Token address copied to clipboard: {address}');
+    const param = {address};
+    this.translate.get(msg, param).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
   }
 
   private filter(item: TokenItem): boolean {

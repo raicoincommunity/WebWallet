@@ -1347,7 +1347,10 @@ export class ChainHelper {
     if (typeof raw === 'string') {
       raw = new U256(raw, 16);
     }
-    
+    if (raw.isNativeTokenAddress()) {
+      return {error: false, address: ''};
+    }
+
     switch (chain) {
       case ChainStr.RAICOIN:
       case ChainStr.RAICOIN_TEST:
@@ -1368,6 +1371,16 @@ export class ChainHelper {
       default:
         return { error: true };
     }
+  }
+
+  static formatAddress(chain: string, address: string): string {
+    const retRaw = ChainHelper.addressToRaw(chain, address);
+    if (retRaw.error || !retRaw.raw) {
+      return '';
+    }
+    const retAddress = ChainHelper.rawToAddress(chain, retRaw.raw);
+    if (retAddress.error || !retAddress.address) return '';
+    return retAddress.address;
   }
 
   static toShortAddress(chain: string, address: string, reserve: number = 4): string {
@@ -1419,7 +1432,6 @@ export class ChainHelper {
     }
   }
 
-  // todo: check reference
   static crossChainStrs(map: boolean): ChainStr[] {
     if (typeof map !== 'boolean') return [];
     let test: boolean | undefined;
@@ -2583,6 +2595,7 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
       const address = new U256(value.address_raw, 16);
       buffer.set(address.bytes, count);
       count += address.size;
+
       if (!value.to || typeof value.to !== 'string') {
         throw new Error(`ExtensionHelper.token.send.encode: invalid to=${value.to}`);
       }
@@ -2841,6 +2854,121 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
       tokenSwapExtensionCodecs[value.sub_op].decode(array.slice(1), value);
     }
   },
+
+  unmap: {
+    encode: (value: any) => {
+      let buffer = new Uint8Array(1024);
+      let count = 0;
+      buffer.set([ExtensionTokenOp.UNMAP], count);
+      count += 1;
+
+      const chain = ChainHelper.toChain(value.chain);
+      if (chain === Chain.INVALID) {
+        throw new Error(`ExtensionHelper.token.unmap.encode: invalid chain=${value.chain}`);
+      }
+      buffer.set((new U32(chain)).bytes, count);
+      count += 4;
+
+      const type = TokenHelper.toType(value.type);
+      if (type === TokenType.INVALID) {
+        throw new Error(`ExtensionHelper.token.unmap.encode: invalid type=${value.type}`);
+      }
+      buffer.set([type], count);
+      count += 1;
+
+      if (!value.address_raw || typeof value.address_raw !== 'string') {
+        throw new Error(`ExtensionHelper.token.unmap.encode: invalid address_raw=${value.address_raw}`);
+      }
+      const address = new U256(value.address_raw, 16);
+      buffer.set(address.bytes, count);
+      count += address.size;
+
+      if (!value.to_raw || typeof value.to_raw !== 'string') {
+        throw new Error(`ExtensionHelper.token.unmap.encode: invalid to_raw=${value.to_raw}`);
+      }
+      const to = new U256(value.to_raw, 16);
+      buffer.set(to.bytes, count);
+      count += to.size;
+
+      if (!value.value || typeof value.value !== 'string') {
+        throw new Error(`ExtensionHelper.token.unmap.encode: invalid value=${value.value}`);
+      }
+      const tokenValue = new U256(value.value);
+      buffer.set(tokenValue.bytes, count);
+      count += tokenValue.size;
+
+      if (!value.extra_data || typeof value.extra_data !== 'string') {
+        throw new Error(`ExtensionHelper.token.unmap.encode: invalid extra_data=${value.exrta_data}`);
+      }
+      const extraData = new U64(value.extra_data);
+      buffer.set(extraData.bytes, count);
+      count += extraData.size;
+
+      return buffer.slice(0, count);
+    },
+
+    decode: (array: Uint8Array, value: {[key: string]: string}) => {
+      const streamError = new Error(`ExtensionHelper.token.unmap.decode: invalid stream`);
+      let offset = 0;
+      const length = array.length;
+
+      const chain = new U32();
+      let error = chain.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += chain.size;
+      value.chain = ChainHelper.toChainStr(chain.toNumber());
+      if (!value.chain) {
+        throw new Error(`ExtensionHelper.token.unmap.decode: invalid chain=${chain.toNumber()}`);
+      }
+      value.chain_id = chain.toDec();
+
+      if (offset + 1 > length) {
+        throw streamError;
+      }
+      const type = array[offset];
+      offset += 1;
+      value.type = TokenHelper.toTypeStr(type);
+      if (!value.type) {
+        throw new Error(`ExtensionHelper.token.unmap.decode: invalid type=${type}`);
+      }
+
+      const address = new U256();
+      error = address.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += address.size;
+      value.address_raw = address.toHex();
+      let ret = ChainHelper.rawToAddress(value.chain, address);
+      if (ret.error || !ret.address) {
+        throw new Error(`ExtensionHelper.token.unmap.decode: invalid address=${value.address_raw}`);
+      }
+      value.address = ret.address;
+
+      const to = new U256();
+      error = to.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += to.size;
+      value.to_raw = to.toHex();
+      ret = ChainHelper.rawToAddress(value.chain, to);
+      if (ret.error || !ret.address) {
+        throw new Error(`ExtensionHelper.token.unmap.decode: rawToAddress failed, raw =${value.to_raw}`);
+      }
+      value.to = ret.address;
+
+      const tokenValue = new U256();
+      error = tokenValue.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += tokenValue.size;
+      value.value = tokenValue.toDec();
+
+      const extraData = new U64();
+      error = extraData.fromArray(array, offset);
+      if (error) throw streamError;
+      offset += extraData.size;
+      value.extra_data = extraData.toDec();
+
+      if (offset !== array.length) throw streamError;
+    }
+  }
 
 }
 
