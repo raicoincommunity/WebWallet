@@ -84,11 +84,11 @@ export class VerifiedTokensService {
     }
   }
 
-  getNativeToken(currentChain: string, destChain: string | Chain): VerifiedToken | undefined {
+  getNativeToken(destChain: string | Chain): VerifiedToken | undefined {
     if (typeof destChain !== 'string') {
       destChain = ChainHelper.toChainStr(destChain);
     }
-
+    const currentChain = environment.current_chain;
     if (currentChain === ChainStr.RAICOIN) {
       return this.verifiedTokensDict[destChain]?.[''];
     } else if (currentChain === ChainStr.RAICOIN_TEST) { 

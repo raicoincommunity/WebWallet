@@ -4,9 +4,9 @@
     </label>
     <div class="uk-form-controls">
       <div class="uk-inline uk-width-1-1">
-        <a *ngIf="selectedToken" class="uk-form-icon" href="#" style="padding-left: 15px;"><img
+        <a *ngIf="selectedToken" class="uk-form-icon" style="padding-left: 15px;" ngxClipboard [cbContent]="copy()" (cbOnSuccess)="copied()"><img
             [src]="selectedToken.chainLogo" width="20" height="20" /></a>
-        <a *ngIf="selectedToken" class="uk-form-icon" href="#" style="padding-left: 0px;"><img
+        <a *ngIf="selectedToken" class="uk-form-icon" style="padding-left: 0px;" ngxClipboard [cbContent]="copy()" (cbOnSuccess)="copied()"><img
             [src]="selectedToken.tokenLogo" width="20" height="20" /></a>
         <a *ngIf="changable" #tokenSelect (click)="onRemove()" uk-icon="icon: trash;" class="uk-form-icon uk-form-icon-flip" style="padding-right: 0px;"></a>
         <input *ngIf="!changable" #tokenInput [(ngModel)]="tokenInputText" class="uk-input"

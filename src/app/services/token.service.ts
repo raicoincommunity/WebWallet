@@ -185,6 +185,13 @@ export class TokenService implements OnDestroy {
     return undefined;
   }
 
+  accountTokenMaps(chain: string, account?: string): MapInfo[] {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info || !info.maps[chain]) return [];
+    return info.maps[chain].maps;
+  }
+
   balance(chain: string, address: string, account?: string): { amount: U256, type: TokenType, decimals: U8 } {
     const zero = { amount: U256.zero(), type: TokenType.INVALID, decimals: U8.zero() };
     if (!account) account = this.wallets.selectedAccountAddress();
@@ -724,6 +731,22 @@ export class TokenService implements OnDestroy {
     return info.moreTakerSwaps || info.moreMakerSwaps;
   }
 
+  noMaps(chain: string, account?: string): boolean {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return false;
+    const maps = info.maps[chain];
+    return maps && maps.maps.length === 0 && maps.synced;
+  }
+
+  moreMaps(chain: string, account?: string): boolean {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return false;
+    const maps = info.maps[chain];
+    return maps && maps.more && maps.synced;
+  }
+
   loadMoreSwaps(account?: string) {
     if (!account) account = this.wallets.selectedAccountAddress();
     const info = this.accounts[account];
@@ -731,6 +754,25 @@ export class TokenService implements OnDestroy {
     info.expectedRecentSwaps += 10;
     this.queryMakerSwaps(account);
     this.queryTakerSwaps(account);
+  }
+
+  loadMoreMaps(chain: string, account?: string) {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return;
+    const maps = info.maps[chain];
+    if (!maps) return;
+    maps.expectedRecentMaps += 10;
+    this.queryPendingTokenMapInfos(account, chain);
+  }
+
+  addTokenMapInfos(chain: string, account?: string) {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return;
+    if (info.maps[chain]) return;
+    info.maps[chain] = new AccountTokenMapInfos();
+    this.syncMapInfos(account, false);
   }
 
   orderCancelling(account: string, height: U64): boolean {
@@ -1289,12 +1331,62 @@ export class TokenService implements OnDestroy {
       }
     }
 
+    for (let address in this.accounts) {
+      this.syncMapInfos(address, force);
+      this.syncUnmapInfos(address, force);
+    }
+
   }
 
   private ongoingUpateSwapData() {
     this.updateMakerStatus();
     this.purgeAccountSwapInquiries();
   }
+
+  private syncMapInfos(address: string, force?: boolean) {
+    const info = this.accounts[address];
+    if (!info) return;
+    const now = window.performance.now();
+    for (let chain in info.maps) {
+      const map = info.maps[chain];
+      if (!force) {
+        if (map.nextSyncAt > now) continue;
+        if (map.lastSyncAt > now - 15000 && map.synced) {
+          map.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
+          continue;
+        }
+      }
+
+      this.queryPendingTokenMapInfos(address, chain);
+      map.lastSyncAt = now;
+      if (map.synced) {
+        map.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
+      } else {
+        map.nextSyncAt = now + 10000;
+      }
+    }
+  }
+
+  private syncUnmapInfos(address: string, force?: boolean) {
+    const info = this.accounts[address];
+    if (!info) return;
+    const now = window.performance.now();
+    if (!force) {
+      if (info.unmaps.nextSyncAt > now) return;
+      if (info.unmaps.lastSyncAt > now - 15000 && info.unmaps.synced) {
+        info.unmaps.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
+        return;
+      }
+    }
+
+    this.queryTokenUnmapInfos(address);
+    info.unmaps.lastSyncAt = now;
+    if (info.unmaps.synced) {
+      info.unmaps.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
+    } else {
+      info.unmaps.nextSyncAt = now + 10000;
+    }
+}
 
   private updateMakerStatus() {
     const now = this.server.getTimestamp();
@@ -1440,6 +1532,9 @@ export class TokenService implements OnDestroy {
         case 'order_swaps':
           this.processOrderSwapsAck(message);
           break;
+        case 'pending_token_map_infos':
+          this.processPendingTokenMapInfosAck(message);
+          break;
         case 'previous_account_token_links':
           this.processAccountTokenLinksQueryAck(message, true);
           break;
@@ -1457,6 +1552,12 @@ export class TokenService implements OnDestroy {
           break;
         case 'token_info':
           this.processTokenInfoQueryAck(message);
+          break;
+        case 'token_map_infos':
+          this.processTokenMapInfosAck(message);
+          break;
+        case 'token_unmap_infos':
+          this.processTokenUnmapInfosAck(message);
           break;
         case 'token_receivables':
           this.processTokenReceivablesQueryAck(message);
@@ -1554,7 +1655,6 @@ export class TokenService implements OnDestroy {
       }
 
     }
-    // todo:
   }
 
   private processServiceSubscribe(message: any) {
@@ -1901,6 +2001,33 @@ export class TokenService implements OnDestroy {
     this.accountSwapsSubject.next(account);
   }
 
+  private processPendingTokenMapInfosAck(message: any) {
+    if (message.error || !message.account) return;
+    const account = message.account;
+    const info = this.accounts[account];
+    if (!info) return;
+    let chain = message.chain;
+    if (!chain) {
+      chain = ChainHelper.toChainStr(+message.chain_id);
+    }
+
+    const maps = info.maps[chain];
+    if (!maps) return;
+    maps.purgePendings();
+    
+    if (message.maps) {
+      for (let i of message.maps) {
+        const map = new MapInfo();
+        const error = map.fromJson(i);
+        if (error) return;
+        map.confirmed = false;
+        maps.insert(map);
+      }
+    }
+
+    this.queryTokenMapInfos(account, chain, maps.confirmedTail);
+  }
+
   private processAccountTokenLinksQueryAck(message: any, isPrevious: boolean) {
     if (message.error || !message.token_links) return;
     const account = message.account;
@@ -2080,6 +2207,88 @@ export class TokenService implements OnDestroy {
       }
     }
     this.tokenInfoSubject.next({chain, address, existing: true, info: tokenInfo});
+  }
+
+  private processTokenMapInfosAck(message: any) {
+    if (message.error || !message.account || !message.more) return;
+    const account = message.account;
+    const info = this.accounts[account];
+    if (!info) return;
+    let chain = message.chain;
+    if (!chain) {
+      chain = ChainHelper.toChainStr(+message.chain_id);
+    }
+
+    const maps = info.maps[chain];
+    if (!maps) return;
+    
+    let previous: MapInfo | undefined;
+    let inserted = false;
+    if (message.maps) {
+      for (let i of message.maps) {
+        const map = new MapInfo();
+        const error = map.fromJson(i);
+        if (error) return;
+        map.confirmed = true;
+        inserted = maps.insert(map);
+        previous = map;
+      }
+    }
+
+    maps.more = message.more === 'true';
+    if (!maps.more) {
+      maps.synced = true;
+      return;
+    }
+
+    if (inserted) {
+      this.queryTokenMapInfos(account, chain, previous);
+    } else if (maps.maps.length < maps.expectedRecentMaps) {
+      this.queryTokenMapInfos(account, chain, maps.confirmedTail);
+    } else {
+      maps.synced = true;
+    }
+  }
+
+  private processTokenUnmapInfosAck(message: any) {
+    if (message.error || !message.account || !message.more) return;
+    const account = message.account;
+    const info = this.accounts[account];
+    if (!info) return;
+    const unmaps = info.unmaps;
+
+    let last: UnmapInfo | undefined;
+    let existing = false;
+    if (message.unmaps) {
+      for (let i of message.unmaps) {
+        const unmap = new UnmapInfo();
+        const error = unmap.fromJson(i);
+        if (error) return;
+        existing = unmaps.insert(unmap);
+        last = unmap;
+      }
+    }
+
+    unmaps.more = message.more === 'true';
+    if (!unmaps.more || !last) {
+      unmaps.synced = true;
+      return;
+    }
+    const tail = unmaps.tail();
+    if (!tail) {
+      console.error(`TokenService::processTokenUnmapInfosAck: unexpected tail=`, tail);
+      return;
+    }
+
+    const pendingTail = unmaps.pendingTail();
+    if ((last.height > tail.height && !existing) // gap
+      || (pendingTail && pendingTail.height < last.height)) {
+      this.queryTokenUnmapInfos(account, last.height - 1);
+    } else if(unmaps.size() < unmaps.expectedRecentUnmaps) {
+      this.queryTokenUnmapInfos(account, tail.height - 1);
+    } else {
+      unmaps.synced = true;
+    }
   }
 
   private processTokenReceivablesQueryAck(message: any) {
@@ -3116,6 +3325,66 @@ export class TokenService implements OnDestroy {
     this.server.send(message);
   }
 
+  private queryPendingTokenMapInfos(account: string, chain: string) {
+    const message: any = {
+      action: 'pending_token_map_infos',
+      service: this.SERVICE,
+      account,
+      chain,
+    };
+    this.server.send(message);
+  }
+
+  private queryTokenMapInfos(account: string, chain: string, previous?: MapInfo) {
+    let height = U64.max();
+    let index = U64.max();
+    if (previous) {
+      height = new U64(previous.height);
+      index = new U64(previous.index);
+      index = index.minus(1)
+      if (index.eq(U64.max())) {
+        height = height.minus(1);
+      }
+      if (height.eq(U64.max())) {
+        console.error(`queryTokenMapInfos: unexpected params, height=${previous.height}, index=${previous.index}`);
+        return;
+      }
+    }
+    const message: any = {
+      action: 'token_map_infos',
+      service: this.SERVICE,
+      account,
+      chain,
+      height: height.toDec(),
+      index: index.toDec(),
+      count: '10',
+    };
+
+    this.server.send(message);
+  }
+
+  private queryTokenUnmapInfos(account: string, height?: number | string) {
+    if (height === undefined) {
+      height = U64.max().toDec();
+    } else if (typeof height === 'number') {
+      if (height < 0) {
+        console.error(`TokenService::queryTokenUnapInfos: invalid height=`, height);
+        return
+      }
+      height = `${height}`;
+    }
+
+    const message: any = {
+      action: 'token_unmap_infos',
+      service: this.SERVICE,
+      account,
+      height,
+      count: '10',
+    };
+
+    this.server.send(message);
+  }
+
   private purgeMakers() {
     const accounts : string[] = [];
     const now = this.server.getTimestamp();
@@ -3347,9 +3616,9 @@ class AccountTokensInfo {
   takerSwaps: SwapFullInfo[] = [];
   moreMakerSwaps: boolean = true;
   moreTakerSwaps: boolean = true;
-
   tokenBlockLinks: TokenBlockLinks = new TokenBlockLinks();
-
+  maps: { [chain: string]: AccountTokenMapInfos } = {};
+  unmaps: AccountTokenUnmapInfos = new AccountTokenUnmapInfos();
 
   //local data
   expectedRecentBlocks: number = 10;
@@ -4652,4 +4921,286 @@ export enum SwapReturnCode {
   WAITING = 1,
   SKIPPED = 2,
   FAILED  = 3,
+}
+
+export class MapInfo {
+  account: string = '';
+  height: number = 0;
+  index: number = 0;
+  chain: string = '';
+  chainId: number = 0;
+  address: string = '';
+  addressRaw: U256 = U256.zero();
+  type: TokenType = TokenType.INVALID;
+  decimals: number | undefined = undefined;
+  value: U256 = U256.zero();
+  from: string = '';
+  to: string = '';
+  sourceTxn: string = '';
+
+  // local data
+  confirmed: boolean = false;
+
+  fromJson(json: any): boolean {
+    try {
+      this.account = json.account;
+      this.height = +json.height;
+      this.index = +json.index;
+      this.chain = json.chain;
+      this.chainId = +json.chain_id;
+      if (!this.chain) {
+        this.chain = ChainHelper.toChainStr(this.chainId as Chain)
+      }
+      this.address = json.address;
+      this.addressRaw = new U256(json.address_raw, 16);
+      if (!this.address) {
+        const ret = ChainHelper.rawToAddress(this.chain, this.addressRaw);
+        if (ret.error) {
+          console.error(`MapInfo.fromJson: convert raw to address failed, chain: ${this.chain}, raw: ${this.addressRaw.toHex()}`);
+          return true;
+        }
+        this.address = ret.address!;
+      }
+      this.type = TokenHelper.toType(json.type);
+      if (json.decimals !== undefined) {
+        this.decimals = +json.decimals;
+      }
+      this.value = new U256(json.value);
+      const retAddress = ChainHelper.rawToAddress(this.chain, json.from);
+      if (retAddress.error || !retAddress.address) return true;
+      this.from = retAddress.address;
+      this.to = json.to;
+      this.sourceTxn = json.source_transaction;
+      return false;
+    }
+    catch (e) {
+      console.log(`MapInfo.fromJson: failed to parse json=${json}`);
+      return true;
+    }
+  }
+
+  gt(other: MapInfo): boolean {
+    if (this.height !== other.height) {
+      return this.height > other.height;
+    }
+    if (this.index !== other.index) {
+      return this.index > other.index;
+    }
+    return false;
+  }
+
+  lt(other: MapInfo): boolean {
+    if (this.height !== other.height) {
+      return this.height < other.height;
+    }
+    if (this.index !== other.index) {
+      return this.index < other.index;
+    }
+    return false;
+  }
+
+  le(other: MapInfo): boolean {
+    return this.lt(other) || this.eq(other);
+  }
+
+  eq(other: MapInfo): boolean {
+    return this.height === other.height && this.index === other.index;
+  }
+
+  sameWith(other: MapInfo): boolean {
+    return this.eq(other) && this.sourceTxn === other.sourceTxn
+      && this.confirmed === other.confirmed;
+  }
+
+}
+
+export class AccountTokenMapInfos {
+  maps: MapInfo[] = [];
+  more: boolean = true;
+
+  // local data
+  expectedRecentMaps: number = 10;
+  nextSyncAt: number = 0;
+  lastSyncAt: number = -1000000;
+  synced: boolean = false;
+  confirmedHead: MapInfo | undefined;
+  confirmedTail: MapInfo | undefined;
+
+  purgePendings() {
+    const index = this.indexOfConfirmed();
+    if (index < 0) return;
+    this.maps.splice(0, index);
+  }
+
+  indexOfConfirmed(): number {
+    return this.maps.findIndex(x => x.confirmed);
+  }
+
+  // return inserted
+  insert(map: MapInfo): boolean {
+    if (this.confirmedHead) {
+      if (!map.confirmed && map.le(this.confirmedHead)) return false;
+    }
+
+    let index = this.maps.findIndex(x => x.eq(map));
+    if (index >= 0) {
+      const existing = this.maps[index];
+      if (existing.sameWith(map) || existing.confirmed) return false;
+      this.maps.splice(index, 1);
+    }
+    index = this.maps.findIndex(x => x.lt(map));
+    if (index < 0) {
+      this.maps.push(map);
+    } else {
+      this.maps.splice(index, 0, map);
+    }
+    if (!map.confirmed) return true;
+    
+    let count = 0;
+    for (let i = index + 1; i < this.maps.length; ++i) {
+      if (this.maps[i].confirmed) break;
+      ++count;
+    }
+    if (count > 0) {
+      this.maps.splice(index + 1, count);
+    }
+    if (!this.confirmedHead || map.gt(this.confirmedHead)) {
+      this.confirmedHead = map;
+    }
+    if (!this.confirmedTail || map.lt(this.confirmedTail)) {
+      this.confirmedTail = map;
+    }
+    return true;
+  }
+}
+
+export class UnmapInfo {
+  account: string = '';
+  height: number = 0;
+  chain: string = '';
+  chainId: number = 0;
+  address: string = '';
+  addressRaw: U256 = U256.zero();
+  type: TokenType = TokenType.INVALID;
+  decimals: number | undefined = undefined;
+  value: U256 = U256.zero();
+  from: string = '';
+  to: string = '';
+  sourceTxn: string = '';
+  sourceBlock: any = null;
+  extraData: U64 = U64.zero();
+  targetConfirmed: boolean = false;
+  targetTxn: string = '';
+  targetHeight: U64 = U64.zero();
+
+  fromJson(json: any): boolean {
+    try {
+      this.account = json.account;
+      this.height = +json.height;
+      this.chain = json.chain;
+      this.chainId = +json.chain_id;
+      if (!this.chain) {
+        this.chain = ChainHelper.toChainStr(this.chainId as Chain)
+      }
+      this.address = json.address;
+      this.addressRaw = new U256(json.address_raw, 16);
+      if (!this.address) {
+        const ret = ChainHelper.rawToAddress(this.chain, this.addressRaw);
+        if (ret.error) {
+          console.error(`UnmapInfo.fromJson: convert raw to address failed, chain: ${this.chain}, raw: ${this.addressRaw.toHex()}`);
+          return true;
+        }
+        this.address = ret.address!;
+      }
+      this.type = TokenHelper.toType(json.type);
+      if (json.decimals !== undefined) {
+        this.decimals = +json.decimals;
+      }
+      this.value = new U256(json.value);
+      this.from = json.from;
+      const retAddress = ChainHelper.rawToAddress(this.chain, json.to);
+      if (retAddress.error || !retAddress.address) return true;
+      this.to = retAddress.address;
+      this.sourceTxn = json.source_transaction;
+      this.extraData = new U64(json.extra_data);
+      this.targetConfirmed = json.target_confirmed === 'true';
+      this.targetTxn = json.target_transaction;
+      this.targetHeight = new U64(json.target_height);
+      // debug
+      console.log(`[DEBUG] unmap_info=`, this);
+      return false;
+    }
+    catch (e) {
+      console.log(`UnmapInfo.fromJson: failed to parse json=${json}`);
+      return true;
+    }
+  }
+
+  targetValid(): boolean {
+    return this.targetHeight.valid();
+  }
+
+  newerThan(other: UnmapInfo): boolean {
+    if (this.targetConfirmed !== other.targetConfirmed) {
+      return this.targetConfirmed;
+    }
+    if (this.targetValid() !== other.targetValid()) {
+      return this.targetValid();
+    }
+    return false;
+  }
+
+}
+
+export class AccountTokenUnmapInfos {
+  unmaps: UnmapInfo[] = [];
+  more: boolean = true;
+
+  // local data
+  expectedRecentUnmaps: number = 10;
+  nextSyncAt: number = 0;
+  lastSyncAt: number = -1000000;
+  synced: boolean = false;
+
+  head(): UnmapInfo | undefined {
+    if (this.unmaps.length === 0) return undefined;
+    return this.unmaps[0];
+  }
+
+  tail(): UnmapInfo | undefined {
+    const length = this.unmaps.length;
+    if (length === 0) return undefined;
+    return this.unmaps[length - 1];
+  }
+
+  pendingTail(): UnmapInfo | undefined {
+    for (let index = this.unmaps.length - 1; index >= 0; --index) {
+      if (!this.unmaps[index].targetConfirmed) {
+        return this.unmaps[index];
+      }
+    }
+    return undefined;
+  }
+
+  size(): number {
+    return this.unmaps.length;
+  }
+
+  // return existing
+  insert(unmap: UnmapInfo): boolean {
+    let existing = false;
+    let index = this.unmaps.findIndex(x => x.height === unmap.height);
+    if (index >= 0) {
+      existing = true;
+      if (!unmap.newerThan(this.unmaps[index])) return existing;
+      this.unmaps.splice(index, 1);
+    }
+    index = this.unmaps.findIndex(x => x.height < unmap.height);
+    if (index < 0) {
+      this.unmaps.push(unmap);
+    } else {
+      this.unmaps.splice(index, 0, unmap);
+    }
+    return existing;
+  }
 }

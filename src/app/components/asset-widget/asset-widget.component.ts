@@ -317,7 +317,7 @@ export class AssetWidgetComponent implements OnInit {
     item.type = TokenHelper.toTypeStr(token.type);
     item.isNative = token.addressRaw.isNativeTokenAddress();
     if (item.isNative) {
-      const verified = this.verified.getNativeToken(environment.current_chain, item.chain);
+      const verified = this.verified.getNativeToken(item.chain);
       if (verified) {
         item.shortAddress = verified.name;
       }

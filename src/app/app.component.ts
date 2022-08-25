@@ -86,7 +86,7 @@ export class AppComponent implements OnInit, OnDestroy {
     if (this.showAlias()) {
       let msg = marker('Account alias copied to clipboard!');
       this.translate.get(msg).subscribe(res => msg = res);
-      this.notification.sendSuccess(msg);  
+      this.notification.sendSuccess(msg);
     } else {
       let msg = marker('Account address copied to clipboard!');
       this.translate.get(msg).subscribe(res => msg = res);

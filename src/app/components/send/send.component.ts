@@ -159,7 +159,7 @@ export class SendComponent implements OnInit {
       let msg = marker(`Successfully sent { amount }!`);
       const param = { 'amount': this.showAmount() };
       this.translate.get(msg, param).subscribe(res => msg = res);    
-      this.notification.sendSuccess(msg);  
+      this.notification.sendSuccess(msg);
     }
 
     this.activePanel = 'send';
