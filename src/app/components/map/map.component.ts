@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewChild, HostListener } from '@angular/core';
 import { TokenWidgetComponent, TokenItem } from '../token-widget/token-widget.component';
 import { U256, TokenTypeStr, ChainHelper, ChainStr, ExtensionTokenOpStr, ExtensionTypeStr,
-  TokenType } from '../../services/util.service';
+  TokenType, ZX } from '../../services/util.service';
 import { BigNumber } from 'bignumber.js';
 import { Web3Service } from '../../services/web3.service';
 import { WalletsService, WalletErrorCode } from '../../services/wallets.service';
@@ -9,11 +9,13 @@ import { NotificationService } from '../../services/notification.service';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { TranslateService } from '@ngx-translate/core';
 import { environment } from '../../../environments/environment';
-import { ValidatorService } from '../../services/validator.service';
+import { ValidatorService, EIP712 } from '../../services/validator.service';
 import { AssetWidgetComponent, AssetItem } from '../asset-widget/asset-widget.component';
-import { TokenService, MapInfo } from '../../services/token.service';
+import { TokenService, MapInfo, UnmapInfo } from '../../services/token.service';
 import { VerifiedTokensService } from '../../services/verified-tokens.service';
 import { SettingsService } from '../../services/settings.service';
+import { LogoService } from '../../services/logo.service';
+
 
 @Component({
   selector: 'app-map',
@@ -42,6 +44,8 @@ export class MapComponent implements OnInit {
   // unmap
   private unmapGasCache: U256 | undefined;
   unmapInsufficientFunds = false;
+  private freshUnmaps: { [hash: string]: boolean } = {};
+  // todo:
 
   private gasTimer: any = null;
   private approveTimer: any = null;
@@ -58,6 +62,7 @@ export class MapComponent implements OnInit {
     private token: TokenService,
     private verified: VerifiedTokensService,
     private settings: SettingsService,
+    private logo: LogoService,
     private validator: ValidatorService
   ) {
     this.filterMapToken = (token: TokenItem) => this.mapAllowedToken(token);
@@ -90,19 +95,6 @@ export class MapComponent implements OnInit {
   startChainTimer() {
     if (this.chainTimer !== null) return;
     this.chainTimer = setInterval(() => this.updateChainInfo(), 5000);
-  }
-
-  tryStopChainTimer() {
-    if (!this.chainTimer) return;
-
-    const maps = this.maps();
-    if (maps.length > 0 && !maps[0].confirmed) {
-      return;
-    }
-    // todo:
-
-    clearInterval(this.chainTimer);
-    this.approveTimer = null;
   }
 
   @HostListener('unloaded')
@@ -721,16 +713,29 @@ export class MapComponent implements OnInit {
   }
 
   updateChainInfo() {
-    this.tryStopChainTimer();
     if (!this.chainTimer) return;
+
+    const queried: { [chain: string]: boolean } = {};
     const maps = this.maps();
     for (let map of maps) {
       if (map.confirmed) break;
-      this.validator.queryChainInfo(map.chain);
+      this.validator.syncChainHeadHeight(map.chain as ChainStr);
+      queried[map.chain] = true;
       break;
     }
 
-    // todo:
+    const unmaps = this.unmaps();
+    for (let unmap of unmaps) {
+      if (unmap.targetConfirmed) continue;
+      if (queried[unmap.chain]) continue;
+      this.validator.syncChainHeadHeight(unmap.chain as ChainStr);
+      queried[unmap.chain] = true;
+    }
+
+    if (Object.keys(queried).length === 0) {
+      clearInterval(this.chainTimer);
+      this.approveTimer = null;
+    }
   }
 
   updateMapGas() {
@@ -1181,6 +1186,78 @@ export class MapComponent implements OnInit {
     this.activePanel = Panel.UNMAP;
   }
 
+  unmaps(): UnmapInfo[] {
+    const unmaps = this.token.accountTokenUnmaps();
+    if (unmaps.length > 0) {
+      this.startChainTimer();
+
+      const u = unmaps[0];
+      EIP712.unmapERC20(u.chain, u.address, u.fromRaw.to0xHex(), u.to, ZX + u.sourceTxn,
+        u.height, u.value.to0xHex());
+      // todo:
+    }
+    return unmaps;
+  }
+
+  noUnmaps(): boolean {
+    return this.token.noUnmaps();
+  }
+
+  moreUnmaps(): boolean {
+    return this.token.moreUnmaps()
+  }
+
+  loadMoreUnmaps() {
+    this.token.loadMoreUnmaps();
+  }
+
+  unmapItemChainLogo(unmap: UnmapInfo): string {
+    return this.logo.getChainLogo(unmap.chain);
+  }
+
+  unmapItemShowChain(unmap: UnmapInfo): string {
+    return ChainHelper.toChainShown(unmap.chain);
+  }
+
+  unmapItemAmount(unmap: UnmapInfo): string {
+    const symbol = this.queryTokenSymbol(unmap.chain, unmap.address);
+    if (!symbol) return '';
+    if (unmap.type === TokenType._20) {
+      return `${unmap.value.toBalanceStr(unmap.decimals!)} ${symbol}`;
+    } else if (unmap.type === TokenType._721) {
+      return `1 ${symbol}`;
+    } else {
+      return '';
+    }
+  }
+
+  unmapItemStatus(unmap: UnmapInfo): string {
+    if (unmap.targetConfirmed) {
+      return UnmapStatus.CONFIRMED;
+    } else if (unmap.targetValid()) {
+      return UnmapStatus.CONFIRMING;
+    } else {
+      return UnmapStatus.NONE;
+    }
+    // todo:
+  }
+
+  unmapItemConfirms(unmap: UnmapInfo): string {
+    const info = this.validator.chainInfo(unmap.chain as ChainStr);
+    if (!info || !unmap.targetValid()) return '';
+
+    const targetHeight = unmap.targetHeight.toNumber();
+    if (targetHeight > info.height) {
+      return `0 / ${info.confirmations}`;
+    } else {
+      return `${info.height - targetHeight} / ${info.confirmations}`;
+    }
+  }
+
+  unmapRetry(unmap: UnmapInfo) {
+    // todo:
+  }
+
   private queryTokenSymbol(chain: string, address: string): string {
     const verified = this.verified.token(chain, address);
     if (verified) {
@@ -1240,4 +1317,14 @@ enum ApproveStatus {
   APPROVED = 'approved',
   REJECTED = 'rejected',
   ERROR = 'error',
+}
+
+enum UnmapStatus {
+  NONE = '',
+  COLLECTING = 'collecting',
+  COLLECTED = 'collected',
+  WAITING = 'waiting',
+  SUBMITING = 'submitting',
+  CONFIRMING = 'confirming',
+  CONFIRMED = 'confirmed',
 }

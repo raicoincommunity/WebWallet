@@ -1,5 +1,5 @@
-import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { HashLocationStrategy, LocationStrategy } from '@angular/common';
 import { ClipboardModule } from "ngx-clipboard";

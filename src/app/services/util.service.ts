@@ -1511,21 +1511,24 @@ export class ChainHelper {
   }
 
   static isEvmChain(chain: string | Chain): boolean {
+    return ChainHelper.toEvmChain(chain) !== undefined;
+  }
+
+  static toEvmChain(chain: string | Chain): number | undefined {
     if (typeof chain === 'string') {
       chain = ChainHelper.toChain(chain);
     }
     switch (chain) {
       case Chain.ETHEREUM:
+        return 1;
       case Chain.ETHEREUM_TEST_GOERLI:
+        return 5;
       case Chain.BINANCE_SMART_CHAIN:
+        return 56;
       case Chain.BINANCE_SMART_CHAIN_TEST:
-      {
-        return true;
-      }
+        return 97;
       default:
-      {
-        return false;
-      }
+        return undefined;
     }
   }
 
@@ -3194,3 +3197,5 @@ export class AppHelper {
   static SWAP_PING_PONG_INTERVAL = 60;
   static SWAP_TIMEOUT = 100;
 }
+
+export const ZX = '0x';
