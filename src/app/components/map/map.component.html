@@ -331,6 +331,45 @@
 
 </div>
 
+<div [hidden]="activePanel !== 'unmap'" uk-grid style="margin-top: 25px;">
+  <div class="uk-width-1-1">
+    <h3 class="uk-heading-divider uk-text-center" style="margin-bottom: 0;">{{ 'Your UNMAP history' | translate }}
+    </h3>
+    <table class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
+      <thead>
+        <tr>
+          <th class="uk-width-1-4 uk-text-left">{{ 'Original Chain' | translate }}</th>
+          <th class="uk-width-1-4 uk-text-left">{{ 'Recipient' | translate }}</th>
+          <th class="uk-width-1-4 uk-text-right">{{ 'Amount' | translate }}</th>
+          <th class="uk-width-1-4 uk-text-center">{{ 'Status' | translate }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let unmap of unmaps()">
+          <td class="uk-text-left uk-text-truncate"><img [src]="unmapItemChainLogo(unmap)" width="20" height="20" style="vertical-align: text-top;" />{{ unmapItemShowChain(unmap) }}</td>
+          <td class="uk-text-left uk-text-truncate">{{ unmap.to }}</td>
+          <td class="uk-text-right">{{ unmapItemAmount(unmap) }}</td>
+          <td class="uk-text-center">
+            <span *ngIf="unmapItemStatus(unmap) === 'confirmed'" uk-icon="icon: check;" class="uk-text-success"></span>
+            <span *ngIf="unmapItemStatus(unmap) === 'confirming'" class="uk-text-warning">{{ unmapItemConfirms(unmap) }}</span>
+            <span *ngIf="unmapItemStatus(unmap) === 'collected'" uk-icon="icon: forward;" title="{{ 'Resend UNMAP request to your web3 wallet' | translate }}" class="uk-text-warning" (click)="unmapRetry(unmap)"
+            uk-tooltip></span>
+            <span *ngIf="unmapItemStatus(unmap) === 'collecting' || unmapItemStatus(unmap) === 'waiting' || unmapItemStatus(unmap) === 'submitting'" uk-spinner="ratio: 0.6;" title="{{ unmapItemStatus(unmap) | translate }}"
+            uk-tooltip></span>
+          </td>
+        </tr>
+        <tr *ngIf="noUnmaps()">
+          <td colspan="4" style="text-align: center;">{{ 'No UNMAP history' | translate }}</td>
+        </tr>
+        <tr *ngIf="moreUnmaps()">
+          <td colspan="4" style="text-align: center;">
+            <a (click)="loadMoreUnmaps()" class="uk-link-text">{{ 'Load More Results' | translate }}</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 
 <!-- Unmap Confirmation Panel -->
 <div uk-grid *ngIf="activePanel === 'unmap_confirm'" class="uk-animation-slide-left">

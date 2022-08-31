@@ -192,6 +192,13 @@ export class TokenService implements OnDestroy {
     return info.maps[chain].maps;
   }
 
+  accountTokenUnmaps(account?: string): UnmapInfo[] {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return [];
+    return info.unmaps.unmaps;
+  }
+
   balance(chain: string, address: string, account?: string): { amount: U256, type: TokenType, decimals: U8 } {
     const zero = { amount: U256.zero(), type: TokenType.INVALID, decimals: U8.zero() };
     if (!account) account = this.wallets.selectedAccountAddress();
@@ -739,12 +746,27 @@ export class TokenService implements OnDestroy {
     return maps && maps.maps.length === 0 && maps.synced;
   }
 
+  noUnmaps(account?: string): boolean {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return false;
+    const unmaps = info.unmaps;
+    return unmaps.unmaps.length === 0 && unmaps.synced;
+  }
+
   moreMaps(chain: string, account?: string): boolean {
     if (!account) account = this.wallets.selectedAccountAddress();
     const info = this.accounts[account];
     if (!info) return false;
     const maps = info.maps[chain];
     return maps && maps.more && maps.synced;
+  }
+
+  moreUnmaps(account?: string): boolean {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return false;
+    return info.unmaps.more && info.unmaps.synced;
   }
 
   loadMoreSwaps(account?: string) {
@@ -764,6 +786,14 @@ export class TokenService implements OnDestroy {
     if (!maps) return;
     maps.expectedRecentMaps += 10;
     this.queryPendingTokenMapInfos(account, chain);
+  }
+
+  loadMoreUnmaps(account?: string) {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return;
+    info.unmaps.expectedRecentUnmaps += 10;
+    this.queryTokenUnmapInfos(account);
   }
 
   addTokenMapInfos(chain: string, account?: string) {
@@ -5085,7 +5115,9 @@ export class UnmapInfo {
   decimals: number | undefined = undefined;
   value: U256 = U256.zero();
   from: string = '';
+  fromRaw: U256 = U256.zero();
   to: string = '';
+  toRaw: U256 = U256.zero();
   sourceTxn: string = '';
   sourceBlock: any = null;
   extraData: U64 = U64.zero();
@@ -5117,21 +5149,27 @@ export class UnmapInfo {
         this.decimals = +json.decimals;
       }
       this.value = new U256(json.value);
+      this.fromRaw = new U256(json.from_raw, 16);
       this.from = json.from;
-      const retAddress = ChainHelper.rawToAddress(this.chain, json.to);
-      if (retAddress.error || !retAddress.address) return true;
-      this.to = retAddress.address;
+      if (!this.from) {
+        this.from = this.fromRaw.toAccountAddress();
+      }
+      this.toRaw = new U256(json.to_raw, 16);
+      this.to = json.to;
+      if (!this.to) {
+        const retAddress = ChainHelper.rawToAddress(this.chain, this.toRaw);
+        if (retAddress.error || !retAddress.address) return true;
+        this.to = retAddress.address;  
+      }
       this.sourceTxn = json.source_transaction;
       this.extraData = new U64(json.extra_data);
       this.targetConfirmed = json.target_confirmed === 'true';
       this.targetTxn = json.target_transaction;
       this.targetHeight = new U64(json.target_height);
-      // debug
-      console.log(`[DEBUG] unmap_info=`, this);
       return false;
     }
     catch (e) {
-      console.log(`UnmapInfo.fromJson: failed to parse json=${json}`);
+      console.log(`UnmapInfo.fromJson: failed to parse json=`, json);
       return true;
     }
   }
