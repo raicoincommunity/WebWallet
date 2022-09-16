@@ -132,7 +132,6 @@ export class Web3Service implements OnDestroy {
 
     this.prev_account = this.account();
     this.accounts = await this.web3.eth.getAccounts();
-    this.notify();
     if (!this.accounts || this.accounts.length == 0) {
       await this.disconnectWallet();
       return;
@@ -149,7 +148,9 @@ export class Web3Service implements OnDestroy {
       await this.disconnectWallet();
       this.evmCoreContract = null;
       console.error('No core contract address for ', chainStr);
+      return;
     }
+    this.notify();
   }
 
   async disconnectWallet(): Promise<any> {
@@ -195,7 +196,7 @@ export class Web3Service implements OnDestroy {
 
   connected(chainStr?: ChainStr): boolean {
     if (!this.accounts || this.accounts.length == 0) return false;
-    if (!this.web3 || !this.provider) return false;
+    if (!this.web3 || !this.provider || !this.evmCoreContract) return false;
     if (!chainStr) {
       chainStr = environment.bsc_chain as ChainStr;
     }

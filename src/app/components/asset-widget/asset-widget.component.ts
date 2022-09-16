@@ -9,7 +9,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { TokenType } from '../../services/util.service';
 import { VerifiedTokensService } from '../../services/verified-tokens.service';
-import  { SettingsService } from '../../services/settings.service';
+import  { SettingsService, AssetSetting } from '../../services/settings.service';
 
 @Component({
   selector: 'app-asset-widget',
@@ -28,11 +28,15 @@ export class AssetWidgetComponent implements OnInit {
 
   @HostListener('document:click', ['$event'])
   onClick(event: MouseEvent) {
-    if (this.assetInput
-       && !this.assetInput.nativeElement.contains(event.target)
-       && !this.assetSelect.nativeElement.contains(event.target)) {
-      this.hideSearchResult();
+    if (this.assetInput) {
+      if (!this.assetInput.nativeElement.contains(event.target)
+        && !this.assetSelect.nativeElement.contains(event.target)) {
+        this.hideSearchResult();
+      } else {
+        this.showSearchResult();
+      }
     }
+
   }
 
   assetInputText: string = '';
@@ -77,6 +81,7 @@ export class AssetWidgetComponent implements OnInit {
       this.selectedAsset = undefined;
       this.eventAssetSelected.emit(this.selectedAsset);
     }
+    this.showSearchResult();
   }
 
   showSearchResult() {
@@ -89,6 +94,10 @@ export class AssetWidgetComponent implements OnInit {
     this.assetDropdown.nativeElement.classList.remove('uk-open');
   }
 
+  address(): string {
+    return this.wallets.selectedAccountAddress();
+  }
+
   assets(): AssetItem[] {
     const items: AssetItem[] = [];
     if (this.wallets.selectedAccount()?.synced && this.showRaicoin) {
@@ -97,13 +106,17 @@ export class AssetWidgetComponent implements OnInit {
     if (this.token.synced(this.selectedAccount())) {
       const tokens = this.token.tokens(this.selectedAccount());
       for (let token of tokens) {
-        if (token.balance.eq(0)) continue;
         items.push(this.makeAssetItem(token));
       }  
     }
+    for (let i of this.settings.getAssets(this.address())) {
+      const existing = items.find(x => x.chain === i.chain && x.address == i.address);
+      if (existing) continue;
+      items.push(this.makeAssetItem(i));
+    }
     return items.filter(item => {
       if (!this.assetFilter(item)) return false;
-      if (this.assetInputText.includes('<')) return true;
+      if (this.assetInputText === '' || this.assetInputText.includes('<')) return true;
        return item.symbol.toUpperCase().includes(this.assetInputText.toUpperCase());
       });
   }
@@ -127,6 +140,15 @@ export class AssetWidgetComponent implements OnInit {
     this.syncAmount();
     this.selectedTokenId = '';
     this.eventAssetSelected.emit(this.selectedAsset);
+  }
+
+  selectAssetByTokenAddress(chain: string, address: string) {
+    for (let asset of this.assets()) {
+      if (asset.chain === chain && asset.address === address) {
+        this.selectAsset(asset);
+        return;
+      }
+    }
   }
 
   assetStatus(): number {
@@ -249,7 +271,15 @@ export class AssetWidgetComponent implements OnInit {
     this.amountInputText = '';
     this.amountStatus = 0;
     this.amount = new U256();
+    this.selectedTokenId = '';
     this.eventAssetSelected.emit(this.selectedAsset);
+  }
+
+  clearAmount() {
+    this.amountInputText = '';
+    this.amountStatus = 0;
+    this.amount = new U256();
+    this.selectedTokenId = '';
   }
 
   tokenIds(): string[] {
@@ -309,27 +339,53 @@ export class AssetWidgetComponent implements OnInit {
     return false;
   }
 
-  private makeAssetItem(token: AccountTokenInfo): AssetItem {
+  private makeAssetItem(token: AccountTokenInfo | AssetSetting): AssetItem {
     const item = new AssetItem();
-    item.chain = token.chain;
-    item.address = token.address;
-    item.addressRaw = token.addressRaw;
-    item.type = TokenHelper.toTypeStr(token.type);
-    item.isNative = token.addressRaw.isNativeTokenAddress();
-    if (item.isNative) {
-      const verified = this.verified.getNativeToken(item.chain);
-      if (verified) {
-        item.shortAddress = verified.name;
+    if (token instanceof AccountTokenInfo) {
+      item.chain = token.chain;
+      item.address = token.address;
+      item.addressRaw = token.addressRaw;
+      item.type = TokenHelper.toTypeStr(token.type);
+      item.isNative = token.addressRaw.isNativeTokenAddress();
+      if (item.isNative) {
+        const verified = this.verified.getNativeToken(item.chain);
+        if (verified) {
+          item.shortAddress = verified.name;
+        }
+        item.tokenLogo = this.logo.getTokenLogo(item.chain, '');
+      } else {
+        item.shortAddress = ChainHelper.toShortAddress(item.chain, item.address);
+        item.tokenLogo = this.logo.getTokenLogo(item.chain, item.address);
       }
-      item.tokenLogo = this.logo.getTokenLogo(item.chain, '');
+      item.chainLogo = this.logo.getChainLogo(item.chain);
+      item.symbol = this.queryTokenSymbol(token.chain, token.address, token.symbol);
+      item.decimals = token.decimals;
+      item.balance = token.balance;  
     } else {
-      item.shortAddress = ChainHelper.toShortAddress(item.chain, item.address);
-      item.tokenLogo = this.logo.getTokenLogo(item.chain, item.address);
+      item.chain = token.chain;
+      item.address = token.address;
+      const ret = ChainHelper.addressToRaw(item.chain, item.address);
+      if (ret.error) {
+        throw new Error(`makeAssetItem: address to raw failed, chain=${item.chain}, address=${item.chain}`);
+      }
+      item.addressRaw = ret.raw!;
+      item.type = token.type;
+      item.isNative = item.addressRaw.isNativeTokenAddress();
+      if (item.isNative) {
+        const verified = this.verified.getNativeToken(item.chain);
+        if (verified) {
+          item.shortAddress = verified.name;
+        }
+        item.tokenLogo = this.logo.getTokenLogo(item.chain, '');
+      } else {
+        item.shortAddress = ChainHelper.toShortAddress(item.chain, item.address);
+        item.tokenLogo = this.logo.getTokenLogo(item.chain, item.address);
+      }
+      item.chainLogo = this.logo.getChainLogo(item.chain);
+      item.symbol = this.queryTokenSymbol(token.chain, token.address, token.symbol);
+      item.decimals = new U8(token.decimals);
+      item.balance = U256.zero();  
     }
-    item.chainLogo = this.logo.getChainLogo(item.chain);
-    item.symbol = this.queryTokenSymbol(token.chain, token.address, token.symbol);
-    item.decimals = token.decimals;
-    item.balance = token.balance;
     return item;
   }
 

@@ -1,1 +1,382 @@
-<p>wrap works!</p>
+<h2>{{ 'Cross Chain' | translate }} {{ 'Wrap' }}</h2>
+
+<app-account-widget raiTitle="{{ 'Your account' | translate }}"></app-account-widget>
+
+<p>
+  <b>WRAP = </b> {{ 'transfer token from Raicoin chain to third party chains.' | translate }}
+  <br />
+  <b>UNWRAP = </b> {{ 'transfer token from third party chains back to Raicoin chain.' | translate }}
+</p>
+
+<div uk-grid *ngIf="activePanel == 'wrap' || activePanel == 'unwrap'">
+  <div class="uk-width-1-1">
+    <div class="uk-button-group uk-width-1-1">
+      <button (click)="setPanel('wrap')" class="uk-button uk-width-1-2"
+        [ngClass]="{ 'uk-button-primary': activePanel == 'wrap', 'uk-button-secondary': activePanel != 'wrap' }">Wrap</button>
+      <button (click)="setPanel('unwrap')" class="uk-button uk-width-1-2"
+        [ngClass]="{ 'uk-button-primary': activePanel == 'unwrap', 'uk-button-secondary': activePanel != 'unwrap' }">Unwrap</button>
+    </div>
+  </div>
+</div>
+
+<!-- Wrap Panel -->
+<div *ngIf="activePanel === 'wrap' && wrapContractCreated() === false" class="uk-alert-warning" uk-alert>
+  <p><b>{{ 'Reminder' | translate }}:</b> {{ 'It seems you are the first user trying to wrap the current token, you need to create the wrap contract first. This operation will cost more gas than usual!' | translate }}</p>
+</div>
+<div class="uk-card uk-card-default" [hidden]="activePanel != 'wrap'">
+  <div class="uk-card-body">
+    <div class="uk-form-horizontal">
+      <app-asset-widget #wrapAssetWidget (raiChange)="onWrapAssetChanged()" raiAmountHint="The amount to wrap" [raiShowRaicoin]="false"></app-asset-widget>
+
+      <div class="uk-margin">
+        <label class="uk-form-label" for="form-input-wrap-original-chain">{{ 'Original Chain' | translate }}</label>
+        <div class="uk-form-controls">
+          <input [value]="wrapOriginalChain()" class="uk-input" disabled id="form-input-wrap-original-chain" type="text">
+        </div>
+      </div>
+
+      <div class="uk-margin">
+        <label class="uk-form-label" for="form-wrap-sender">{{ 'Sender' | translate }}</label>
+        <div class="uk-form-controls">
+          <div class="uk-inline uk-width-1-1">
+            <input [ngModel]="raiShortAccount()" class="uk-input" id="form-wrap-sender" type="text" disabled autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-margin">
+        <label class="uk-form-label" for="form-select-wrap-target-chain">{{ 'Wrap Chain' | translate }} *</label>
+        <div class="uk-form-controls">
+          <div class="uk-inline uk-width-1-1">
+            <select class="uk-select" [(ngModel)]="selectedWrapTargetChain" (ngModelChange)="wrapTargetChainChanged($event)" id="form-select-wrap-target-chain">
+              <option *ngFor="let option of wrapTargetChains()" [value]="option" >{{ showChain(option) }}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-margin">
+        <label class="uk-form-label" for="form-wrap-contract">{{ 'Wrap Contract' | translate }}</label>
+        <div class="uk-form-controls">
+          <div class="uk-inline uk-width-1-1">
+            <a ngxClipboard [cbContent]="wrapContract() " (cbOnSuccess)="wrapContractCopied()" uk-icon="icon: copy;" class="uk-form-icon uk-form-icon-flip" style="padding-right: 0px;"></a>
+            <input [ngModel]="shortWrapContract()" class="uk-input" id="form-wrap-contract" type="text" disabled autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-margin">
+        <label class="uk-form-label" for="form-wrap-recipient">{{ 'Recipient' | translate }}</label>
+        <div class="uk-form-controls">
+          <div class="uk-inline uk-width-1-1">
+            <input [ngModel]="shortWrapRecipient()" class="uk-input" id="form-wrap-recipient" type="text" disabled autocomplete="off" placeholder="{{ 'Connect wallet to show' | translate }}">
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="uk-card-footer uk-text-right uk-hidden@m">
+    <div uk-grid>
+      <div *ngIf="wrapFetchingData()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-disabled uk-width-1-1">
+          {{ 'Fetching Data ...' | translate }}</button>
+      </div>
+      <div *ngIf="wrapCollectingSignatures()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-disabled uk-width-1-1">
+          {{ 'Collecting Signatures ...' | translate }}</button>
+      </div>
+      <div *ngIf="wrapContractCreatable()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-primary uk-width-1-1" (click)="create()">
+          Create Wrap Contract</button>
+      </div>
+      <div *ngIf="!wrapable()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-disabled uk-width-1-1">
+          Wrap</button>
+      </div>
+      <div *ngIf="wrapable()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-primary uk-width-1-1" (click)="wrap()">
+          Wrap</button>
+      </div>
+      <div *ngIf="wrapShowConnectWallet()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-primary uk-width-1-1" (click)="wrapConnectWallet()">
+          {{ 'Connect Wallet' | translate }}</button>
+      </div>
+      <div *ngIf="wrapShowDisconnectWallet()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-danger uk-width-1-1" (click)="wrapDisconnectWallet()">
+          {{ 'Disconnect Wallet' | translate }}</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="uk-card-footer uk-text-right uk-visible@m">
+    <div class="uk-button-group">
+      <button *ngIf="wrapFetchingData()" class="uk-button uk-button-disabled uk-margin-right"
+        >{{ 'Fetching Data ...' | translate }}</button>
+      <button *ngIf="wrapCollectingSignatures()" class="uk-button uk-button-disabled uk-margin-right"
+        >{{ 'Collecting Signatures ...' | translate }}</button>
+      <button *ngIf="wrapContractCreatable()" class="uk-button uk-button-primary uk-margin-right"
+        (click)="create()">Wrap</button>
+      <button *ngIf="!wrapable()" class="uk-button uk-button-disabled uk-margin-right"
+        >Wrap</button>
+      <button *ngIf="wrapable()" class="uk-button uk-button-primary uk-margin-right"
+        (click)="wrap()">Wrap</button>
+      <button *ngIf="wrapShowConnectWallet()" class="uk-button uk-button-primary uk-margin-right"
+        (click)="wrapConnectWallet()">{{ 'Connect Wallet' | translate }}</button>
+      <button *ngIf="wrapShowDisconnectWallet()" class="uk-button uk-button-danger uk-margin-right"
+        (click)="wrapDisconnectWallet()">{{ 'Disconnect Wallet' | translate }}</button>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- Wrap Confirmation Panel -->
+<div uk-grid *ngIf="activePanel === 'wrap_confirm'" class="uk-animation-slide-left">
+  <div class="uk-width-1-1">
+
+    <div class="uk-card uk-card-default uk-width-1-1 uk-text-center">
+      <span style="display: block; padding-top: 8px;">{{ 'You are about to' | translate }} WRAP</span>
+      <span style="display:block; font-size: 32px;">{{ wrapShowAmount() }}</span>
+    </div>
+
+    <br />
+
+    <div uk-grid>
+
+      <div class="uk-width-1-2@m">
+        <div class="uk-card uk-card-default">
+          <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+            <span class="confirm-title uk-text-break">
+              <div>
+                <span class="confirm-currency uk-text-danger">-{{ wrapShowAmount(true) }}</span>
+                <span class="confirm-subtitle">{{ 'You Send' | translate }}</span>
+                <br class="br-spacer" />
+              </div>
+            </span>
+          </div>
+          <div class="uk-card-body" style="padding: 20px 20px;">
+            <div uk-grid>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ raiAccount() | shortAccount:7 }}</span>
+                <span class="confirm-subtitle">{{ 'Sender' | translate }}</span>
+              </div>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ wrapShowOriginalChain() }}</span>
+                <span class="confirm-subtitle">{{ 'Original Chain' | translate }}</span>
+              </div>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ wrapOriginalTokenAddress() | shortAccount:7 }}</span>
+                <span class="confirm-subtitle">{{ 'Token Address' | translate }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-2@m">
+        <div class="uk-card uk-card-default">
+          <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+            <span class="confirm-title uk-text-break">
+              <div>
+                <span class="confirm-currency uk-text-success">+{{ wrapShowTargetAmount() }}</span>
+                <span class="confirm-subtitle">{{ 'You Receive' | translate }}</span>
+                <br class="br-spacer" />
+              </div>
+            </span>
+          </div>
+          <div class="uk-card-body" style="padding: 20px 20px;">
+            <div uk-grid>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ wrapRecipient() | shortAccount:7 }}</span>
+                <span class="confirm-subtitle">{{ 'Recipient' | translate }}</span>
+              </div>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ wrapShowTargetChain() }}</span>
+                <span class="confirm-subtitle">{{ 'Target Chain' | translate }}</span>
+              </div>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ wrapContract() | shortAccount:7 }}</span>
+                <span class="confirm-subtitle">{{ 'Wrap Contract' | translate }}</span>
+              </div>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ wrapFeeAndGas() }}</span>
+                <span class="confirm-subtitle">{{ 'Fee & Gas (estimated)' | translate }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div uk-grid>
+      <div class="uk-width-1-2@s">
+        <button (click)="wrapCancel()" class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate }}</button>
+      </div>
+      <div class="uk-width-1-2@s">
+        <button *ngIf="wrapFeeAndGas() !== '' && !wrapInsufficientFunds" class="uk-button uk-button-primary uk-width-1-1" (click)="wrapConfirm()">{{ 'Confirm' | translate }}</button>
+        <button *ngIf="wrapFeeAndGas() === ''" class="uk-button uk-button-disabled uk-width-1-1" >{{ 'Fetching Fee & Gas ...' | translate }}</button>
+        <button *ngIf="wrapFeeAndGas() !== '' && wrapInsufficientFunds" class="uk-button uk-button-disabled uk-width-1-1" >{{ 'Insufficient Fee & Gas' | translate }}</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- Unwrap Panel -->
+<div class="uk-card uk-card-default" [hidden]="activePanel != 'unwrap'">
+  <div class="uk-card-body">
+    <div class="uk-form-horizontal">
+
+      <div class="uk-margin">
+        <label class="uk-form-label" for="form-select-unwrap-source-chain">{{ 'Wrap Chain' | translate }} *</label>
+        <div class="uk-form-controls">
+          <div class="uk-inline uk-width-1-1">
+            <select class="uk-select" [(ngModel)]="selectedUnwrapSourceChain" (ngModelChange)="unwrapSourceChainChanged($event)" id="form-select-unwrap-source-chain">
+              <option *ngFor="let option of unwrapSourceChains()" [value]="option" >{{ showChain(option) }}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-margin">
+        <label class="uk-form-label" for="form-unwrap-contract">{{ 'Wrap Contract' | translate }}</label>
+        <div class="uk-form-controls">
+          <div class="uk-inline uk-width-1-1">
+            <a ngxClipboard [cbContent]="unwrapContract() " (cbOnSuccess)="wrapContractCopied()" uk-icon="icon: copy;" class="uk-form-icon uk-form-icon-flip" style="padding-right: 0px;"></a>
+            <input [ngModel]="shortUnwrapContract()" class="uk-input" id="form-unwrap-contract" type="text" disabled autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-margin">
+        <label class="uk-form-label" for="form-unwrap-sender">{{ 'Sender' | translate }}</label>
+        <div class="uk-form-controls">
+          <div class="uk-inline uk-width-1-1">
+            <input [ngModel]="shortUnwrapSender()" class="uk-input" id="form-unwrap-sender" type="text" disabled autocomplete="off" placeholder="{{ 'Connect wallet to show' | translate }}">
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-margin">
+        <app-token-widget raiLabel="{{ 'Original Token' | translate }}" #unwrapTokenWidget (raiChange)="onUnwrapTokenChange()" [raiTokenFilter]="unwrapTokenFilter">
+        </app-token-widget>
+      </div>
+
+      <div *ngIf="unwrapTokenType() === '20'" class="uk-margin">
+        <label class="uk-form-label" for="form-input-unwrap-amount">
+          {{ 'Amount' | translate }} *
+        </label>
+        <div class="uk-form-controls">
+          <div uk-grid>
+            <div class="uk-width-1-1">
+              <div class="uk-inline uk-width-1-1">
+                <a class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px; width: auto;">{{ unwrapTokenFormat()
+                  }}</a>
+                <input (change)="syncUnwrapAmount()" (keyup)="syncUnwrapAmount()" [(ngModel)]="inputUnwrapAmount"
+                  class="uk-input" id="form-input-unwrap-amount" type="text"
+                  placeholder="{{ 'Amount to unwrap' | translate }}"
+                  [ngClass]="{ 'uk-form-success': unwrapAmountStatus === 1, 'uk-form-danger': unwrapAmountStatus === 2 }">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="unwrapTokenType() === '721'" class="uk-margin">
+        <label class="uk-form-label" for="form-input-unwrap-token-id">
+          {{ 'Token ID' | translate }} *
+        </label>
+        <div class="uk-form-controls">
+          <div uk-grid>
+            <div class="uk-width-1-1">
+              <div class="uk-inline uk-width-1-1">
+                <a class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px; width: auto;">{{ unwrapTokenFormat() }}</a>
+                <input (change)="syncUnwrapTokenId()" (keyup)="syncUnwrapTokenId()" [(ngModel)]="inputUnwrapTokenId"
+                  class="uk-input" id="form-input-unwrap-token-id" type="text"
+                  placeholder="{{ 'Token ID to transfer' | translate }}"
+                  [ngClass]="{ 'uk-form-success': unwrapTokenIdStatus === 1, 'uk-form-danger': unwrapTokenIdStatus === 2 }">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-margin">
+        <label class="uk-form-label" for="form-input-unwrap-original-chain">{{ 'Original Chain' | translate }}</label>
+        <div class="uk-form-controls">
+          <input [value]="unwrapOriginalChain()" class="uk-input" disabled id="form-input-unwrap-original-chain" type="text">
+        </div>
+      </div>
+
+      <div class="uk-margin">
+        <label class="uk-form-label" for="form-unwrap-recipient">{{ 'Recipient' | translate }}</label>
+        <div class="uk-form-controls">
+          <div class="uk-inline uk-width-1-1">
+            <input [ngModel]="raiShortAccount()" class="uk-input" id="form-unwrap-recipient" type="text" disabled autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="uk-card-footer uk-text-right uk-hidden@m">
+    <div uk-grid>
+      <div *ngIf="unwrapApprovable()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-primary uk-width-1-1" (click)="unwrapApprove()">
+          {{ 'Enable' | translate }}</button>
+      </div>
+      <div *ngIf="!unwrapApprovable() && !unwrapable()" class="uk-width-1-2@m">
+        <button *ngIf="unwrapApproveStatus != 'checking' && unwrapApproveStatus != 'waiting'" class="uk-button uk-button-disabled uk-width-1-1">{{ 'Enable' | translate }}</button>
+        <button *ngIf="unwrapApproveStatus == 'checking'" class="uk-button uk-button-disabled uk-width-1-1">{{ 'Checking' | translate }}...</button>
+        <button *ngIf="unwrapApproveStatus == 'waiting'" class="uk-button uk-button-disabled uk-width-1-1">{{ 'Waiting' | translate }}...</button>
+      </div>
+      <div *ngIf="unwrapable()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-primary uk-width-1-1" (click)="unwrap()">
+          Unwrap</button>
+      </div>
+      <div *ngIf="unwrapShowConnectWallet()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-primary uk-width-1-1" (click)="unwrapConnectWallet()">
+          {{ 'Connect Wallet' | translate }}</button>
+      </div>
+      <div *ngIf="unwrapShowDisconnectWallet()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-danger uk-width-1-1" (click)="unwrapDisconnectWallet()">
+          {{ 'Disconnect Wallet' | translate }}</button>
+      </div>
+      <div class="uk-width-1-2@m">
+        <button routerLink="/assets" [queryParams]="{ add: 1}" class="uk-button uk-button-secondary uk-width-1-1">+ {{
+          'Custom Token' |
+          translate }}</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="uk-card-footer uk-text-right uk-visible@m">
+    <div class="uk-button-group">
+      <button *ngIf="unwrapApprovable()"
+        class="uk-button uk-button-primary uk-margin-right" (click)="unwrapApprove()">{{ 'Enable' | translate }}</button>
+      <button *ngIf="!unwrapApprovable() && !unwrapable() && unwrapApproveStatus != 'checking' && unwrapApproveStatus != 'waiting'"
+        class="uk-button uk-button-disabled uk-margin-right">{{ 'Enable' | translate }}</button>
+      <button *ngIf="!unwrapApprovable() && !unwrapable() && unwrapApproveStatus == 'checking'"
+        class="uk-button uk-button-disabled uk-margin-right">{{ 'Checking' | translate }}...</button>
+      <button *ngIf="!unwrapApprovable() && !unwrapable() && unwrapApproveStatus == 'waiting'"
+        class="uk-button uk-button-disabled uk-margin-right">{{ 'Waiting' | translate }}...</button>
+      <button *ngIf="unwrapable()" class="uk-button uk-button-primary uk-margin-right"
+        (click)="unwrap()">Unwrap</button>
+      <button *ngIf="unwrapShowConnectWallet()" class="uk-button uk-button-primary uk-margin-right"
+        (click)="unwrapConnectWallet()">{{ 'Connect Wallet' | translate }}</button>
+      <button *ngIf="unwrapShowDisconnectWallet()" class="uk-button uk-button-danger uk-margin-right"
+        (click)="unwrapDisconnectWallet()">{{ 'Disconnect Wallet' | translate }}</button>
+      <button routerLink="/assets" [queryParams]="{ add: 1}" class="uk-button uk-button-secondary uk-margin-right">+ {{
+        'Custom Token' | translate }}</button>
+    </div>
+  </div>
+
+</div>
+
+<m-web3-modal title="Please choose a web3 protocol" description="" descriptionGray="" dismissText="Cancel">
+</m-web3-modal>

@@ -45,7 +45,8 @@ export class MapComponent implements OnInit {
   private unmapGasCache: U256 | undefined;
   unmapInsufficientFunds = false;
   private freshUnmaps: { [hash: string]: boolean } = {};
-  // todo:
+  private waitingUnmaps: { [hash: string]: boolean } = {};
+  private submittingUnmaps: { [hash: string]: number } = {};
 
   private gasTimer: any = null;
   private approveTimer: any = null;
@@ -70,7 +71,19 @@ export class MapComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.gasTimer = setInterval(() => this.updateGas(), 15000);
+  }
+
+  startGasTimer() {
+    if (this.gasTimer !== null) return;
+    this.gasTimer = setInterval(() => {
+      if (!this.gasTimer) return
+      if (this.activePanel != Panel.MAP_CONFIRM && this.activePanel != Panel.UNMAP_CONFIRM) {
+        clearInterval(this.gasTimer);
+        this.gasTimer = null;
+        return
+      }
+      this.updateGas();
+    }, 5000);
   }
 
   startApproveTimer() {
@@ -102,6 +115,16 @@ export class MapComponent implements OnInit {
     if (this.gasTimer) {
       clearInterval(this.gasTimer);
       this.gasTimer = null;
+    }
+
+    if (this.approveTimer) {
+      clearInterval(this.approveTimer);
+      this.approveTimer = null;
+    }
+
+    if (this.chainTimer) {
+      clearInterval(this.chainTimer);
+      this.chainTimer = null;
     }
   }
 
@@ -402,6 +425,7 @@ export class MapComponent implements OnInit {
     this.mapGasCache = undefined;
     this.mapInsufficientFunds = false;
     this.updateGas();
+    this.startGasTimer();
     this.validator.addChain(token.chain as ChainStr);
   }
 
@@ -565,7 +589,7 @@ export class MapComponent implements OnInit {
 
     const sum = gas.plus(fee);
 
-    return `${sum.toBalanceStr(token.decimals)} ${nativeToken.symbol}`;
+    return `${sum.toBalanceStr(nativeToken.decimals)} ${nativeToken.symbol}`;
   }
 
   mapCheckApproved() {
@@ -614,7 +638,7 @@ export class MapComponent implements OnInit {
     }
 
     if (token.type == TokenTypeStr._20) {
-      const contract = this.web3.makeErc20Contract(token.addressRaw.toEthAddress());
+      const contract = this.web3.makeErc20Contract(token.address);
       try {
         contract.methods.allowance(this.web3.account(),
           coreAddress).call().then((res: any) => {
@@ -633,7 +657,7 @@ export class MapComponent implements OnInit {
         return;
       }
     } else if (token.type == TokenTypeStr._721) {
-      const contract = this.web3.makeErc721Contract(token.addressRaw.toEthAddress());
+      const contract = this.web3.makeErc721Contract(token.address);
       try {
         contract.methods.isApprovedForAll(this.web3.account(),
           coreAddress).call().then((res: boolean) => {
@@ -742,6 +766,7 @@ export class MapComponent implements OnInit {
     const token = this.selectedMapToken();
     if (!token) {
       this.mapGasCache = undefined;
+      this.mapInsufficientFunds = false;
       return;
     }
 
@@ -1024,7 +1049,7 @@ export class MapComponent implements OnInit {
   }
 
   unmapCheck(): boolean {
-    if (this.wallets.mainAccountSelected()) return true;
+    if (!this.raiAccount()) return true;
     if (!this.unmapAssetWidget) return true;
     if (this.unmapAssetWidget.check()) return true;
     return false;
@@ -1062,21 +1087,23 @@ export class MapComponent implements OnInit {
     const asset = this.selectedUnmapAsset();
     if (!asset) return '';
 
+    const nativeToken = this.verified.getNativeToken(asset.chain);
+    if (!nativeToken) return '';
+
     const gas = this.unmapGasCache;
     if (!gas) return '';
-
     const fee = this.getFee(asset.chain);
     if (!fee) return '';
-
     const sum = gas.plus(fee);
 
-    return `${sum.toBalanceStr(asset.decimals)} ${asset.symbol}`;
+    return `${sum.toBalanceStr(nativeToken.decimals)} ${nativeToken.symbol}`;
   }
 
   updateUnmapGas() {
     const asset = this.selectedUnmapAsset();
     if (!asset) {
       this.unmapGasCache = undefined;
+      this.unmapInsufficientFunds = false;
       return;
     }
 
@@ -1103,17 +1130,19 @@ export class MapComponent implements OnInit {
     if (!wallet) return;
 
     this.validator.addChain(asset.chain as ChainStr);
+
+    const doWhenUnlocked = () => {
+      this.activePanel = Panel.UNMAP_CONFIRM;
+      this.unmapGasCache = undefined;
+      this.updateGas();
+      this.startGasTimer();
+    };
+
     if (wallet.locked()) {
-      this.wallets.tryInputPassword(() => {
-        this.activePanel = Panel.UNMAP_CONFIRM;
-        this.unmapGasCache = undefined;
-        this.updateGas();
-      });
+      this.wallets.tryInputPassword(() => doWhenUnlocked());
       return;
     }
-    this.activePanel = Panel.UNMAP_CONFIRM;
-    this.unmapGasCache = undefined;
-    this.updateGas();
+    doWhenUnlocked();
   }
 
   unmapCancel() {
@@ -1172,14 +1201,14 @@ export class MapComponent implements OnInit {
     let msg = marker(`[1/2] Sending {unmap} block to {raicoin} network`);
     const param = { 'unmap': 'UNMAP', 'raicoin': 'Raicoin' };
     this.translate.get(msg, param).subscribe(res => msg = res);    
-    this.notification.sendSuccess(msg);
+    this.notification.sendWarning(msg);
 
     this.unmapReset();
   }
 
   unmapReset() {
     if (this.unmapAssetWidget) {
-      this.unmapAssetWidget.clear();
+      this.unmapAssetWidget.clearAmount();
     }
     this.unmapGasCache = undefined;
     this.unmapInsufficientFunds = false;
@@ -1188,13 +1217,12 @@ export class MapComponent implements OnInit {
 
   unmaps(): UnmapInfo[] {
     const unmaps = this.token.accountTokenUnmaps();
-    if (unmaps.length > 0) {
-      this.startChainTimer();
-
-      const u = unmaps[0];
-      EIP712.unmapERC20(u.chain, u.address, u.fromRaw.to0xHex(), u.to, ZX + u.sourceTxn,
-        u.height, u.value.to0xHex());
-      // todo:
+    for (let unmap of unmaps) {
+      const status = this.unmapItemStatus(unmap);
+      if (status === UnmapStatus.NONE) {
+        this.validator.signUnmap(unmap);
+        this.startChainTimer();
+      }
     }
     return unmaps;
   }
@@ -1236,10 +1264,22 @@ export class MapComponent implements OnInit {
       return UnmapStatus.CONFIRMED;
     } else if (unmap.targetValid()) {
       return UnmapStatus.CONFIRMING;
+    } else if (this.waitingUnmaps[unmap.sourceTxn]) {
+      return UnmapStatus.WAITING;
+    } else if (this.submittingUnmaps[unmap.sourceTxn]) {
+      if (this.submittingUnmaps[unmap.sourceTxn] + 60000 < window.performance.now()) {
+        delete this.submittingUnmaps[unmap.sourceTxn];
+      }
+      return UnmapStatus.SUBMITING;
     } else {
-      return UnmapStatus.NONE;
+      if (!this.validator.signing(unmap.account, unmap.height)) {
+        return UnmapStatus.NONE;
+      }
+
+      const percent = this.validator.signedPercent(unmap.account, unmap.height);
+      if (percent > 51) return UnmapStatus.COLLECTED;
+      return UnmapStatus.COLLECTING;
     }
-    // todo:
   }
 
   unmapItemConfirms(unmap: UnmapInfo): string {
@@ -1254,8 +1294,156 @@ export class MapComponent implements OnInit {
     }
   }
 
+  unmapSignedPercent(unmap: UnmapInfo): number {
+    return this.validator.signedPercent(unmap.account, unmap.height);
+  }
+
+  unmapShowSpin(unmap: UnmapInfo): boolean {
+    const status = this.unmapItemStatus(unmap);
+    if (status === UnmapStatus.COLLECTING || status === UnmapStatus.WAITING
+      || status === UnmapStatus.SUBMITING) {
+      return true;
+    }
+    return false;
+  }
+
+  unmapShowStatus(unmap: UnmapInfo): string {
+    const status = this.unmapItemStatus(unmap);
+    let msg = '';
+    let param: any;
+    if (status === UnmapStatus.COLLECTING) {
+      msg = marker(`Collecting signatures ({ percent }%)`);
+      param = { 'percent': this.validator.signedPercent(unmap.account, unmap.height) };
+    } else if (status === UnmapStatus.COLLECTED) {
+      msg = marker('Signatures collected ({ percent }%), click to submit the transaction to { chain }')
+      param = {
+        'percent': this.validator.signedPercent(unmap.account, unmap.height),
+        'chain': ChainHelper.toChainShown(unmap.chain),
+      };
+    } else if (status === UnmapStatus.WAITING) {
+      msg = marker('Waiting');
+    } else if (status === UnmapStatus.SUBMITING) {
+      msg = marker('Submiting transaction to { chain }');
+      param = { 'chain': ChainHelper.toChainShown(unmap.chain) }
+    } else if (status === UnmapStatus.CONFIRMED) {
+      msg = marker('Success');
+    }
+
+    if (!msg) return '';
+    this.translate.get(msg, param).subscribe(res => msg = res);    
+    return msg;
+  }
+
+
+  unmapToEvmChain(unmap: UnmapInfo, callback: (error: boolean) => void): boolean {
+    if (!this.web3.connected(unmap.chain as ChainStr)) return true;
+    const fee = this.getFee(unmap.chain);
+    if (!fee) return true;
+    let signatures = this.validator.transferSignatures(unmap.account, unmap.height, 51);
+    if (!signatures) {
+      console.error(`MapComponent::unmapToEvmChain: failed to get signatures`);
+      return true;
+    }
+    signatures = ZX + signatures;
+
+    if (unmap.type == TokenType._20) {
+      if (ChainHelper.isNative(unmap.chain, unmap.addressRaw)) {
+        try {
+          this.web3.evmCoreContract.methods.unmapETH(unmap.fromRaw.to0xHex(),
+            unmap.toRaw.toEthAddress(), ZX + unmap.sourceTxn, unmap.height,
+            unmap.value.to0xHex(), signatures).send(
+              {
+                from: this.web3.account(), value: fee.to0xHex()
+              }).then((res: any) => {
+                console.log(typeof res);
+                console.log(res);
+                callback(false);
+              }).catch((error: any) => {
+                console.error('unmapETH error:', error);
+                callback(true);
+              });
+        } catch (e) {
+          console.error('unmapETH exception:', e);
+          return true;
+        }
+      } else {
+        try {
+          this.web3.evmCoreContract.methods.unmapERC20(unmap.addressRaw.toEthAddress(),
+          unmap.fromRaw.to0xHex(), unmap.toRaw.toEthAddress(), ZX + unmap.sourceTxn,
+          unmap.height, unmap.value.to0xHex(), signatures).send({
+              from: this.web3.account(), value: fee.to0xHex()
+            }).then((res: any) => {
+              console.log(typeof res);
+              console.log(res);
+              callback(false);
+            }).catch((error: any) => {
+              console.error('unmapERC20 error:', error);
+              callback(true);
+            });
+        } catch (e) {
+          console.error('unmapERC20 exception:', e);
+          return true;
+        }
+      }
+    } else if (unmap.type == TokenType._721) {
+      try {
+        this.web3.evmCoreContract.methods.unmapERC721(unmap.addressRaw.toEthAddress(),
+        unmap.fromRaw.to0xHex(), unmap.toRaw.toEthAddress(), ZX + unmap.sourceTxn,
+        unmap.height, unmap.value.to0xHex(), signatures).send({
+            from: this.web3.account(), value: fee.to0xHex()
+          }).then((res: any) => {
+            console.log(typeof res);
+            console.log(res);
+            callback(false);
+          }).catch((error: any) => {
+            console.error('unmapERC721 error:', error);
+            callback(true);
+          });
+      } catch (e) {
+        console.error('unmapERC721 exception:', e);
+        return true;
+      }
+    } else {
+      console.error('unmapToEvmChain: unknown token type:', unmap.type);
+      return true;
+    }
+
+    let msg = marker(`[2/2] Submitting {unmap} transaction to {chain}, please check and approve it in your web3 wallet`);
+    const param = { 'unmap': 'UNMAP', 'chain': ChainHelper.toChain(unmap.chain) };
+    this.translate.get(msg, param).subscribe(res => msg = res);    
+    this.notification.sendWarning(msg);
+    return false;
+  }
+
+  unmapSubmit(unmap: UnmapInfo) {
+    if (!this.walletConnected(unmap.chain as ChainStr)) {
+      let msg = marker(`Please connect your web3 wallet first`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    }
+
+    if (ChainHelper.isEvmChain(unmap.chain)) {
+      const error = this.unmapToEvmChain(unmap, error => {
+        delete this.waitingUnmaps[unmap.sourceTxn];
+        if (!error) {
+          this.submittingUnmaps[unmap.sourceTxn] = window.performance.now();
+        }
+      });
+      if (!error) {
+        this.waitingUnmaps[unmap.sourceTxn] = true;
+      }
+    } else {
+      console.error(`Unsupported chain: ${unmap.chain}`);
+      return;
+    }
+  }
+
   unmapRetry(unmap: UnmapInfo) {
-    // todo:
+    if (!this.unmapAssetWidget) return;
+    this.unmapAssetWidget.clearAmount();
+    this.unmapAssetWidget.selectAssetByTokenAddress(unmap.chain, unmap.address);
+    this.unmapSubmit(unmap);
   }
 
   private queryTokenSymbol(chain: string, address: string): string {
