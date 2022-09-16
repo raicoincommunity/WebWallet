@@ -4996,7 +4996,7 @@ export class MapInfo {
         this.decimals = +json.decimals;
       }
       this.value = new U256(json.value);
-      const retAddress = ChainHelper.rawToAddress(this.chain, json.from);
+      const retAddress = ChainHelper.rawToAddress(this.chain, json.from_raw);
       if (retAddress.error || !retAddress.address) return true;
       this.from = retAddress.address;
       this.to = json.to;
@@ -5004,7 +5004,7 @@ export class MapInfo {
       return false;
     }
     catch (e) {
-      console.log(`MapInfo.fromJson: failed to parse json=${json}`);
+      console.log(`MapInfo.fromJson: failed to parse json=`, json, `exception=`, e);
       return true;
     }
   }

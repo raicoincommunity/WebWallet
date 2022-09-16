@@ -29,10 +29,13 @@ export class TokenWidgetComponent implements OnInit {
 
   @HostListener('document:click', ['$event'])
   onClick(event: MouseEvent) {
-    if (this.changable && this.tokenInput
-       && !this.tokenInput.nativeElement.contains(event.target)
-       && !this.tokenSelect.nativeElement.contains(event.target)) {
-      this.hideSearchResult();
+    if (this.changable && this.tokenInput) {
+      if (!this.tokenInput.nativeElement.contains(event.target)
+        && !this.tokenSelect.nativeElement.contains(event.target)) {
+        this.hideSearchResult();
+      } else {
+        this.showSearchResult();
+      }
     }
   }
 
@@ -365,6 +368,12 @@ export class TokenItem {
     } else {
       return `${this.symbol} <${this.shortAddress}>`;
     }
+  }
+
+  eq(other: TokenItem): boolean {
+    return this.chain === other.chain
+      && this.address === other.address
+      && this.type === other.type;
   }
 
 }
