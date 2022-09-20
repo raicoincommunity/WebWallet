@@ -106,6 +106,44 @@ export class ValidatorService implements OnDestroy {
     return result;
   }
 
+  creationSigatures(
+    originalChain: string,
+    originalContract: string,
+    chain: string | number,
+    percent: number
+  ): string {
+    const originalChainContract = `${originalChain}_${originalContract}`;
+    const creation = this.creations[originalChainContract]?.[chain];
+    if (!creation) return '';
+    if (typeof chain === 'string') {
+      chain = ChainHelper.toChain(chain)
+    }
+    const info = this.chains[chain];
+    if (!info) return '';
+    const validators = creation.top(percent, info.totalWeight, info.sortedValidators);
+    if (validators.length === 0) return '';
+    validators.sort((x, y) => {
+      if (x.signer < y.signer) return -1;
+      if (x.signer > y.signer) return 1;
+      return 0
+    });
+    let result = '';
+    for (let i of validators) {
+      if (!creation.signatures[i.validator]) return '';
+      result += creation.signatures[i.validator].signature.substring(2);
+    }
+    return result;
+  }
+
+  creationParameters(
+    originalChain: string,
+    originalContract: string,
+    chain: string | number,
+  ): CreationParameters | undefined {
+    const originalChainContract = `${originalChain}_${originalContract}`;
+    return this.creations[originalChainContract]?.[chain]?.params;
+  }
+
   signUnmap(unmap: UnmapInfo) {
     const account = unmap.account;
     const height = unmap.height;
@@ -287,15 +325,22 @@ export class ValidatorService implements OnDestroy {
     creation.lastQueryAt = now;
   }
 
-  private queryCreationParameters(chain: number | string, address: string) {
+  private queryCreationParameters(chain: number | string, address_raw: string) {
       if (typeof chain === 'string') {
         chain = ChainHelper.toChain(chain);
       }
+
+      const ret = ChainHelper.rawToAddress(chain, address_raw);
+      if (ret.error) {
+        return;
+      }
+
       const message: any = {
       action: 'creation_parameters',
       service: this.SERVICE,
       chain_id: `${chain}`,
-      address
+      address: ret.address,
+      address_raw,
     };
     this.server.send(message);
   }
@@ -412,14 +457,14 @@ export class ValidatorService implements OnDestroy {
   }
 
   private processCreationParameters(message: any) {
-    if (message.error || !message.chain_id || !message.address) return;
+    if (message.error || !message.chain_id || !message.address_raw) return;
 
     const params = new CreationParameters();
     const error = params.fromJson(message);
     if (error) return;
 
     const chain = ChainHelper.toChainStr(+message.chain_id);
-    const originalChainContract = `${chain}_${message.address}`;
+    const originalChainContract = `${chain}_${message.address_raw.toLowerCase()}`;
     const creations = this.creations[originalChainContract];
     if (!creations) return;
     for (let i in creations) {
@@ -941,7 +986,7 @@ export class EIP712 {
     decimals: string
   ): any {
     const data = EIP712.common(chain);
-    data.type.CreateWrappedERC20Token = [
+    data.types.CreateWrappedERC20Token = [
       { name: "name", type: "string" },
       { name: "symbol", type: "string" },
       { name: "originalChain", type: "string" },
@@ -970,7 +1015,7 @@ export class EIP712 {
     originalContract: string
   ): any {
     const data = EIP712.common(chain);
-    data.type.CreateWrappedERC721Token = [
+    data.types.CreateWrappedERC721Token = [
       { name: "name", type: "string" },
       { name: "symbol", type: "string" },
       { name: "originalChain", type: "string" },

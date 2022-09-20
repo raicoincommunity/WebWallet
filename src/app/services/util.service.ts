@@ -379,7 +379,7 @@ class Uint {
   }
 
   to0xHex(): string {
-    return '0x' + uint8ToHex(this.bytes);
+    return '0x' + uint8ToHex(this.bytes).toLowerCase();
   }
 
   toDec(): string {
@@ -1343,12 +1343,16 @@ export class ChainHelper {
     }
   }
 
-  static rawToAddress(chain: string, raw: U256 | string): {error: boolean, address?: string} {
+  static rawToAddress(chain: string | number, raw: U256 | string): {error: boolean, address?: string} {
     if (typeof raw === 'string') {
       raw = new U256(raw, 16);
     }
     if (raw.isNativeTokenAddress()) {
       return {error: false, address: ''};
+    }
+
+    if (typeof chain === 'number') {
+      chain = ChainHelper.toChainStr(chain);
     }
 
     switch (chain) {

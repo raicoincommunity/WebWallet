@@ -9,7 +9,7 @@ import { NotificationService } from '../../services/notification.service';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { TranslateService } from '@ngx-translate/core';
 import { environment } from '../../../environments/environment';
-import { ValidatorService, EIP712 } from '../../services/validator.service';
+import { ValidatorService } from '../../services/validator.service';
 import { AssetWidgetComponent, AssetItem } from '../asset-widget/asset-widget.component';
 import { TokenService, MapInfo, UnmapInfo } from '../../services/token.service';
 import { VerifiedTokensService } from '../../services/verified-tokens.service';
@@ -47,6 +47,7 @@ export class MapComponent implements OnInit {
   private freshUnmaps: { [hash: string]: boolean } = {};
   private waitingUnmaps: { [hash: string]: boolean } = {};
   private submittingUnmaps: { [hash: string]: number } = {};
+  private unmapSubscription: any;
 
   private gasTimer: any = null;
   private approveTimer: any = null;
@@ -71,6 +72,10 @@ export class MapComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.unmapSubscription = this.token.tokenUnmap$.subscribe(unmap => {
+      this.validator.signUnmap(unmap);
+      this.startChainTimer();
+    });
   }
 
   startGasTimer() {
@@ -126,6 +131,10 @@ export class MapComponent implements OnInit {
       clearInterval(this.chainTimer);
       this.chainTimer = null;
     }
+    if (!this.unmapSubscription) {
+      this.unmapSubscription.unsubscribe();
+      this.unmapSubscription = undefined;
+    }
   }
 
   setPanel(panel: string) {
@@ -154,6 +163,7 @@ export class MapComponent implements OnInit {
     this.syncMapAmount();
     this.syncMapTokenId();
     this.mapApproveStatus = ApproveStatus.NONE;
+    this.approveCheckingSince = undefined;
     this.mapCheckApproved();
   }
 
@@ -320,6 +330,14 @@ export class MapComponent implements OnInit {
     if (!this.mapWalletConnected()) return false;
     return this.mapApproveStatus == ApproveStatus.REJECTED
       || this.mapApproveStatus == ApproveStatus.ERROR;
+  }
+
+  mapApproveDisabled(): boolean {
+    const token = this.selectedMapToken();
+    if (!token) return false;
+    if (!this.raiAccount()) return false;
+    if (ChainHelper.isNative(token.chain, token.addressRaw)) return false;
+    return this.mapApproveStatus == ApproveStatus.NONE;
   }
 
   mapApprove() {
@@ -596,7 +614,8 @@ export class MapComponent implements OnInit {
     const token = this.selectedMapToken();
     if (!token) return;
     this.checkApproved(token, (status: ApproveStatus, token: TokenItem) => {
-      if (token != this.selectedMapToken()) return;
+      const currentToken = this.selectedMapToken();
+      if (!currentToken || !token.eq(currentToken)) return;
       const now = window.performance.now();
       if (status === ApproveStatus.APPROVED) {
         this.mapApproveStatus = status;
@@ -881,7 +900,6 @@ export class MapComponent implements OnInit {
     try {
       this.web3.web3?.eth.getBalance(recipient).then((res: string) => {
         this.unmapGasCache = new U256(gasEst).mul(price);
-        console.log(`fee.plus(this.unmapGasCache).gt(res)=`, fee.plus(this.unmapGasCache).gt(res));
         this.unmapInsufficientFunds = fee.plus(this.unmapGasCache).gt(res);
       }).catch((error: any) => {
         console.error('updateEvmUnmapGas error:', error);
@@ -915,10 +933,10 @@ export class MapComponent implements OnInit {
                 console.log(typeof res);
                 console.log(res);
               }).catch((error: any) => {
-                console.error('evmMapGas error:', error);
+                console.error('mapFromEvmChain error:', error);
               });
         } catch (e) {
-          console.error('evmMapGas exception:', e);
+          console.error('mapFromEvmChain exception:', e);
           return;
         }
       } else {
@@ -1001,7 +1019,6 @@ export class MapComponent implements OnInit {
   }
 
   onUnmapAssetChanged() {
-    // todo:
   }
 
   unmapWalletConnected(): boolean {
@@ -1125,7 +1142,24 @@ export class MapComponent implements OnInit {
       this.notification.sendError(msg);
       return;
     }
-    if (this.unmapCheck()) return;
+    if (this.unmapCheck()) {
+      if (asset.type == TokenTypeStr._20) {
+        if (this.unmapAssetWidget.amountStatus !== 1) {
+          let msg = marker(`Please enter a valid amount`);
+          this.translate.get(msg).subscribe(res => msg = res);
+          this.notification.sendError(msg);
+        }
+      }
+      else if (asset.type == TokenTypeStr._721) {
+        if (this.unmapAssetWidget.syncTokenId()) {
+          let msg = marker(`Please select a valid token ID`);
+          this.translate.get(msg).subscribe(res => msg = res);
+          this.notification.sendError(msg);
+        }
+      }
+      return;
+    };
+
     const wallet = this.wallets.selectedWallet();
     if (!wallet) return;
 
@@ -1198,6 +1232,9 @@ export class MapComponent implements OnInit {
       return;
     }
 
+    const hash = result.block!.hash().toHex();
+    this.freshUnmaps[hash] = true;
+
     let msg = marker(`[1/2] Sending {unmap} block to {raicoin} network`);
     const param = { 'unmap': 'UNMAP', 'raicoin': 'Raicoin' };
     this.translate.get(msg, param).subscribe(res => msg = res);    
@@ -1215,6 +1252,16 @@ export class MapComponent implements OnInit {
     this.activePanel = Panel.UNMAP;
   }
 
+  autoSubmitFreshUnmap(unmap: UnmapInfo) {
+    if (this.freshUnmaps[unmap.sourceTxn] !== true) return;
+    if (this.hasWaitingUnmaps()) return;
+    if (unmap.targetValid()) return;
+    if (!this.walletConnected(unmap.chain as ChainStr)) return;
+
+    this.unmapSubmit(unmap);
+    delete this.freshUnmaps[unmap.sourceTxn];
+  }
+
   unmaps(): UnmapInfo[] {
     const unmaps = this.token.accountTokenUnmaps();
     for (let unmap of unmaps) {
@@ -1222,6 +1269,8 @@ export class MapComponent implements OnInit {
       if (status === UnmapStatus.NONE) {
         this.validator.signUnmap(unmap);
         this.startChainTimer();
+      } else if (status === UnmapStatus.COLLECTED) {
+        this.autoSubmitFreshUnmap(unmap);
       }
     }
     return unmaps;
@@ -1487,6 +1536,13 @@ export class MapComponent implements OnInit {
       this.token.queryTokenDecimals(chain, address, false);
     }
     return decimals;
+  }
+
+  private hasWaitingUnmaps(): boolean {
+    for (let i in this.waitingUnmaps) {
+      return true;
+    }
+    return false;
   }
 
 }

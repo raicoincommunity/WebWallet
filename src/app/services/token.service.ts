@@ -51,6 +51,7 @@ export class TokenService implements OnDestroy {
   private accountSwapsSubject = new Subject<string>();
   private swapSubject = new Subject<SwapFullInfo>();
   private accountTokensSubject = new Subject<string>();
+  private tokenUnmapSubject = new Subject<UnmapInfo>();
 
   public issuer$ = this.issuerSubject.asObservable();
   public tokenId$ = this.tokenIdSubject.asObservable();
@@ -68,6 +69,7 @@ export class TokenService implements OnDestroy {
   public accountSwaps$ = this.accountSwapsSubject.asObservable();
   public swap$ = this.swapSubject.asObservable();
   public accountTokens$ = this.accountTokensSubject.asObservable();
+  public tokenUnmap$ = this.tokenUnmapSubject.asObservable();
 
   constructor(
     private server: ServerService,
@@ -1631,6 +1633,9 @@ export class TokenService implements OnDestroy {
         case 'order_info':
           this.processOrderInfo(message);
           break;
+        case 'pending_token_map_info':
+          this.processPendingTokenMapInfoNotify(message);
+          break;
         case 'swap_info':
           this.processSwapInfoNotify(message);
           break;
@@ -1654,6 +1659,12 @@ export class TokenService implements OnDestroy {
           break;
         case 'token_id_transfer':
           this.processTokenIdTransferNotify(message);
+          break;
+        case 'token_map_info':
+          this.processTokenMapInfoNotify(message);
+          break;
+        case 'token_unmap_info':
+          this.processTokenUnmapInfoNotify(message);
           break;
         case 'take_nack_block_submitted':
           this.processTakeNackBlockSubmittedNotify(message);
@@ -1939,6 +1950,30 @@ export class TokenService implements OnDestroy {
     }
 
     this.orderInfoSubject.next(order);
+  }
+
+  private processPendingTokenMapInfoNotify(message: any) {
+    const account = message.account;
+    const info = this.accounts[account];
+    if (!info) return;
+    let chain = message.chain;
+    if (!chain) {
+      chain = ChainHelper.toChainStr(+message.chain_id);
+    }
+
+    const maps = info.maps[chain];
+    if (!maps) return;
+
+    const map = new MapInfo();
+    const error = map.fromJson(message);
+    if (error) return;
+    map.confirmed = false;
+
+    if (message.rollback === 'true') {
+      this.queryPendingTokenMapInfos(account, chain);
+    } else {
+      maps.insert(map);
+    }
   }
 
   private processOrderInfoQueryAck(message: any) {
@@ -2683,6 +2718,38 @@ export class TokenService implements OnDestroy {
       token.removeTokenId(id);
     }
     this.syncAccountTokenIds(account, token);
+  }
+
+  private processTokenMapInfoNotify(message: any) {
+    const account = message.account;
+    const info = this.accounts[account];
+    if (!info) return;
+    let chain = message.chain;
+    if (!chain) {
+      chain = ChainHelper.toChainStr(+message.chain_id);
+    }
+
+    const maps = info.maps[chain];
+    if (!maps) return;
+
+    const map = new MapInfo();
+    const error = map.fromJson(message);
+    if (error) return;
+    map.confirmed = true;
+    maps.insert(map);
+  }
+
+  private processTokenUnmapInfoNotify(message: any) {
+    const account = message.account;
+    const info = this.accounts[account];
+    if (!info) return;
+    const unmaps = info.unmaps;
+
+    const unmap = new UnmapInfo();
+    const error = unmap.fromJson(message);
+    if (error) return;
+    unmaps.insert(unmap);
+    this.tokenUnmapSubject.next(unmap);
   }
 
   private processTakeNackBlockSubmittedNotify(message: any) {
@@ -5238,6 +5305,162 @@ export class AccountTokenUnmapInfos {
       this.unmaps.push(unmap);
     } else {
       this.unmaps.splice(index, 0, unmap);
+    }
+    return existing;
+  }
+}
+
+export class WrapInfo {
+  account: string = '';
+  height: number = 0;
+  chain: string = '';
+  chainId: number = 0;
+  address: string = '';
+  addressRaw: U256 = U256.zero();
+  type: TokenType = TokenType.INVALID;
+  decimals: number | undefined = undefined;
+  value: U256 = U256.zero();
+  from: string = '';
+  fromRaw: U256 = U256.zero();
+  toChain: string = '';
+  toChainId: number = 0;
+  toAccount: string = '';
+  toAccountRaw: U256 = U256.zero();
+  sourceTxn: string = '';
+  sourceBlock: any = null;
+  targetConfirmed: boolean = false;
+  targetTxn: string = '';
+  targetHeight: U64 = U64.zero();
+  wrappedAddress: string = '';
+  wrappedAddressRaw: U256 = U256.zero();
+
+  fromJson(json: any): boolean {
+    try {
+      this.account = json.account;
+      this.height = +json.height;
+      this.chain = json.chain;
+      this.chainId = +json.chain_id;
+      if (!this.chain) {
+        this.chain = ChainHelper.toChainStr(this.chainId as Chain)
+      }
+      this.address = json.address;
+      this.addressRaw = new U256(json.address_raw, 16);
+      if (!this.address) {
+        const ret = ChainHelper.rawToAddress(this.chain, this.addressRaw);
+        if (ret.error) {
+          console.error(`WrapInfo.fromJson: convert raw to address failed, chain: ${this.chain}, raw: ${this.addressRaw.toHex()}`);
+          return true;
+        }
+        this.address = ret.address!;
+      }
+      this.type = TokenHelper.toType(json.type);
+      if (json.decimals !== undefined) {
+        this.decimals = +json.decimals;
+      }
+      this.value = new U256(json.value);
+      this.fromRaw = new U256(json.from_raw, 16);
+      this.from = json.from;
+      if (!this.from) {
+        this.from = this.fromRaw.toAccountAddress();
+      }
+      this.toChain = json.to_chain;
+      this.toChainId = +json.to_chain_id;
+      if (!this.toChain) {
+        this.toChain = ChainHelper.toChainStr(this.toChainId as Chain)
+      }
+      this.toAccountRaw = new U256(json.to_account_raw, 16);
+      this.toAccount = json.to_account;
+      if (!this.toAccount) {
+        const ret = ChainHelper.rawToAddress(this.toChain, this.toAccountRaw);
+        if (ret.error || !ret.address) return true;
+        this.toAccount = ret.address;  
+      }
+      this.sourceTxn = json.source_transaction;
+      this.targetConfirmed = json.target_confirmed === 'true';
+      this.targetTxn = json.target_transaction;
+      this.targetHeight = new U64(json.target_height);
+      this.wrappedAddress = json.wrapped_address;
+      this.wrappedAddressRaw = new U256(json.wrapped_address_raw, 16);
+      if (!this.wrappedAddress) {
+        const ret = ChainHelper.rawToAddress(this.toChain, this.wrappedAddressRaw);
+        if (ret.error) {
+          console.error(`WrapInfo.fromJson: convert raw to address failed, chain: ${this.toChain}, raw: ${this.wrappedAddressRaw.toHex()}`);
+          return true;
+        }
+        this.wrappedAddress = ret.address!;
+      }
+      return false;
+    }
+    catch (e) {
+      console.log(`WrapInfo.fromJson: failed to parse json=`, json);
+      return true;
+    }
+  }
+
+  targetValid(): boolean {
+    return this.targetHeight.valid();
+  }
+
+  newerThan(other: WrapInfo): boolean {
+    if (this.targetConfirmed !== other.targetConfirmed) {
+      return this.targetConfirmed;
+    }
+    if (this.targetValid() !== other.targetValid()) {
+      return this.targetValid();
+    }
+    return false;
+  }
+}
+
+
+export class AccountTokenWrapInfos {
+  wraps: WrapInfo[] = [];
+  more: boolean = true;
+
+  // local data
+  expectedRecentWraps: number = 10;
+  nextSyncAt: number = 0;
+  lastSyncAt: number = -1000000;
+  synced: boolean = false;
+
+  head(): WrapInfo | undefined {
+    if (this.wraps.length === 0) return undefined;
+    return this.wraps[0];
+  }
+
+  tail(): WrapInfo | undefined {
+    const length = this.wraps.length;
+    if (length === 0) return undefined;
+    return this.wraps[length - 1];
+  }
+
+  pendingTail(): WrapInfo | undefined {
+    for (let index = this.wraps.length - 1; index >= 0; --index) {
+      if (!this.wraps[index].targetConfirmed) {
+        return this.wraps[index];
+      }
+    }
+    return undefined;
+  }
+
+  size(): number {
+    return this.wraps.length;
+  }
+
+  // return existing
+  insert(wrap: WrapInfo): boolean {
+    let existing = false;
+    let index = this.wraps.findIndex(x => x.height === wrap.height);
+    if (index >= 0) {
+      existing = true;
+      if (!wrap.newerThan(this.wraps[index])) return existing;
+      this.wraps.splice(index, 1);
+    }
+    index = this.wraps.findIndex(x => x.height < wrap.height);
+    if (index < 0) {
+      this.wraps.push(wrap);
+    } else {
+      this.wraps.splice(index, 0, wrap);
     }
     return existing;
   }
