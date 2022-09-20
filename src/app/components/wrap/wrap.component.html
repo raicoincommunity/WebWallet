@@ -23,6 +23,7 @@
 <div *ngIf="activePanel === 'wrap' && wrapContractCreated() === false" class="uk-alert-warning" uk-alert>
   <p><b>{{ 'Reminder' | translate }}:</b> {{ 'It seems you are the first user trying to wrap the current token, you need to create the wrap contract first. This operation will cost more gas than usual!' | translate }}</p>
 </div>
+
 <div class="uk-card uk-card-default" [hidden]="activePanel != 'wrap'">
   <div class="uk-card-body">
     <div class="uk-form-horizontal">
@@ -87,9 +88,17 @@
         <button class="uk-button uk-button-disabled uk-width-1-1">
           {{ 'Collecting Signatures ...' | translate }}</button>
       </div>
+      <div *ngIf="wrapContractWaiting()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-disabled uk-width-1-1">
+          {{ 'Waiting ...' | translate }}</button>
+      </div>
+      <div *ngIf="wrapContractSubmitting()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-disabled uk-width-1-1">
+          {{ 'Submitting ...' | translate }}</button>
+      </div>
       <div *ngIf="wrapContractCreatable()" class="uk-width-1-2@m">
         <button class="uk-button uk-button-primary uk-width-1-1" (click)="create()">
-          Create Wrap Contract</button>
+          {{ 'Create Wrap Contract' | translate }}</button>
       </div>
       <div *ngIf="!wrapable()" class="uk-width-1-2@m">
         <button class="uk-button uk-button-disabled uk-width-1-1">
@@ -116,8 +125,12 @@
         >{{ 'Fetching Data ...' | translate }}</button>
       <button *ngIf="wrapCollectingSignatures()" class="uk-button uk-button-disabled uk-margin-right"
         >{{ 'Collecting Signatures ...' | translate }}</button>
+      <button *ngIf="wrapContractWaiting()" class="uk-button uk-button-disabled uk-margin-right"
+        >{{ 'Waiting ...' | translate }}</button>
+      <button *ngIf="wrapContractSubmitting()" class="uk-button uk-button-disabled uk-margin-right"
+        >{{ 'Submitting ...' | translate }}</button>
       <button *ngIf="wrapContractCreatable()" class="uk-button uk-button-primary uk-margin-right"
-        (click)="create()">Wrap</button>
+        (click)="create()">{{ 'Create Wrap Contract' | translate }}</button>
       <button *ngIf="!wrapable()" class="uk-button uk-button-disabled uk-margin-right"
         >Wrap</button>
       <button *ngIf="wrapable()" class="uk-button uk-button-primary uk-margin-right"
@@ -129,6 +142,46 @@
     </div>
   </div>
 
+</div>
+
+<div [hidden]="activePanel !== 'wrap'" uk-grid style="margin-top: 25px;">
+  <div class="uk-width-1-1">
+    <h3 class="uk-heading-divider uk-text-center" style="margin-bottom: 0;">{{ 'Your WRAP history' | translate }}
+    </h3>
+    <table class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
+      <thead>
+        <tr>
+          <th class="uk-width-1-4 uk-text-left">{{ 'Wrap Chain' | translate }}</th>
+          <th class="uk-width-1-4 uk-text-left">{{ 'Recipient' | translate }}</th>
+          <th class="uk-width-1-4 uk-text-right">{{ 'Amount' | translate }}</th>
+          <th class="uk-width-1-4 uk-text-center">{{ 'Status' | translate }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let wrap of wraps()">
+          <td class="uk-text-left uk-text-truncate"><img [src]="unmapItemChainLogo(unmap)" width="20" height="20" style="vertical-align: text-top;" />{{ unmapItemShowChain(unmap) }}</td>
+          <td class="uk-text-left uk-text-truncate">{{ unmap.to }}</td>
+          <td class="uk-text-right">{{ unmapItemAmount(unmap) }}</td>
+          <td class="uk-text-center">
+            <span *ngIf="unmapItemStatus(unmap) === 'confirmed'" uk-icon="icon: check;" class="uk-text-success" title="{{ unmapShowStatus(unmap) }}" uk-tooltip></span>
+            <span *ngIf="unmapItemStatus(unmap) === 'confirming'" class="uk-text-warning">{{ unmapItemConfirms(unmap) }}</span>
+            <span *ngIf="unmapItemStatus(unmap) === 'collected'" uk-icon="icon: forward;" title="{{ unmapShowStatus(unmap) }}" class="uk-text-warning" (click)="unmapRetry(unmap)"
+            uk-tooltip></span>
+            <span *ngIf="unmapShowSpin(unmap)" uk-spinner="ratio: 0.6;" title="{{ unmapShowStatus(unmap) }}"
+            uk-tooltip></span>
+          </td>
+        </tr>
+        <tr *ngIf="noUnmaps()">
+          <td colspan="4" style="text-align: center;">{{ 'No UNMAP history' | translate }}</td>
+        </tr>
+        <tr *ngIf="moreUnmaps()">
+          <td colspan="4" style="text-align: center;">
+            <a (click)="loadMoreUnmaps()" class="uk-link-text">{{ 'Load More Results' | translate }}</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 
 
@@ -163,7 +216,7 @@
                 <span class="confirm-subtitle">{{ 'Sender' | translate }}</span>
               </div>
               <div class="uk-width-1-1 uk-text-muted">
-                <span class="confirm-currency">{{ wrapShowOriginalChain() }}</span>
+                <span class="confirm-currency">{{ wrapOriginalChain() }}</span>
                 <span class="confirm-subtitle">{{ 'Original Chain' | translate }}</span>
               </div>
               <div class="uk-width-1-1 uk-text-muted">
@@ -194,7 +247,7 @@
               </div>
               <div class="uk-width-1-1 uk-text-muted">
                 <span class="confirm-currency">{{ wrapShowTargetChain() }}</span>
-                <span class="confirm-subtitle">{{ 'Target Chain' | translate }}</span>
+                <span class="confirm-subtitle">{{ 'Wrap Chain' | translate }}</span>
               </div>
               <div class="uk-width-1-1 uk-text-muted">
                 <span class="confirm-currency">{{ wrapContract() | shortAccount:7 }}</span>
@@ -330,13 +383,21 @@
         <button class="uk-button uk-button-primary uk-width-1-1" (click)="unwrapApprove()">
           {{ 'Enable' | translate }}</button>
       </div>
-      <div *ngIf="!unwrapApprovable() && !unwrapable()" class="uk-width-1-2@m">
-        <button *ngIf="unwrapApproveStatus != 'checking' && unwrapApproveStatus != 'waiting'" class="uk-button uk-button-disabled uk-width-1-1">{{ 'Enable' | translate }}</button>
-        <button *ngIf="unwrapApproveStatus == 'checking'" class="uk-button uk-button-disabled uk-width-1-1">{{ 'Checking' | translate }}...</button>
-        <button *ngIf="unwrapApproveStatus == 'waiting'" class="uk-button uk-button-disabled uk-width-1-1">{{ 'Waiting' | translate }}...</button>
+      <div *ngIf="unwrapFetchingData()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-disabled uk-width-1-1">{{ 'Fetching Data ...' | translate }}</button>
+      </div>
+      <div *ngIf="unwrapApproveStatus == 'checking'" class="uk-width-1-2@m">
+        <button  class="uk-button uk-button-disabled uk-width-1-1">{{ 'Checking ...' | translate }}</button>
+      </div>
+      <div *ngIf="unwrapApproveStatus == 'waiting'" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-disabled uk-width-1-1">{{ 'Waiting ...' | translate }}</button>
       </div>
       <div *ngIf="unwrapable()" class="uk-width-1-2@m">
         <button class="uk-button uk-button-primary uk-width-1-1" (click)="unwrap()">
+          Unwrap</button>
+      </div>
+      <div *ngIf="!unwrapable()" class="uk-width-1-2@m">
+        <button class="uk-button uk-button-disabled uk-width-1-1">
           Unwrap</button>
       </div>
       <div *ngIf="unwrapShowConnectWallet()" class="uk-width-1-2@m">
@@ -359,14 +420,14 @@
     <div class="uk-button-group">
       <button *ngIf="unwrapApprovable()"
         class="uk-button uk-button-primary uk-margin-right" (click)="unwrapApprove()">{{ 'Enable' | translate }}</button>
-      <button *ngIf="!unwrapApprovable() && !unwrapable() && unwrapApproveStatus != 'checking' && unwrapApproveStatus != 'waiting'"
-        class="uk-button uk-button-disabled uk-margin-right">{{ 'Enable' | translate }}</button>
-      <button *ngIf="!unwrapApprovable() && !unwrapable() && unwrapApproveStatus == 'checking'"
-        class="uk-button uk-button-disabled uk-margin-right">{{ 'Checking' | translate }}...</button>
-      <button *ngIf="!unwrapApprovable() && !unwrapable() && unwrapApproveStatus == 'waiting'"
-        class="uk-button uk-button-disabled uk-margin-right">{{ 'Waiting' | translate }}...</button>
+      <button *ngIf="unwrapFetchingData()"
+        class="uk-button uk-button-disabled uk-margin-right">{{ 'Fetching Data ...' | translate }}</button>
+      <button *ngIf="unwrapApproveStatus == 'checking'" class="uk-button uk-button-disabled uk-margin-right">{{ 'Checking ...' | translate }}</button>
+      <button *ngIf="unwrapApproveStatus == 'waiting'" class="uk-button uk-button-disabled uk-margin-right">{{ 'Waiting ...' | translate }}</button>
       <button *ngIf="unwrapable()" class="uk-button uk-button-primary uk-margin-right"
         (click)="unwrap()">Unwrap</button>
+      <button *ngIf="!unwrapable()" class="uk-button uk-button-disabled uk-margin-right">
+        Unwrap</button>
       <button *ngIf="unwrapShowConnectWallet()" class="uk-button uk-button-primary uk-margin-right"
         (click)="unwrapConnectWallet()">{{ 'Connect Wallet' | translate }}</button>
       <button *ngIf="unwrapShowDisconnectWallet()" class="uk-button uk-button-danger uk-margin-right"
@@ -377,6 +438,101 @@
   </div>
 
 </div>
+
+
+<!-- Unwrap Confirmation Panel -->
+<div uk-grid *ngIf="activePanel === 'unwrap_confirm'" class="uk-animation-slide-left">
+  <div class="uk-width-1-1">
+
+    <div class="uk-card uk-card-default uk-width-1-1 uk-text-center">
+      <span style="display: block; padding-top: 8px;">{{ 'You are about to' | translate }} UNWRAP</span>
+      <span style="display:block; font-size: 32px;">{{ unwrapShowAmount() }}</span>
+    </div>
+
+    <br />
+
+    <div uk-grid>
+
+      <div class="uk-width-1-2@m">
+        <div class="uk-card uk-card-default">
+          <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+            <span class="confirm-title uk-text-break">
+              <div>
+                <span class="confirm-currency uk-text-danger">-{{ unwrapShowSourceAmount() }}</span>
+                <span class="confirm-subtitle">{{ 'You Send' | translate }}</span>
+                <br class="br-spacer" />
+              </div>
+            </span>
+          </div>
+          <div class="uk-card-body" style="padding: 20px 20px;">
+            <div uk-grid>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ unwrapSender() | shortAccount:7 }}</span>
+                <span class="confirm-subtitle">{{ 'Sender' | translate }}</span>
+              </div>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ unwrapShowSourceChain() }}</span>
+                <span class="confirm-subtitle">{{ 'Wrap Chain' | translate }}</span>
+              </div>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ unwrapContract() | shortAccount:7 }}</span>
+                <span class="confirm-subtitle">{{ 'Wrap Contract' | translate }}</span>
+              </div>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ unwrapFeeAndGas() }}</span>
+                <span class="confirm-subtitle">{{ 'Fee & Gas (estimated)' | translate }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-2@m">
+        <div class="uk-card uk-card-default">
+          <div class="uk-card-header uk-text-left" style="padding: 20px 20px;">
+            <span class="confirm-title uk-text-break">
+              <div>
+                <span class="confirm-currency uk-text-success">+{{ unwrapShowAmount() }}</span>
+                <span class="confirm-subtitle">{{ 'You Receive' | translate }}</span>
+                <br class="br-spacer" />
+              </div>
+            </span>
+          </div>
+          <div class="uk-card-body" style="padding: 20px 20px;">
+            <div uk-grid>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ raiAccount() | shortAccount:7 }}</span>
+                <span class="confirm-subtitle">{{ 'Recipient' | translate }}</span>
+              </div>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ unwrapOriginalChain() }}</span>
+                <span class="confirm-subtitle">{{ 'Original Chain' | translate }}</span>
+              </div>
+              <div class="uk-width-1-1 uk-text-muted">
+                <span class="confirm-currency">{{ unwrapOriginalTokenAddress() | shortAccount:7 }}</span>
+                <span class="confirm-subtitle">{{ 'Token Address' | translate }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div uk-grid>
+      <div class="uk-width-1-2@s">
+        <button (click)="unwrapCancel()" class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate }}</button>
+      </div>
+      <div class="uk-width-1-2@s">
+        <button *ngIf="unwrapFeeAndGas() !== '' && !unwrapInsufficientFunds" class="uk-button uk-button-primary uk-width-1-1" (click)="unwrapConfirm()">{{ 'Confirm' | translate }}</button>
+        <button *ngIf="unwrapFeeAndGas() === ''" class="uk-button uk-button-disabled uk-width-1-1" >{{ 'Fetching Fee & Gas ...' | translate }}</button>
+        <button *ngIf="unwrapFeeAndGas() !== '' && unwrapInsufficientFunds" class="uk-button uk-button-disabled uk-width-1-1" >{{ 'Insufficient Fee & Gas' | translate }}</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 
 <m-web3-modal title="Please choose a web3 protocol" description="" descriptionGray="" dismissText="Cancel">
 </m-web3-modal>

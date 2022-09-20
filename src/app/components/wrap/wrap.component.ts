@@ -70,6 +70,7 @@ export class WrapComponent implements OnInit {
   ngOnInit(): void {
     this.web3Subscription = this.web3.accountChanged$.subscribe(e => {
       this.wrapTargetChainChanged(this.selectedWrapTargetChain);
+      this.onUnwrapTokenChange();
     });
   }
 
@@ -228,6 +229,7 @@ export class WrapComponent implements OnInit {
     }
     this.wrapSyncContractStatus(asset, selected);
     this.startWrapContractStatusTimer();
+    this.validator.addChain(selected as ChainStr);
   }
 
   wrapTargetChains(): string[] {
@@ -281,7 +283,7 @@ export class WrapComponent implements OnInit {
     if (!chain) return '';
     const contract = this.wrapContract();
     if (!contract) return '';
-    const short = ChainHelper.toShortAddress(chain, contract, 5);
+    const short = ChainHelper.toShortAddress(chain, contract, 7);
     return `r${asset.symbol} <${short}>`;
   }
 
@@ -364,10 +366,10 @@ export class WrapComponent implements OnInit {
 
   syncContractStatus(
     chain: string,
-   address: string,
-   targetChain: string,
-   status: WrapContractStatus,
-   callback: (error: boolean, status: WrapContractStatus) => void
+    address: string,
+    targetChain: string,
+    status: WrapContractStatus,
+    callback: (error: boolean, status: WrapContractStatus) => void
   ) {
     if (status.created === true) return;
     const now = window.performance.now();
@@ -392,11 +394,12 @@ export class WrapComponent implements OnInit {
   wrapSyncContractStatus(asset: AssetItem, targetChain: string) {
     const status = this.wrapContractStatus.get(asset.chain, asset.address, targetChain);
     if (!status) return;
-    this.syncContractStatus(asset.chain, asset.address, targetChain, status, (error, status) => {
-      if (status.created === false) {
-        this.wrapSignCreation(asset, targetChain);
-      }
-    });
+    this.syncContractStatus(asset.chain, asset.addressRaw.to0xHex(), targetChain, status,
+      (error, status) => {
+        if (status.created === false) {
+          this.wrapSignCreation(asset, targetChain);
+        }
+      });
   }
 
   wrapSignCreation(asset: AssetItem, chain: string) {
@@ -424,9 +427,10 @@ export class WrapComponent implements OnInit {
     const chain = this.selectedWrapTargetChain;
     if (!chain) return false;
     const status = this.wrapContractStatus.get(asset.chain, asset.address, chain);
-    if (!status) return false;
+    if (!status || status.created !== false || status.waiting || status.submitting()) {
+      return false;
+    }
     if (this.wrapShowConnectWallet()) return false;
-    if (status.created !== false) return false;
     const originalContract = asset.addressRaw.to0xHex();
     const signing = this.validator.signingCreation(asset.chain, originalContract, chain);
     if (!signing) return false;
@@ -446,27 +450,121 @@ export class WrapComponent implements OnInit {
     return status.created;
   }
 
+  wrapContractWaiting(): boolean {
+    const asset = this.wrapSelectedAsset();
+    if (!asset) return false;
+    const chain = this.selectedWrapTargetChain;
+    if (!chain) return false;
+    const status = this.wrapContractStatus.get(asset.chain, asset.address, chain);
+    if (!status || status.created || !status.waiting) return false;
+    return true;
+  }
+
+  wrapContractSubmitting(): boolean {
+    const asset = this.wrapSelectedAsset();
+    if (!asset) return false;
+    const chain = this.selectedWrapTargetChain;
+    if (!chain) return false;
+    const status = this.wrapContractStatus.get(asset.chain, asset.address, chain);
+    if (!status || status.created) return false;
+    return status.submitting();
+  }
+
   wrapContractCreatable(): boolean {
     const asset = this.wrapSelectedAsset();
     if (!asset) return false;
     const chain = this.selectedWrapTargetChain;
     if (!chain) return false;
-    const created = this.wrapContractCreated();
-    if (created !== false) {
+    const status = this.wrapContractStatus.get(asset.chain, asset.address, chain);
+    if (!status) return false;
+    if (status.created !== false || status.waiting || status.submitting()) {
       return false;
     }
     if (this.wrapShowConnectWallet()) return false;
+    
     const originalContract = asset.addressRaw.to0xHex();
+    const params = this.validator.creationParameters(asset.chain, originalContract, chain);
+    if (!params) return false;
     const percent = this.validator.creationSignedPercent(asset.chain, originalContract, chain);
     if (percent <= 51) return false;
 
-    // todo: check if meet all requirements
-
-    return false;
+    return true;
   }
 
   create() {
-    // todo:
+    if (!this.wrapContractCreatable()) return;
+    const asset = this.wrapSelectedAsset()!;
+    const chain = this.selectedWrapTargetChain!;
+    const status = this.wrapContractStatus.get(asset.chain, asset.address, chain)!;
+    if (ChainHelper.isEvmChain(chain)) {
+      const error = this.evmCreateWrapContract(error => {
+        status.waiting = false;
+        if (!error) {
+          status.submitAt = window.performance.now();
+        }
+      });
+      if (!error) {
+        status.waiting = true;
+      }
+    } else {
+      console.error(`create: unsupported chain ${chain}`);
+    }
+  }
+
+  evmCreateWrapContract(callback: (error: boolean) => void): boolean {
+    const asset = this.wrapSelectedAsset()!;
+    const chain = this.selectedWrapTargetChain!;
+    const originalContract = asset.addressRaw.to0xHex();
+    const params = this.validator.creationParameters(asset.chain, originalContract, chain)!;
+    const signatures = this.validator.creationSigatures(asset.chain, originalContract, chain, 51);
+    if (!signatures) return true;
+    if (!this.web3.connected(chain as ChainStr)) return true;
+
+    const originalChainId = ChainHelper.toChain(asset.chain);
+
+    if (asset.type == TokenTypeStr._20) {
+      try {
+        this.web3.evmCoreContract.methods.createWrappedERC20Token(params.name, params.symbol, params.chain, originalChainId, originalContract, asset.decimals.to0xHex(),
+          ZX + signatures).send({
+            from: this.web3.account()
+          }).then((res: any) => {
+            console.log(typeof res);
+            console.log(res);
+            callback(false);
+          }).catch((error: any) => {
+            console.error('evmCreateWrapContract: error=', error);
+            callback(true);
+          });
+      } catch (e) {
+        console.error('evmCreateWrapContract: exception=', e);
+        return true;
+      }
+    } else if (asset.type == TokenTypeStr._721) {
+      try {
+        this.web3.evmCoreContract.methods.createWrappedERC721Token(params.name, params.symbol,
+          params.chain, originalChainId, originalContract, asset.decimals.to0xHex(),
+          ZX + signatures).send({
+            from: this.web3.account()
+          }).then((res: any) => {
+            console.log(typeof res);
+            console.log(res);
+            callback(false);
+          }).catch((error: any) => {
+            console.error('evmCreateWrapContract: error=', error);
+            callback(true);
+          });
+      } catch (e) {
+        console.error('evmCreateWrapContract: exception=', e);
+        return true;
+      }
+    } else {
+      return true;
+    }
+
+    let msg = marker(`The wrap contract creation request was sent, please check and approve the transaction in your web3 wallet.`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendWarning(msg, { timeout: 20 * 1000 });
+    return false;
   }
 
   wrapCheck(): boolean {
@@ -598,17 +696,11 @@ export class WrapComponent implements OnInit {
     const asset = widget.selectedAsset;
     if (!asset) return '';
     if (asset.type == TokenTypeStr._20) {
-      return this.showAmount(widget.amount, asset);
+      return this.showAmount(widget.amount, asset, true, true);
     } else if (asset.type == TokenTypeStr._721) {
-      return this.showAmount(widget.tokenId, asset, false, true);
+      return this.showAmount(widget.tokenId, asset, true, true);
     }
     return '';
-  }
-
-  wrapShowOriginalChain(): string {
-    const asset =  this.wrapSelectedAsset();
-    if (!asset) return '';
-    return ChainHelper.toChainShown(asset.chain);
   }
 
   wrapOriginalTokenAddress(): string {
@@ -642,7 +734,12 @@ export class WrapComponent implements OnInit {
       return `${amount.toBalanceStr(token.decimals)} ${symbol}`;
     } else if (token.type == TokenTypeStr._721) {
       if (showTokenId) {
-        return `1 ${symbol} (${amount})`;
+        const id = amount.toDec();
+        if (id.length <= 11) {
+          return `1 ${symbol} (${id})`;
+        } else {
+          return `1 ${symbol} (${id.substring(0, 4)}...${id.substring(id.length - 4)})`;
+        }
       } else {
         return `1 ${symbol}`;
       }
@@ -869,20 +966,27 @@ export class WrapComponent implements OnInit {
   }
 
   shortUnwrapContract(): string {
+    if (this.unwrapContractCreated() === false) {
+      let msg = marker(`Not created`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      return msg;
+    }
+
     const token = this.unwrapSelectedToken();
     if (!token) return '';
     const chain = this.selectedWrapTargetChain;
     if (!chain) return '';
     const contract = this.unwrapContract();
     if (!contract) return '';
-    const short = ChainHelper.toShortAddress(chain, contract, 5);
+    const short = ChainHelper.toShortAddress(chain, contract, 7);
     return `r${token.symbol} <${short}>`;
   }
 
   unwrapSyncContractStatus(token: TokenItem, targetChain: string) {
     const status = this.unwrapContractStatus.get(token.chain, token.address, targetChain);
     if (!status) return;
-    this.syncContractStatus(token.chain, token.address, targetChain, status, (error, status) => {
+    this.syncContractStatus(token.chain, token.addressRaw.to0xHex(), targetChain, status,
+      (error, status) => {
       if (status.created === true && this.unwrapTokenEq(token, targetChain)) {
         this.unwrapCheckApproved();
       }
@@ -893,10 +997,11 @@ export class WrapComponent implements OnInit {
     this.syncUnwrapAmount();
     this.syncUnwrapTokenId();
     this.unwrapApproveStatus = ApproveStatus.NONE;
+    this.approveCheckingSince = undefined;
 
     const token = this.unwrapSelectedToken();
     if (!token) return;
-    const chain = this.selectedWrapTargetChain;
+    const chain = this.selectedUnwrapSourceChain;
     if (!chain) return;
     let status = this.unwrapContractStatus.get(token.chain, token.address, chain);
     if (!status) {
@@ -911,9 +1016,23 @@ export class WrapComponent implements OnInit {
     }
   }
 
-  shortUnwrapSender(): string {
+  unwrapSender(): string {
+    const chain = this.selectedUnwrapSourceChain;
+    if (!chain) return '';
+    if (ChainHelper.isEvmChain(chain)) {
+      if (!this.web3.connected(chain as ChainStr)) {
+        return '';
+      }
+      return this.web3.account();
+    }
     return '';
-    // todo:
+  }
+
+  shortUnwrapSender(): string {
+    const chain = this.selectedUnwrapSourceChain;
+    if (!chain) return '';
+    const sender = this.unwrapSender();
+    return ChainHelper.toShortAddress(chain, sender, 5);
   }
 
   unwrapAllowedToken(token: TokenItem): boolean {
@@ -1007,9 +1126,20 @@ export class WrapComponent implements OnInit {
   }
 
   unwrapWalletConnected(): boolean {
+    const chain = this.selectedUnwrapSourceChain;
+    if (!chain) return false;
+    return this.walletConnected(chain as ChainStr);
+  }
+
+  unwrapContractCreated(): boolean | undefined {
     const token = this.unwrapSelectedToken();
-    if (!token) return false;
-    return this.walletConnected(token.chain as ChainStr);
+    if (!token) return undefined;
+    const chain = this.selectedUnwrapSourceChain;
+    if (!chain) return undefined;
+    const status = this.unwrapContractStatus.get(token.chain, token.address, chain);
+    if (!status) return undefined;
+
+    return status.created;
   }
 
   unwrapApprovable(): boolean {
@@ -1017,16 +1147,32 @@ export class WrapComponent implements OnInit {
     if (!token) return false;
     if (!this.raiAccount()) return false;
     if (!this.unwrapWalletConnected()) return false;
+    if (!this.unwrapContractCreated()) return false;
     return this.unwrapApproveStatus == ApproveStatus.REJECTED
       || this.unwrapApproveStatus == ApproveStatus.ERROR;
   }
 
+  unwrapFetchingData(): boolean {
+    const token = this.unwrapSelectedToken();
+    if (!token) return false;
+    const chain = this.selectedUnwrapSourceChain;
+    if (!chain) return false;
+    const status = this.unwrapContractStatus.get(token.chain, token.address, chain);
+    if (!status) return false;
+    if (this.unwrapShowConnectWallet()) return false;
+    return status.created === undefined;
+  }
+
   unwrapApprove() {
-    // todo:
     const token = this.unwrapSelectedToken();
     if (!token) return;
-    if (ChainHelper.isEvmChain(token.chain)) {
-      this.evmTokenApprove(token.chain, token.address, token.type as TokenTypeStr, token.symbol,
+    const chain = this.selectedUnwrapSourceChain;
+    if (!chain) return;
+    const address = this.unwrapContract();
+    if (!address) return;
+    const symbol = `r${token.symbol}`;
+    if (ChainHelper.isEvmChain(chain)) {
+      this.evmTokenApprove(chain, address, token.type as TokenTypeStr, symbol,
         error => {
           if (error) {
             this.unwrapApproveStatus = ApproveStatus.ERROR;
@@ -1041,7 +1187,6 @@ export class WrapComponent implements OnInit {
       return;
     }
     this.unwrapApproveStatus = ApproveStatus.WAITING;
-    // todo:
   }
 
 
@@ -1085,52 +1230,42 @@ export class WrapComponent implements OnInit {
   }
 
   unwrapable(): boolean {
+    return !this.unwrapCheck();
+  }
+
+  unwrapCheck(): boolean {
     const token = this.unwrapSelectedToken();
-    if (!token) return false;
-    if (!this.raiAccount()) return false;
-    if (!this.unwrapWalletConnected()) return false;
-    if (this.unwrapApproveStatus != ApproveStatus.APPROVED) return false;
-    return true;
+    if (!token) return true;
+    const chain = this.selectedUnwrapSourceChain;
+    if (!chain) return true;
+    if (!this.raiAccount()) return true;
+    if (!this.unwrapWalletConnected()) return true;
+    if (token.type == TokenTypeStr._20) {
+      this.syncUnwrapAmount();
+      if (this.unwrapAmountStatus !== 1) return true;
+    } else if (token.type == TokenTypeStr._721) {
+      this.syncUnwrapTokenId();
+      if (this.unwrapTokenIdStatus !== 1) return true;
+    } else {
+      console.error(`unwrapCheck: unsupported token type ${token.type}`);
+      return true;
+    }
+    if (this.unwrapApproveStatus != ApproveStatus.APPROVED) return true;
+    const status = this.unwrapContractStatus.get(token.chain, token.address, chain);
+    if (!status || !status.created || !status.address) return true;
+    return false;
   }
 
   unwrap() {
-    // todo:
-    const token = this.unwrapSelectedToken();
-    if (!token) {
-      let msg = marker(`Please select a token`);
-      this.translate.get(msg).subscribe(res => msg = res);
-      this.notification.sendError(msg);
-      return;
-    }
-
-    if (token.type == TokenTypeStr._20) {
-      this.syncUnwrapAmount();
-      if (this.unwrapAmountStatus !== 1) {
-        let msg = marker(`Please enter a valid amount`);
-        this.translate.get(msg).subscribe(res => msg = res);
-        this.notification.sendError(msg);
-        return;
-      }
-    } else if (token.type == TokenTypeStr._721) {
-      this.syncUnwrapTokenId();
-      if (this.unwrapTokenIdStatus !== 1) {
-        let msg = marker(`Please enter a valid token id`);
-        this.translate.get(msg).subscribe(res => msg = res);
-        this.notification.sendError(msg);
-        return;
-      }
-    } else {
-      console.error(`Unsupported token type: ${token.type}`);
-      return;
-    }
+    const error = this.unwrapCheck();
+    if (error) return;
 
     this.activePanel = Panel.UNWRAP_CONFIRM;
     this.unwrapGasCache = undefined;
     this.unwrapInsufficientFunds = false;
     this.updateGas();
     this.startGasTimer();
-    this.validator.addChain(token.chain as ChainStr);
-    // todo:
+    this.validator.addChain(this.selectedUnwrapSourceChain as ChainStr);
   }
 
   unwrapShowConnectWallet(): boolean {
@@ -1152,12 +1287,13 @@ export class WrapComponent implements OnInit {
   }
 
   async unwrapConnectWallet() {
-    const token = this.unwrapSelectedToken();
-    if (!token) return;
     const chain = this.selectedUnwrapSourceChain;
     if (!chain) return;
     await this.connectWallet(chain as ChainStr);
-    this.unwrapSyncContractStatus(token, chain);
+    const token = this.unwrapSelectedToken();
+    if (token) {
+      this.unwrapSyncContractStatus(token, chain);
+    }
   }
 
   async unwrapDisconnectWallet() {
@@ -1210,7 +1346,6 @@ export class WrapComponent implements OnInit {
       callback(ApproveStatus.ERROR);
     }
   }
-
 
   checkEvmTokenApproved(
     chain: string, address: string, type: string,
@@ -1276,6 +1411,161 @@ export class WrapComponent implements OnInit {
     return raw;
   }
 
+  unwrapShowAmount(showTokenId: boolean = false): string {
+    const token = this.unwrapSelectedToken();
+    if (!token) return '';
+    if (token.type == TokenTypeStr._20) {
+      return this.showAmount(this.unwrapAmount, token);
+    } else if (token.type == TokenTypeStr._721) {
+      return this.showAmount(this.unwrapTokenId, token, showTokenId);
+    }
+    return '';
+  }
+
+  unwrapShowSourceAmount(): string {
+    const token = this.unwrapSelectedToken();
+    if (!token) return '';
+    if (token.type == TokenTypeStr._20) {
+      return this.showAmount(this.unwrapAmount, token, true, true);
+    } else if (token.type == TokenTypeStr._721) {
+      return this.showAmount(this.unwrapTokenId, token, true, true);
+    }
+    return '';
+  }
+
+  unwrapShowSourceChain(): string {
+    if (!this.selectedUnwrapSourceChain) return '';
+    return ChainHelper.toChainShown(this.selectedUnwrapSourceChain);
+  }
+
+  unwrapFeeAndGas(): string {
+    const chain = this.selectedUnwrapSourceChain;
+    if (!chain) return '';
+
+    const nativeToken = this.verified.getNativeToken(chain);
+    if (!nativeToken) return '';
+
+    const gas = this.unwrapGasCache;
+    if (!gas) return '';
+    const fee = this.getFee(chain);
+    if (!fee) return '';
+    const sum = gas.plus(fee);
+
+    return `${sum.toBalanceStr(nativeToken.decimals)} ${nativeToken.symbol}`;
+  }
+
+  unwrapOriginalTokenAddress(): string {
+    const token =  this.unwrapSelectedToken();
+    if (!token) return '';
+    return token.address;
+  }
+
+  unwrapCancel() {
+    this.unwrapGasCache = undefined;
+    this.unwrapInsufficientFunds = false;
+    this.activePanel = Panel.UNWRAP;
+  }
+
+  unwrapConfirm() {
+    if (!this.unwrapWalletConnected()) {
+      let msg = marker(`Your web3 wallet is not connected.`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      this.activePanel = Panel.UNWRAP;
+      return;
+    }
+    if (this.unwrapGasCache === undefined) return;
+    if (this.unwrapInsufficientFunds) return;
+
+    const chain = this.selectedUnwrapSourceChain;
+
+
+    if (ChainHelper.isEvmChain(chain)) {
+      this.unwrapFromEvmChain();
+    } else {
+      console.error(`unwrapConfirm: unsupported chain ${chain}`);
+    }
+    this.unwrapReset();
+  }
+
+  unwrapReset() {
+    if (this.unwrapTokenWidget) {
+      this.unwrapTokenWidget.clear();
+    }
+    this.inputUnwrapAmount = '';
+    this.inputUnwrapTokenId = '';
+    this.unwrapAmountStatus = 0;
+    this.unwrapTokenIdStatus = 0;
+    this.unwrapAmount = U256.zero();
+    this.unwrapTokenId = U256.zero();
+    this.unwrapGasCache = undefined;
+    this.unwrapInsufficientFunds = false;
+    this.unwrapApproveStatus= ApproveStatus.NONE;  
+    this.activePanel = Panel.UNWRAP;
+  }
+
+  unwrapFromEvmChain() {
+    const token = this.unwrapSelectedToken()!;
+    const chain = this.selectedUnwrapSourceChain;
+    const status = this.unwrapContractStatus.get(token.chain, token.address, chain);
+    if (!this.web3.connected(chain as ChainStr)) return;
+    const fee = this.getFee(token.chain);
+    if (!fee) return;
+
+    if (token.type == TokenTypeStr._20) {
+      try {
+        this.web3.evmCoreContract.methods.unwrapERC20Token(status.address!,
+          this.unwrapAmount.to0xHex(), this.raiAccountRaw()!.to0xHex()).estimateGas({
+            from: this.web3.account(), value: fee.to0xHex()
+          }).then((res: number) => {
+            console.log(typeof res);
+            console.log(res);
+          }).catch((error: any) => {
+            console.error('unwrapFromEvmChain: error=', error);
+          });
+      } catch (e) {
+        console.error('unwrapFromEvmChain: exception=', e);
+        return;
+      }
+    } else if (token.type == TokenTypeStr._721) {
+      try {
+        this.web3.evmCoreContract.methods.unwrapERC721Token(status.address,
+          this.unwrapTokenId.to0xHex(), this.raiAccountRaw()!.to0xHex()).estimateGas({
+            from: this.web3.account(), value: fee.to0xHex()
+          }).then((res: number) => {
+            console.log(typeof res);
+            console.log(res);
+          }).catch((error: any) => {
+            console.error('unwrapFromEvmChain: error=', error);
+          });
+      } catch (e) {
+        console.error('unwrapFromEvmChain: exception=', e);
+        return;
+      }
+    } else {
+      return;
+    }
+
+    let msg = marker(`The UNWRAP request was sent, please check and approve the transaction in your web3 wallet.`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendWarning(msg, { timeout: 20 * 1000 });
+  }
+
+  wraps(): UnmapInfo[] {
+    // todo:
+    const unmaps = this.token.accountTokenUnmaps();
+    for (let unmap of unmaps) {
+      const status = this.unmapItemStatus(unmap);
+      if (status === UnmapStatus.NONE) {
+        this.validator.signUnmap(unmap);
+        this.startChainTimer();
+      } else if (status === UnmapStatus.COLLECTED) {
+        this.autoSubmitFreshUnmap(unmap);
+      }
+    }
+    return unmaps;
+  }
+
 }
 
 enum Panel {
@@ -1298,6 +1588,13 @@ class WrapContractStatus {
   lastQuery?: number;
   created?: boolean;
   address?: string;
+  waiting?: boolean;
+  submitAt?: number;
+
+  submitting(): boolean {
+    if (!this.submitAt) return false;
+    return this.submitAt + 60000 > window.performance.now();
+  }
 }
 
 class WrapContractStatusContainer {
