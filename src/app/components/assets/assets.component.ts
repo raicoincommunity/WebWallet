@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import {ActivatedRoute, Router} from '@angular/router';
 import { Subject} from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
@@ -30,11 +30,18 @@ export class AssetsComponent implements OnInit {
   tokenDecimals = 0;
   tokenDecimalsValid = false;
   tokenType = '';
+  tokenWrapped?: boolean;
   detail: AssetInfo | null = null;
   private dnsRegexp = /^[a-z0-9][a-z0-9-\.]{0,252}$/i;
 
   private tokenAddressSubject = new Subject<string>();
   private chainsCache: string[] = [];
+  private tokenInfoSubscription: any;
+  private tokenSymbolSubscription: any;
+  private tokenNameSubscription: any;
+  private tokenTypeSubscription: any;
+  private tokenDecimalsSubscription: any;
+  private tokenWrappedSubscription: any;
 
   constructor(
     private router: Router,
@@ -68,7 +75,7 @@ export class AssetsComponent implements OnInit {
     this.tokenAddressSubject.pipe(debounceTime(500), distinctUntilChanged()).subscribe(
       _ => { this.syncTokenAddress(); });
 
-    this.token.tokenInfo$.subscribe(result => {
+    this.tokenInfoSubscription = this.token.tokenInfo$.subscribe(result => {
       if (result.chain !== this.selectedChain) return;
       if (result.address !== this.formatTokenAddress()) return;
       if (result.existing) {
@@ -92,7 +99,7 @@ export class AssetsComponent implements OnInit {
       }
     });
 
-    this.token.tokenSymbol$.subscribe(result => {
+    this.tokenSymbolSubscription = this.token.tokenSymbol$.subscribe(result => {
       if (result.chain !== this.selectedChain) return;
       if (result.address !== this.formatTokenAddress()) return;
       this.tokenSymbol = result.symbol;
@@ -101,7 +108,7 @@ export class AssetsComponent implements OnInit {
       }
     });
 
-    this.token.tokenName$.subscribe(result => {
+    this.tokenNameSubscription = this.token.tokenName$.subscribe(result => {
       if (result.chain !== this.selectedChain) return;
       if (result.address !== this.formatTokenAddress()) return;
       this.tokenName = result.name;
@@ -110,7 +117,7 @@ export class AssetsComponent implements OnInit {
       }
     });
 
-    this.token.tokenType$.subscribe(result => {
+    this.tokenTypeSubscription = this.token.tokenType$.subscribe(result => {
       if (result.chain !== this.selectedChain) return;
       if (result.address !== this.formatTokenAddress()) return;
       if (result.type === TokenType.INVALID) {
@@ -126,7 +133,7 @@ export class AssetsComponent implements OnInit {
       }
     });
 
-    this.token.tokenDecimals$.subscribe(result => {
+    this.tokenDecimalsSubscription = this.token.tokenDecimals$.subscribe(result => {
       if (result.chain !== this.selectedChain) return;
       if (result.address !== this.formatTokenAddress()) return;
       this.tokenDecimals = result.decimals;
@@ -137,7 +144,50 @@ export class AssetsComponent implements OnInit {
         this.tokenAddressStatus = 2;
       }
     });
-    
+
+    this.tokenWrappedSubscription = this.token.tokenWrapped$.subscribe(result => {
+      if (result.chain !== this.selectedChain) return;
+      if (result.address !== this.formatTokenAddress()) return;
+      this.tokenWrapped = result.wrapped;
+      if (this.tokenInfoValid()) {
+        this.tokenAddressStatus = 1;
+      } else if (this.tokenWrapped) {
+        this.tokenAddressStatus = 2;
+      }
+    });
+  }
+
+  @HostListener('unloaded')
+  ngOnDestroy() {
+    if (this.tokenInfoSubscription) {
+      this.tokenInfoSubscription.unsubscribe();
+      this.tokenInfoSubscription = null;
+    }
+
+    if (this.tokenSymbolSubscription) {
+      this.tokenSymbolSubscription.unsubscribe();
+      this.tokenSymbolSubscription = null;
+    }
+
+    if (this.tokenNameSubscription) {
+      this.tokenNameSubscription.unsubscribe();
+      this.tokenNameSubscription = null;
+    }
+
+    if (this.tokenTypeSubscription) {
+      this.tokenTypeSubscription.unsubscribe();
+      this.tokenTypeSubscription = null;
+    }
+
+    if (this.tokenDecimalsSubscription) {
+      this.tokenDecimalsSubscription.unsubscribe();
+      this.tokenDecimalsSubscription = null;
+    }
+
+    if (this.tokenWrappedSubscription) {
+      this.tokenWrappedSubscription.unsubscribe();
+      this.tokenWrappedSubscription = null;
+    }
   }
 
   tokens(): AssetInfo[] {
@@ -201,6 +251,7 @@ export class AssetsComponent implements OnInit {
     if (!this.tokenName) return false;
     if (!this.tokenType) return false;
     if (this.tokenType == TokenTypeStr._20 && !this.tokenDecimalsValid) return false;
+    if (this.tokenWrapped !== false) return false;
     return true;
   }
 
@@ -270,6 +321,7 @@ export class AssetsComponent implements OnInit {
           this.tokenDecimals = decimals;
           this.tokenDecimalsValid = true;
         }
+        this.tokenWrapped = this.queryTokenWrapped(chain, address);
         if (this.tokenInfoValid()) {
           this.tokenAddressStatus = 1;
         } else {
@@ -588,6 +640,30 @@ export class AssetsComponent implements OnInit {
       this.token.queryTokenDecimals(chain, address, false);
     }
     return decimals;
+  }
+
+  private queryTokenWrapped(chain: string, address: string): boolean | undefined {
+    const verified = this.verified.token(chain, address);
+    if (verified) {
+      return false;
+    }
+    
+    const account = this.wallets.selectedAccountAddress();
+    const asset = this.settings.getAsset(account, chain, address);
+    if (asset !== undefined) {
+      return false;
+    }
+
+    const tokenInfo = this.token.tokenInfo(address, chain);
+    if (tokenInfo && tokenInfo.type != TokenType.INVALID) {
+      return false;
+    }
+    
+    const wrapped = this.token.tokenWrapped(address, chain);
+    if (wrapped === undefined) {
+      this.token.queryTokenWrappedInfo(chain, address, false);
+    }
+    return wrapped;
   }
 
 }

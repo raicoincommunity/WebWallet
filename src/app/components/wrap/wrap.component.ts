@@ -10,8 +10,10 @@ import { TranslateService } from '@ngx-translate/core';
 import { NotificationService } from '../../services/notification.service';
 import { TokenWidgetComponent, TokenItem } from '../token-widget/token-widget.component';
 import { VerifiedTokensService } from '../../services/verified-tokens.service';
-import { TokenService } from '../../services/token.service';
+import { TokenService, WrapInfo, UnwrapInfo } from '../../services/token.service';
 import { BigNumber } from 'bignumber.js';
+import { LogoService } from '../../services/logo.service';
+import { SettingsService } from '../../services/settings.service';
 
 @Component({
   selector: 'app-wrap',
@@ -31,6 +33,10 @@ export class WrapComponent implements OnInit {
   private wrapGasCache: U256 | undefined;
   private wrapContractStatus = new WrapContractStatusContainer();
   private web3Subscription: any;
+  private freshWraps: { [hash: string]: boolean } = {};
+  private waitingWraps: { [hash: string]: boolean } = {};
+  private submittingWraps: { [hash: string]: number } = {};
+  private wrapSubscription: any;
 
   // unwrap
   selectedUnwrapSourceChain = '';
@@ -53,7 +59,7 @@ export class WrapComponent implements OnInit {
   private approveTimer: any = null;
   private wrapContractStatusTimer: any = null;
   private unwrapContractStatusTimer: any = null;
-
+  private chainTimer: any = null;
 
   constructor(
     private wallets: WalletsService,
@@ -62,7 +68,9 @@ export class WrapComponent implements OnInit {
     private translate: TranslateService,
     private notification: NotificationService,
     private verified: VerifiedTokensService,
-    private token: TokenService
+    private token: TokenService,
+    private settings: SettingsService,
+    private logo: LogoService
   ) {
     this.unwrapTokenFilter = (token: TokenItem) => this.unwrapAllowedToken(token);
   }
@@ -96,6 +104,10 @@ export class WrapComponent implements OnInit {
       clearInterval(this.unwrapContractStatusTimer);
       this.unwrapContractStatusTimer = null;
     }
+    if (this.chainTimer) {
+      clearInterval(this.chainTimer);
+      this.chainTimer = null;
+    }
   }
 
   startWrapContractStatusTimer() {
@@ -103,6 +115,30 @@ export class WrapComponent implements OnInit {
     this.wrapContractStatusTimer = setInterval(() => {
       this.processWrapContractStatusTimer();
     }, 5000);
+  }
+
+  updateChainInfo() {
+    if (!this.chainTimer) return;
+
+    const queried: { [chain: string]: boolean } = {};
+    for (let wrap of this.wraps()) {
+      if (wrap.targetConfirmed) continue;
+      const chain = wrap.toChain;
+      if (queried[chain]) continue;
+      this.validator.syncChainHeadHeight(chain as ChainStr);
+      queried[chain] = true;
+    }
+
+    const unwraps = this.unwraps();
+    if (unwraps.length > 0 && !unwraps[0].confirmed) {
+      this.validator.syncChainHeadHeight(unwraps[0].fromChain as ChainStr);
+      queried[unwraps[0].fromChain] = true;
+    }
+
+    if (Object.keys(queried).length === 0) {
+      clearInterval(this.chainTimer);
+      this.approveTimer = null;
+    }
   }
 
   processWrapContractStatusTimer() {
@@ -192,6 +228,11 @@ export class WrapComponent implements OnInit {
 
     clearInterval(this.unwrapContractStatusTimer);
     this.unwrapContractStatusTimer = null;
+  }
+
+  startChainTimer() {
+    if (this.chainTimer !== null) return;
+    this.chainTimer = setInterval(() => this.updateChainInfo(), 5000);
   }
 
   setPanel(panel: string) {
@@ -944,7 +985,7 @@ export class WrapComponent implements OnInit {
   unwrapSourceChainChanged(selected: string) {
     if (selected) {
       this.validator.addChain(selected as ChainStr);
-      // todo: this.token.addTokenMapInfos(selected);
+      this.token.addTokenUnwrapInfos(selected);
     }
     if (this.unwrapTokenWidget) {
       this.unwrapTokenWidget.clear();
@@ -1268,6 +1309,15 @@ export class WrapComponent implements OnInit {
     this.validator.addChain(this.selectedUnwrapSourceChain as ChainStr);
   }
 
+  unwraps() {
+    if (!this.selectedUnwrapSourceChain) return [];
+    const unwraps = this.token.accountTokenUnwraps(this.selectedUnwrapSourceChain);
+    if (unwraps.length > 0 && !unwraps[0].confirmed) {
+      this.startChainTimer();
+    }
+    return unwraps;
+  }
+
   unwrapShowConnectWallet(): boolean {
     const chain = this.selectedUnwrapSourceChain;
     if (!chain) return false;
@@ -1551,19 +1601,324 @@ export class WrapComponent implements OnInit {
     this.notification.sendWarning(msg, { timeout: 20 * 1000 });
   }
 
-  wraps(): UnmapInfo[] {
-    // todo:
-    const unmaps = this.token.accountTokenUnmaps();
-    for (let unmap of unmaps) {
-      const status = this.unmapItemStatus(unmap);
-      if (status === UnmapStatus.NONE) {
-        this.validator.signUnmap(unmap);
+  autoSubmitFreshWrap(wrap: WrapInfo) {
+    if (this.freshWraps[wrap.sourceTxn] !== true) return;
+    if (this.hasWaitingWraps()) return;
+    if (wrap.targetValid()) return;
+    if (!this.walletConnected(wrap.toChain as ChainStr)) return;
+
+    this.wrapSubmit(wrap);
+    delete this.freshWraps[wrap.sourceTxn];
+  }
+
+  wraps(): WrapInfo[] {
+    const wraps = this.token.accountTokenWraps();
+    for (let wrap of wraps) {
+      const status = this.wrapItemStatus(wrap);
+      if (status === WrapStatus.NONE) {
+        this.validator.signWrap(wrap);
         this.startChainTimer();
-      } else if (status === UnmapStatus.COLLECTED) {
-        this.autoSubmitFreshUnmap(unmap);
+      } else if (status === WrapStatus.COLLECTED) {
+        this.autoSubmitFreshWrap(wrap); 
       }
     }
-    return unmaps;
+    return wraps;
+  }
+
+  noWraps(): boolean {
+    return this.token.noWraps();
+  }
+
+  moreWraps(): boolean {
+    return this.token.moreWraps()
+  }
+
+  loadMoreWraps() {
+    this.token.loadMoreWraps();
+  }
+
+  wrapItemTargetChainLogo(wrap: WrapInfo): string {
+    return this.logo.getChainLogo(wrap.toChain);
+  }
+
+  wrapItemShowTargetChain(wrap: WrapInfo): string {
+    return ChainHelper.toChainShown(wrap.toChain);
+  }
+
+  wrapItemAmount(wrap: WrapInfo): string {
+    const symbol = this.queryTokenSymbol(wrap.chain, wrap.address);
+    if (!symbol) return '';
+    if (wrap.type === TokenType._20) {
+      return `${wrap.value.toBalanceStr(wrap.decimals!)} ${symbol}`;
+    } else if (wrap.type === TokenType._721) {
+      return `1 ${symbol}`;
+    } else {
+      return '';
+    }
+  }
+
+  wrapItemStatus(wrap: WrapInfo): string {
+    if (wrap.targetConfirmed) {
+      return WrapStatus.CONFIRMED;
+    } else if (wrap.targetValid()) {
+      return WrapStatus.CONFIRMING;
+    } else if (this.waitingWraps[wrap.sourceTxn]) {
+      return WrapStatus.WAITING;
+    } else if (this.submittingWraps[wrap.sourceTxn]) {
+      if (this.submittingWraps[wrap.sourceTxn] + 60000 < window.performance.now()) {
+        delete this.submittingWraps[wrap.sourceTxn];
+      }
+      return WrapStatus.SUBMITING;
+    } else {
+      if (!this.validator.signing(wrap.account, wrap.height)) {
+        return WrapStatus.NONE;
+      }
+
+      const percent = this.validator.signedPercent(wrap.account, wrap.height);
+      if (percent > 51) return WrapStatus.COLLECTED;
+      return WrapStatus.COLLECTING;
+    }
+  }
+
+  wrapShowSpin(wrap: WrapInfo): boolean {
+    const status = this.wrapItemStatus(wrap);
+    if (status === WrapStatus.COLLECTING || status === WrapStatus.WAITING
+      || status === WrapStatus.SUBMITING) {
+      return true;
+    }
+    return false;
+  }
+
+  wrapSignedPercent(wrap: WrapInfo): number {
+    return this.validator.signedPercent(wrap.account, wrap.height);
+  }
+
+  wrapItemConfirms(wrap: WrapInfo): string {
+    const info = this.validator.chainInfo(wrap.toChain as ChainStr);
+    if (!info || !wrap.targetValid()) return '';
+
+    const targetHeight = wrap.targetHeight.toNumber();
+    if (targetHeight > info.height) {
+      return `0 / ${info.confirmations}`;
+    } else {
+      return `${info.height - targetHeight} / ${info.confirmations}`;
+    }
+  }
+
+  wrapShowStatus(wrap: WrapInfo): string {
+    const status = this.wrapItemStatus(wrap);
+    let msg = '';
+    let param: any;
+    if (status === WrapStatus.COLLECTING) {
+      msg = marker(`Collecting signatures ({ percent }%)`);
+      param = { 'percent': this.wrapSignedPercent(wrap) };
+    } else if (status === WrapStatus.COLLECTED) {
+      msg = marker('Signatures collected ({ percent }%), click to submit the transaction to { chain }');
+      param = {
+        'percent': this.validator.signedPercent(wrap.account, wrap.height),
+        'chain': ChainHelper.toChainShown(wrap.toChain),
+      };
+    } else if (status === WrapStatus.WAITING) {
+      msg = marker('Waiting');
+    } else if (status === WrapStatus.SUBMITING) {
+      msg = marker('Submiting transaction to { chain }');
+      param = { 'chain': ChainHelper.toChainShown(wrap.toChain) }
+    } else if (status === WrapStatus.CONFIRMED) {
+      msg = marker('Success');
+    }
+
+    if (!msg) return '';
+    this.translate.get(msg, param).subscribe(res => msg = res);    
+    return msg;
+  }
+
+  wrapSubmit(wrap: WrapInfo) {
+    if (!this.walletConnected(wrap.toChain as ChainStr)) {
+      let msg = marker(`Please connect your web3 wallet first`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    }
+
+    if (ChainHelper.isEvmChain(wrap.toChain)) {
+      const error = this.wrapToEvmChain(wrap, error => {
+        delete this.waitingWraps[wrap.sourceTxn];
+        if (!error) {
+          this.submittingWraps[wrap.sourceTxn] = window.performance.now();
+        }
+      });
+      if (!error) {
+        this.waitingWraps[wrap.sourceTxn] = true;
+      }
+    } else {
+      console.error(`Unsupported chain: ${wrap.toChain}`);
+      return;
+    }
+  }
+
+  wrapRetry(wrap: WrapInfo) {
+    if (!this.wrapAssetWidget) return;
+    this.wrapAssetWidget.clearAmount();
+    this.wrapAssetWidget.selectAssetByTokenAddress(wrap.chain, wrap.address);  
+    this.selectedWrapTargetChain = wrap.toChain;
+    this.wrapSubmit(wrap);
+  }
+
+  wrapToEvmChain(wrap: WrapInfo, callback: (error: boolean) => void): boolean {
+    if (!this.web3.connected(wrap.toChain as ChainStr)) return true;
+    const fee = this.getFee(wrap.toChain);
+    if (!fee) return true;
+    let signatures = this.validator.transferSignatures(wrap.account, wrap.height, 51);
+    if (!signatures) {
+      console.error(`MapComponent::wrapToEvmChain: failed to get signatures`);
+      return true;
+    }
+    signatures = ZX + signatures;
+
+    if (wrap.type == TokenType._20) {
+      try {
+        this.web3.evmCoreContract.methods.wrapERC20Token(wrap.chainId, wrap.addressRaw.to0xHex(),
+          wrap.fromRaw.to0xHex(), wrap.toAccountRaw.toEthAddress(),
+          ZX + wrap.sourceTxn.toLowerCase(), wrap.height, wrap.value.to0xHex(), signatures).send({
+            from: this.web3.account(), value: fee.to0xHex()
+          }).then((res: any) => {
+            console.log(typeof res);
+            console.log(res);
+            callback(false);
+          }).catch((error: any) => {
+            console.error('wrapERC20Token error:', error);
+            callback(true);
+          });
+      } catch (e) {
+        console.error('wrapERC20Token exception:', e);
+        return true;
+      }
+    } else if (wrap.type == TokenType._721) {
+      try {
+        this.web3.evmCoreContract.methods.wrapERC721Token(wrap.chainId, wrap.addressRaw.to0xHex(),
+        wrap.fromRaw.to0xHex(), wrap.toAccountRaw.toEthAddress(),
+        ZX + wrap.sourceTxn.toLowerCase(), wrap.height, wrap.value.to0xHex(), signatures).send({
+            from: this.web3.account(), value: fee.to0xHex()
+          }).then((res: any) => {
+            console.log(typeof res);
+            console.log(res);
+            callback(false);
+          }).catch((error: any) => {
+            console.error('wrapERC721Token error:', error);
+            callback(true);
+          });
+      } catch (e) {
+        console.error('wrapERC721Token exception:', e);
+        return true;
+      }
+    } else {
+      console.error('wrapToEvmChain: unknown token type ', wrap.type);
+      return true;
+    }
+
+    let msg = marker(`[2/2] Submitting {wrap} transaction to {chain}, please check and approve it in your web3 wallet`);
+    const param = { 'wrap': 'WRAP', 'chain': ChainHelper.toChain(wrap.toChain) };
+    this.translate.get(msg, param).subscribe(res => msg = res);    
+    this.notification.sendWarning(msg);
+    return false;
+  }
+
+  unwrapItemAmount(unwrap: UnwrapInfo): string {
+    const symbol = this.queryTokenSymbol(unwrap.chain, unwrap.address);
+    if (!symbol) return '';
+    let decimals = unwrap.decimals;
+    if (unwrap.type === TokenType._20) {
+      if (decimals === undefined) {
+        decimals = this.queryTokenDecimals(unwrap.chain, unwrap.address);
+        if (decimals === undefined) {
+          return '';
+        }
+      }
+      return `${unwrap.value.toBalanceStr(decimals)} ${symbol}`;
+    } else if (unwrap.type === TokenType._721) {
+      return `1 ${symbol}`;
+    } else {
+      return '';
+    }
+  }
+
+  unwrapItemSuccess(unwrap: UnwrapInfo): boolean {
+    return unwrap.confirmed;
+  }
+
+  unwrapItemConfirms(unwrap: UnwrapInfo): string {
+    const info = this.validator.chainInfo(unwrap.fromChain as ChainStr);
+    if (!info) return '';
+    if (unwrap.height > info.height) {
+      return `0 / ${info.confirmations}`;
+    } else {
+      return `${info.height - unwrap.height} / ${info.confirmations}`;
+    }
+  }
+
+  noUnwraps(): boolean {
+    if (!this.selectedUnwrapSourceChain) return false;
+    return this.token.noUnwraps(this.selectedUnwrapSourceChain);
+  }
+
+  moreUnwraps(): boolean {
+    if (!this.selectedUnwrapSourceChain) return false;
+    return this.token.moreUnwraps(this.selectedUnwrapSourceChain)
+  }
+
+  loadMoreUnwraps() {
+    if (!this.selectedUnwrapSourceChain) return;
+    this.token.loadMoreUnwraps(this.selectedUnwrapSourceChain);
+  }
+
+  private queryTokenSymbol(chain: string, address: string): string {
+    const verified = this.verified.token(chain, address);
+    if (verified) {
+      return verified.symbol;
+    }
+    
+    const account = this.wallets.selectedAccountAddress();
+    const asset = this.settings.getAsset(account, chain, address);
+    if (asset !== undefined) {
+      return asset.symbol;
+    }
+
+    const symbol = this.token.tokenSymbol(address, chain);
+    if (symbol) return symbol;
+    this.token.queryTokenSymbol(chain, address, false);
+
+    return '';
+  }
+
+  private hasWaitingWraps(): boolean {
+    for (let i in this.waitingWraps) {
+      return true;
+    }
+    return false;
+  }
+
+  private queryTokenDecimals(chain: string, address: string): number | undefined {
+    const verified = this.verified.token(chain, address);
+    if (verified) {
+      return verified.decimals;
+    }
+    
+    const account = this.wallets.selectedAccountAddress();
+    const asset = this.settings.getAsset(account, chain, address);
+    if (asset !== undefined) {
+      return +asset.decimals;
+    }
+
+    const tokenInfo = this.token.tokenInfo(address, chain);
+    if (tokenInfo && tokenInfo.type != TokenType.INVALID) {
+      return tokenInfo.decimals.toNumber();
+    }
+    
+    const decimals = this.token.tokenDecimals(address, chain);
+    if (decimals === undefined) {
+      this.token.queryTokenDecimals(chain, address, false);
+    }
+    return decimals;
   }
 
 }
@@ -1619,4 +1974,14 @@ class WrapContractStatusContainer {
     }
     this.entries[chain][address][targetChain] = status;
   }
-};
+}
+
+enum WrapStatus {
+  NONE = '',
+  COLLECTING = 'collecting',
+  COLLECTED = 'collected',
+  WAITING = 'waiting',
+  SUBMITING = 'submitting',
+  CONFIRMING = 'confirming',
+  CONFIRMED = 'confirmed',
+}

@@ -34,6 +34,8 @@ export class TokenService implements OnDestroy {
   private tokenTypeQueries: {[chainAddress: string]: number} = {};
   private tokenDecimalsEntries: {[chain: string]: {[address: string]: number}} = {};
   private tokenDecimalsQueries: {[chainAddress: string]: number} = {};
+  private tokenWrappedInfos: {[chain: string]: {[address: string]: boolean}} = {};
+  private tokenWrappedQueries: {[chainAddress: string]: number} = {};
   private issuerSubject = new Subject<{account: string, created: boolean}>();
   private tokenIdSubject = new Subject<{ chain: string, address: string, id: U256, existing: boolean }>();
   private accountSyncedSubject = new Subject<{account: string, synced: boolean}>();
@@ -43,6 +45,7 @@ export class TokenService implements OnDestroy {
   private tokenNameSubject = new Subject<{ chain: string, address: string, name: string }>();
   private tokenTypeSubject = new Subject<{ chain: string, address: string, type: TokenType }>();
   private tokenDecimalsSubject = new Subject<{ chain: string, address: string, decimals: number }>();
+  private tokenWrappedSubject = new Subject<{ chain: string, address: string, wrapped: boolean }>();
   private accountSwapInfoSubject = new Subject<AccountSwapInfo>();
   private orderInfoSubject = new Subject<OrderInfo>();
   private searchOrderSubject = new Subject<{by: string, hash?: U256, fromToken?: TokenKey, toToken?: TokenKey, limitBy?: SearchLimitBy, limitValue?: U256, more?:boolean, orders: OrderInfo[]}>();
@@ -61,6 +64,7 @@ export class TokenService implements OnDestroy {
   public tokenName$ = this.tokenNameSubject.asObservable();
   public tokenType$ = this.tokenTypeSubject.asObservable();
   public tokenDecimals$ = this.tokenDecimalsSubject.asObservable();
+  public tokenWrapped$ = this.tokenWrappedSubject.asObservable();
   public accountSwapInfo$ = this.accountSwapInfoSubject.asObservable();
   public orderInfo$ = this.orderInfoSubject.asObservable();
   public searchOrder$ = this.searchOrderSubject.asObservable();
@@ -201,6 +205,20 @@ export class TokenService implements OnDestroy {
     return info.unmaps.unmaps;
   }
 
+  accountTokenWraps(account?: string): WrapInfo[] {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return [];
+    return info.wraps.wraps;
+  }
+
+  accountTokenUnwraps(chain: string, account?: string): UnwrapInfo[] {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info || !info.unwraps[chain]) return [];
+    return info.unwraps[chain].unwraps;
+  }
+
   balance(chain: string, address: string, account?: string): { amount: U256, type: TokenType, decimals: U8 } {
     const zero = { amount: U256.zero(), type: TokenType.INVALID, decimals: U8.zero() };
     if (!account) account = this.wallets.selectedAccountAddress();
@@ -275,6 +293,7 @@ export class TokenService implements OnDestroy {
   }
 
   tokenSymbol(address: string | U256, chain: string): string | undefined {
+    if (ChainHelper.isRaicoin(chain)) return undefined;
     if (address instanceof U256) {
       const ret = ChainHelper.rawToAddress(chain, address);
       if (ret.error) {
@@ -287,6 +306,7 @@ export class TokenService implements OnDestroy {
   }
 
   tokenName(address: string | U256, chain: string): string | undefined {
+    if (ChainHelper.isRaicoin(chain)) return undefined;
     if (address instanceof U256) {
       const ret = ChainHelper.rawToAddress(chain, address);
       if (ret.error) {
@@ -299,6 +319,7 @@ export class TokenService implements OnDestroy {
   }
 
   tokenType(address: string | U256, chain: string): TokenType | undefined {
+    if (ChainHelper.isRaicoin(chain)) return undefined;
     if (address instanceof U256) {
       const ret = ChainHelper.rawToAddress(chain, address);
       if (ret.error) {
@@ -311,6 +332,7 @@ export class TokenService implements OnDestroy {
   }
 
   tokenDecimals(address: string | U256, chain: string): number | undefined {
+    if (ChainHelper.isRaicoin(chain)) return undefined;
     if (address instanceof U256) {
       const ret = ChainHelper.rawToAddress(chain, address);
       if (ret.error) {
@@ -320,6 +342,19 @@ export class TokenService implements OnDestroy {
       address = ret.address!;
     }
     return this.tokenDecimalsEntries[chain]?.[address];
+  }
+
+  tokenWrapped(address: string | U256, chain: string): boolean | undefined {
+    if (!ChainHelper.isWrapableChain(chain)) return false;
+    if (address instanceof U256) {
+      const ret = ChainHelper.rawToAddress(chain, address);
+      if (ret.error) {
+        console.error(`TokenService::tokenWrapped: failed to convert raw to address, ${address.toHex()}`);
+        return undefined;
+      }
+      address = ret.address!;
+    }
+    return this.tokenWrappedInfos[chain]?.[address];
   }
 
   tokenIdOwner(token: TokenKey, tokenId: U256): string {
@@ -756,6 +791,22 @@ export class TokenService implements OnDestroy {
     return unmaps.unmaps.length === 0 && unmaps.synced;
   }
 
+  noWraps(account?: string): boolean {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return false;
+    const wraps = info.wraps;
+    return wraps.wraps.length === 0 && wraps.synced;
+  }
+
+  noUnwraps(chain: string, account?: string): boolean {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return false;
+    const unwraps = info.unwraps[chain];
+    return unwraps && unwraps.unwraps.length === 0 && unwraps.synced;
+  }
+
   moreMaps(chain: string, account?: string): boolean {
     if (!account) account = this.wallets.selectedAccountAddress();
     const info = this.accounts[account];
@@ -769,6 +820,21 @@ export class TokenService implements OnDestroy {
     const info = this.accounts[account];
     if (!info) return false;
     return info.unmaps.more && info.unmaps.synced;
+  }
+
+  moreWraps(account?: string): boolean {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return false;
+    return info.wraps.more && info.wraps.synced;
+  }
+
+  moreUnwraps(chain: string, account?: string): boolean {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return false;
+    const unwraps = info.unwraps[chain];
+    return unwraps && unwraps.more && unwraps.synced;
   }
 
   loadMoreSwaps(account?: string) {
@@ -798,6 +864,24 @@ export class TokenService implements OnDestroy {
     this.queryTokenUnmapInfos(account);
   }
 
+  loadMoreWraps(account?: string) {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return;
+    info.wraps.expectedRecentWraps += 10;
+    this.queryTokenWrapInfos(account);
+  }
+
+  loadMoreUnwraps(chain: string, account?: string) {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return;
+    const unwraps = info.unwraps[chain];
+    if (!unwraps) return;
+    unwraps.expectedRecentUnwraps += 10;
+    this.queryPendingTokenUnwrapInfos(account, chain);
+  }
+
   addTokenMapInfos(chain: string, account?: string) {
     if (!account) account = this.wallets.selectedAccountAddress();
     const info = this.accounts[account];
@@ -805,6 +889,15 @@ export class TokenService implements OnDestroy {
     if (info.maps[chain]) return;
     info.maps[chain] = new AccountTokenMapInfos();
     this.syncMapInfos(account, false);
+  }
+
+  addTokenUnwrapInfos(chain: string, account?: string) {
+    if (!account) account = this.wallets.selectedAccountAddress();
+    const info = this.accounts[account];
+    if (!info) return;
+    if (info.unwraps[chain]) return;
+    info.unwraps[chain] = new AccountTokenUnwrapInfos();
+    this.syncUnwrapInfos(account, false);
   }
 
   orderCancelling(account: string, height: U64): boolean {
@@ -1366,6 +1459,8 @@ export class TokenService implements OnDestroy {
     for (let address in this.accounts) {
       this.syncMapInfos(address, force);
       this.syncUnmapInfos(address, force);
+      this.syncWrapInfos(address, force);
+      this.syncUnwrapInfos(address, force);
     }
 
   }
@@ -1418,7 +1513,52 @@ export class TokenService implements OnDestroy {
     } else {
       info.unmaps.nextSyncAt = now + 10000;
     }
-}
+  }
+
+  private syncWrapInfos(address: string, force?: boolean) {
+    const info = this.accounts[address];
+    if (!info) return;
+    const now = window.performance.now();
+    if (!force) {
+      if (info.wraps.nextSyncAt > now) return;
+      if (info.wraps.lastSyncAt > now - 15000 && info.wraps.synced) {
+        info.wraps.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
+        return;
+      }
+    }
+
+    this.queryTokenWrapInfos(address);
+    info.wraps.lastSyncAt = now;
+    if (info.wraps.synced) {
+      info.wraps.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
+    } else {
+      info.wraps.nextSyncAt = now + 10000;
+    }
+  }
+
+  private syncUnwrapInfos(address: string, force?: boolean) {
+    const info = this.accounts[address];
+    if (!info) return;
+    const now = window.performance.now();
+    for (let chain in info.unwraps) {
+      const unwrap = info.unwraps[chain];
+      if (!force) {
+        if (unwrap.nextSyncAt > now) continue;
+        if (unwrap.lastSyncAt > now - 15000 && unwrap.synced) {
+          unwrap.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
+          continue;
+        }
+      }
+
+      this.queryPendingTokenUnwrapInfos(address, chain);
+      unwrap.lastSyncAt = now;
+      if (unwrap.synced) {
+        unwrap.nextSyncAt = now + 150000 + Math.random() * 300 * 1000;
+      } else {
+        unwrap.nextSyncAt = now + 10000;
+      }
+    }
+  }
 
   private updateMakerStatus() {
     const now = this.server.getTimestamp();
@@ -1567,6 +1707,9 @@ export class TokenService implements OnDestroy {
         case 'pending_token_map_infos':
           this.processPendingTokenMapInfosAck(message);
           break;
+        case 'pending_token_unwrap_infos':
+          this.processPendingTokenUnwrapInfosAck(message);
+          break;
         case 'previous_account_token_links':
           this.processAccountTokenLinksQueryAck(message, true);
           break;
@@ -1590,6 +1733,12 @@ export class TokenService implements OnDestroy {
           break;
         case 'token_unmap_infos':
           this.processTokenUnmapInfosAck(message);
+          break;
+        case 'token_wrap_infos':
+          this.processTokenWrapInfosAck(message);
+          break;
+        case 'token_unwrap_infos':
+          this.processTokenUnwrapInfosAck(message);
           break;
         case 'token_receivables':
           this.processTokenReceivablesQueryAck(message);
@@ -1690,6 +1839,9 @@ export class TokenService implements OnDestroy {
           break;
         case 'token_decimals':
           this.processTokenDecimalsAck(message);
+          break;
+        case 'token_wrapped':
+          this.processTokenWrappedAck(message);
           break;
         default:
           break;
@@ -2093,6 +2245,33 @@ export class TokenService implements OnDestroy {
     this.queryTokenMapInfos(account, chain, maps.confirmedTail);
   }
 
+  private processPendingTokenUnwrapInfosAck(message: any) {
+    if (message.error || !message.account) return;
+    const account = message.account;
+    const info = this.accounts[account];
+    if (!info) return;
+    let chain = message.chain;
+    if (!chain) {
+      chain = ChainHelper.toChainStr(+message.chain_id);
+    }
+
+    const unwraps = info.unwraps[chain];
+    if (!unwraps) return;
+    unwraps.purgePendings();
+    
+    if (message.unwraps) {
+      for (let i of message.unwraps) {
+        const unwrap = new UnwrapInfo();
+        const error = unwrap.fromJson(i);
+        if (error) return;
+        unwrap.confirmed = false;
+        unwraps.insert(unwrap);
+      }
+    }
+
+    this.queryTokenUnwrapInfos(account, chain, unwraps.confirmedTail);
+  }
+
   private processAccountTokenLinksQueryAck(message: any, isPrevious: boolean) {
     if (message.error || !message.token_links) return;
     const account = message.account;
@@ -2353,6 +2532,88 @@ export class TokenService implements OnDestroy {
       this.queryTokenUnmapInfos(account, tail.height - 1);
     } else {
       unmaps.synced = true;
+    }
+  }
+
+  private processTokenWrapInfosAck(message: any) {
+    if (message.error || !message.account || !message.more) return;
+    const account = message.account;
+    const info = this.accounts[account];
+    if (!info) return;
+    const wraps = info.wraps;
+
+    let last: WrapInfo | undefined;
+    let existing = false;
+    if (message.wraps) {
+      for (let i of message.wraps) {
+        const wrap = new WrapInfo();
+        const error = wrap.fromJson(i);
+        if (error) return;
+        existing = wraps.insert(wrap);
+        last = wrap;
+      }
+    }
+
+    wraps.more = message.more === 'true';
+    if (!wraps.more || !last) {
+      wraps.synced = true;
+      return;
+    }
+    const tail = wraps.tail();
+    if (!tail) {
+      console.error(`TokenService::processTokenWrapInfosAck: unexpected tail=`, tail);
+      return;
+    }
+
+    const pendingTail = wraps.pendingTail();
+    if ((last.height > tail.height && !existing) // gap
+      || (pendingTail && pendingTail.height < last.height)) {
+      this.queryTokenWrapInfos(account, last.height - 1);
+    } else if(wraps.size() < wraps.expectedRecentWraps) {
+      this.queryTokenWrapInfos(account, tail.height - 1);
+    } else {
+      wraps.synced = true;
+    }
+  }
+
+  private processTokenUnwrapInfosAck(message: any) {
+    if (message.error || !message.account || !message.more) return;
+    const account = message.account;
+    const info = this.accounts[account];
+    if (!info) return;
+    let chain = message.chain;
+    if (!chain) {
+      chain = ChainHelper.toChainStr(+message.chain_id);
+    }
+
+    const unwraps = info.unwraps[chain];
+    if (!unwraps) return;
+    
+    let previous: UnwrapInfo | undefined;
+    let inserted = false;
+    if (message.unwraps) {
+      for (let i of message.unwraps) {
+        const unwrap = new UnwrapInfo();
+        const error = unwrap.fromJson(i);
+        if (error) return;
+        unwrap.confirmed = true;
+        inserted = unwraps.insert(unwrap);
+        previous = unwrap;
+      }
+    }
+
+    unwraps.more = message.more === 'true';
+    if (!unwraps.more) {
+      unwraps.synced = true;
+      return;
+    }
+
+    if (inserted) {
+      this.queryTokenUnwrapInfos(account, chain, previous);
+    } else if (unwraps.unwraps.length < unwraps.expectedRecentUnwraps) {
+      this.queryTokenUnwrapInfos(account, chain, unwraps.confirmedTail);
+    } else {
+      unwraps.synced = true;
     }
   }
 
@@ -2850,6 +3111,20 @@ export class TokenService implements OnDestroy {
     this.tokenDecimalsSubject.next({ chain, address, decimals });
   }
 
+  private processTokenWrappedAck(message: any) {
+    if (message.error || !message.chain || !message.address || !message.wrapped) return;
+    const chain = message.chain;
+    const address = message.address;
+    
+    if (!this.tokenWrappedInfos[chain]) {
+      this.tokenWrappedInfos[chain] = {};
+    }
+    const wrapped = message.wrappped === 'true';
+    this.tokenWrappedInfos[chain][address] = wrapped;
+
+    this.tokenWrappedSubject.next({ chain, address, wrapped });
+  }
+
   private updateAccountTokensInfo(address: string, json: any) {
     const info = this.accounts[address];
     if (!info) return;
@@ -3288,6 +3563,48 @@ export class TokenService implements OnDestroy {
     this.server.send(message);
   }
 
+  queryTokenWrappedInfo(chain: string, address: string | U256, force: boolean = false) {
+    if (ChainHelper.isRaicoin(chain)) return;
+    let addressRaw;
+    let addressEncoded;
+    if (address instanceof U256) {
+      const ret = ChainHelper.rawToAddress(chain, address);
+      if (ret.error) {
+        console.error(`queryTokenWrappedInfo: convert raw to address failed, chain=${chain}, raw=${address.toHex()}`);
+        return;
+      }
+      addressRaw = address.toHex();
+      addressEncoded = ret.address;
+    } else {
+      const ret = ChainHelper.addressToRaw(chain, address);
+      if (ret.error) {
+        console.error(`queryTokenWrappedInfo: convert address to raw failed, chain=${chain}, address=${address}`);
+        return;
+      }
+      addressRaw = ret.raw!.toHex();
+      addressEncoded = address;
+    }
+
+    if (!force) {
+      const key = `${chain}_${addressRaw}`;
+      const lastQuery = this.tokenWrappedQueries[key];
+      if (lastQuery && lastQuery > (this.server.getTimestamp() - 300)) return;
+      this.tokenWrappedQueries[key] = this.server.getTimestamp();
+    }
+
+    const chainId = ChainHelper.toChain(chain)
+    const message: any = {
+      action: 'token_wrapped',
+      service: this.VALIDATOR_SERVICE,
+      chain,
+      chain_id: `${chainId}`,
+      address: addressEncoded,
+      address_raw: addressRaw,
+    };
+
+    this.server.send(message);
+  }
+
   private queryTokenIdInfo(address: string, id: U256, chain?: string) {
     if (!chain) chain = environment.current_chain;
     const ret = ChainHelper.addressToRaw(chain, address);
@@ -3476,6 +3793,66 @@ export class TokenService implements OnDestroy {
       service: this.SERVICE,
       account,
       height,
+      count: '10',
+    };
+
+    this.server.send(message);
+  }
+
+  private queryTokenWrapInfos(account: string, height?: number | string) {
+    if (height === undefined) {
+      height = U64.max().toDec();
+    } else if (typeof height === 'number') {
+      if (height < 0) {
+        console.error(`TokenService::queryTokenWrapInfos: invalid height=`, height);
+        return
+      }
+      height = `${height}`;
+    }
+
+    const message: any = {
+      action: 'token_wrap_infos',
+      service: this.SERVICE,
+      account,
+      height,
+      count: '10',
+    };
+
+    this.server.send(message);
+  }
+
+  private queryPendingTokenUnwrapInfos(account: string, chain: string) {
+    const message: any = {
+      action: 'pending_token_unwrap_infos',
+      service: this.SERVICE,
+      account,
+      chain,
+    };
+    this.server.send(message);
+  }
+
+  private queryTokenUnwrapInfos(account: string, chain: string, previous?: UnwrapInfo) {
+    let height = U64.max();
+    let index = U64.max();
+    if (previous) {
+      height = new U64(previous.height);
+      index = new U64(previous.index);
+      index = index.minus(1)
+      if (index.eq(U64.max())) {
+        height = height.minus(1);
+      }
+      if (height.eq(U64.max())) {
+        console.error(`queryTokenUnwrapInfos: unexpected params, height=${previous.height}, index=${previous.index}`);
+        return;
+      }
+    }
+    const message: any = {
+      action: 'token_unwrap_infos',
+      service: this.SERVICE,
+      account,
+      chain,
+      height: height.toDec(),
+      index: index.toDec(),
       count: '10',
     };
 
@@ -3716,6 +4093,9 @@ class AccountTokensInfo {
   tokenBlockLinks: TokenBlockLinks = new TokenBlockLinks();
   maps: { [chain: string]: AccountTokenMapInfos } = {};
   unmaps: AccountTokenUnmapInfos = new AccountTokenUnmapInfos();
+  wraps: AccountTokenWrapInfos = new AccountTokenWrapInfos();
+  unwraps: { [chain: string]: AccountTokenUnwrapInfos } = {};
+
 
   //local data
   expectedRecentBlocks: number = 10;
@@ -5412,7 +5792,6 @@ export class WrapInfo {
   }
 }
 
-
 export class AccountTokenWrapInfos {
   wraps: WrapInfo[] = [];
   more: boolean = true;
@@ -5463,5 +5842,185 @@ export class AccountTokenWrapInfos {
       this.wraps.splice(index, 0, wrap);
     }
     return existing;
+  }
+}
+
+export class UnwrapInfo {
+  account: string = '';
+  height: number = 0;
+  index: number = 0;
+  chain: string = '';
+  chainId: number = 0;
+  address: string = '';
+  addressRaw: U256 = U256.zero();
+  type: TokenType = TokenType.INVALID;
+  decimals: number | undefined = undefined;
+  value: U256 = U256.zero();
+  fromChain: string = '';
+  fromChainId: number = 0;
+  fromAccount: string = '';
+  fromAccountRaw: U256 = U256.zero();
+  to: string = '';
+  toRaw: U256 = U256.zero();
+  sourceTxn: string = '';
+  wrappedAddress: string = '';
+  wrappedAddressRaw: U256 = U256.zero();
+
+  // local data
+  confirmed: boolean = false;
+
+  fromJson(json: any): boolean {
+    try {
+      this.account = json.account;
+      this.height = +json.height;
+      this.index = +json.index;
+      this.chain = json.chain;
+      this.chainId = +json.chain_id;
+      if (!this.chain) {
+        this.chain = ChainHelper.toChainStr(this.chainId as Chain)
+      }
+      this.address = json.address;
+      this.addressRaw = new U256(json.address_raw, 16);
+      if (!this.address) {
+        const ret = ChainHelper.rawToAddress(this.chain, this.addressRaw);
+        if (ret.error) {
+          console.error(`MapInfo.fromJson: convert raw to address failed, chain: ${this.chain}, raw: ${this.addressRaw.toHex()}`);
+          return true;
+        }
+        this.address = ret.address!;
+      }
+      this.type = TokenHelper.toType(json.type);
+      if (json.decimals !== undefined) {
+        this.decimals = +json.decimals;
+      }
+      this.value = new U256(json.value);
+      this.fromChain = json.from_chain;
+      this.fromChainId = +json.from_chain_id;
+      if (!this.fromChain) {
+        this.fromChain = ChainHelper.toChainStr(this.fromChainId as Chain)
+      }
+      this.fromAccountRaw = new U256(json.from_account_raw, 16);
+      this.fromAccount = json.from_account;
+      if (!this.fromAccount) {
+        const ret = ChainHelper.rawToAddress(this.fromChain, this.fromAccountRaw);
+        if (ret.error || !ret.address) return true;
+        this.fromAccount = ret.address;  
+      }
+      this.toRaw = new U256(json.to_raw, 16);
+      this.to = json.to;
+      if (!this.to) {
+        this.to = this.toRaw.toAccountAddress();
+      }
+      this.sourceTxn = json.source_transaction;
+      this.wrappedAddress = json.wrapped_address;
+      this.wrappedAddressRaw = new U256(json.wrapped_address_raw, 16);
+      if (!this.wrappedAddress) {
+        const ret = ChainHelper.rawToAddress(this.fromChain, this.wrappedAddressRaw);
+        if (ret.error) {
+          console.error(`UnwrapInfo.fromJson: convert raw to address failed, chain: ${this.fromChain}, raw: ${this.wrappedAddressRaw.toHex()}`);
+          return true;
+        }
+        this.wrappedAddress = ret.address!;
+      }
+      return false;
+    }
+    catch (e) {
+      console.log(`UnwrapInfo.fromJson: failed to parse json=`, json, `exception=`, e);
+      return true;
+    }
+  }
+
+  gt(other: UnwrapInfo): boolean {
+    if (this.height !== other.height) {
+      return this.height > other.height;
+    }
+    if (this.index !== other.index) {
+      return this.index > other.index;
+    }
+    return false;
+  }
+
+  lt(other: UnwrapInfo): boolean {
+    if (this.height !== other.height) {
+      return this.height < other.height;
+    }
+    if (this.index !== other.index) {
+      return this.index < other.index;
+    }
+    return false;
+  }
+
+  le(other: UnwrapInfo): boolean {
+    return this.lt(other) || this.eq(other);
+  }
+
+  eq(other: UnwrapInfo): boolean {
+    return this.height === other.height && this.index === other.index;
+  }
+
+  sameWith(other: UnwrapInfo): boolean {
+    return this.eq(other) && this.sourceTxn === other.sourceTxn
+      && this.confirmed === other.confirmed;
+  }
+
+}
+
+export class AccountTokenUnwrapInfos {
+  unwraps: UnwrapInfo[] = [];
+  more: boolean = true;
+
+  // local data
+  expectedRecentUnwraps: number = 10;
+  nextSyncAt: number = 0;
+  lastSyncAt: number = -1000000;
+  synced: boolean = false;
+  confirmedHead: UnwrapInfo | undefined;
+  confirmedTail: UnwrapInfo | undefined;
+
+  purgePendings() {
+    const index = this.indexOfConfirmed();
+    if (index < 0) return;
+    this.unwraps.splice(0, index);
+  }
+
+  indexOfConfirmed(): number {
+    return this.unwraps.findIndex(x => x.confirmed);
+  }
+
+  // return inserted
+  insert(unwrap: UnwrapInfo): boolean {
+    if (this.confirmedHead) {
+      if (!unwrap.confirmed && unwrap.le(this.confirmedHead)) return false;
+    }
+
+    let index = this.unwraps.findIndex(x => x.eq(unwrap));
+    if (index >= 0) {
+      const existing = this.unwraps[index];
+      if (existing.sameWith(unwrap) || existing.confirmed) return false;
+      this.unwraps.splice(index, 1);
+    }
+    index = this.unwraps.findIndex(x => x.lt(unwrap));
+    if (index < 0) {
+      this.unwraps.push(unwrap);
+    } else {
+      this.unwraps.splice(index, 0, unwrap);
+    }
+    if (!unwrap.confirmed) return true;
+    
+    let count = 0;
+    for (let i = index + 1; i < this.unwraps.length; ++i) {
+      if (this.unwraps[i].confirmed) break;
+      ++count;
+    }
+    if (count > 0) {
+      this.unwraps.splice(index + 1, count);
+    }
+    if (!this.confirmedHead || unwrap.gt(this.confirmedHead)) {
+      this.confirmedHead = unwrap;
+    }
+    if (!this.confirmedTail || unwrap.lt(this.confirmedTail)) {
+      this.confirmedTail = unwrap;
+    }
+    return true;
   }
 }

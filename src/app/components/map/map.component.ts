@@ -521,9 +521,11 @@ export class MapComponent implements OnInit {
     if (!symbol) return '';
     let decimals = map.decimals;
     if (map.type === TokenType._20) {
-      decimals = this.queryTokenDecimals(map.chain, map.address);
       if (decimals === undefined) {
-        return '';
+        decimals = this.queryTokenDecimals(map.chain, map.address);
+        if (decimals === undefined) {
+          return '';
+        }
       }
       return `${map.value.toBalanceStr(decimals)} ${symbol}`;
     } else if (map.type === TokenType._721) {
@@ -1362,9 +1364,9 @@ export class MapComponent implements OnInit {
     let param: any;
     if (status === UnmapStatus.COLLECTING) {
       msg = marker(`Collecting signatures ({ percent }%)`);
-      param = { 'percent': this.validator.signedPercent(unmap.account, unmap.height) };
+      param = { 'percent': this.unmapSignedPercent(unmap) };
     } else if (status === UnmapStatus.COLLECTED) {
-      msg = marker('Signatures collected ({ percent }%), click to submit the transaction to { chain }')
+      msg = marker('Signatures collected ({ percent }%), click to submit the transaction to { chain }');
       param = {
         'percent': this.validator.signedPercent(unmap.account, unmap.height),
         'chain': ChainHelper.toChainShown(unmap.chain),
@@ -1382,7 +1384,6 @@ export class MapComponent implements OnInit {
     this.translate.get(msg, param).subscribe(res => msg = res);    
     return msg;
   }
-
 
   unmapToEvmChain(unmap: UnmapInfo, callback: (error: boolean) => void): boolean {
     if (!this.web3.connected(unmap.chain as ChainStr)) return true;
