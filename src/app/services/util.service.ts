@@ -1470,6 +1470,14 @@ export class ChainHelper {
     }
   }
 
+  static isWrapableChain(chain: Chain | string): boolean {
+    if (typeof chain === 'string') {
+      chain = ChainHelper.toChain(chain);
+    }
+    const chains = ChainHelper.crossChains(false);
+    return chains.findIndex(x => x === chain) > -1;
+  }
+
   static tokenTypeShown(chain: string, type: TokenTypeStr): string {
     switch (chain) {
       case ChainStr.RAICOIN:

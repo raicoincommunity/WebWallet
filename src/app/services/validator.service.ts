@@ -4,7 +4,7 @@ import { U128, U64, U256, Chain, ChainStr, ChainHelper, ZX, TokenType, TokenType
 import { Web3Service } from './web3.service';
 import { TypedDataUtils, TypedMessage, MessageTypes, SignTypedDataVersion,
   recoverTypedSignature } from '@metamask/eth-sig-util';
-import { UnmapInfo } from './token.service';
+import { UnmapInfo, WrapInfo } from './token.service';
 
 @Injectable({
   providedIn: 'root'
@@ -152,6 +152,18 @@ export class ValidatorService implements OnDestroy {
       this.transfers[account] = {};
     }
     const transfer = new TransferSignatures(CrossChainOp.UNMAP, unmap.chainId as Chain, unmap);
+    this.transfers[account][height] = transfer;
+    this.syncTransferSignatures(transfer);
+  }
+
+  signWrap(wrap: WrapInfo) {
+    const account = wrap.account;
+    const height = wrap.height;
+    if (this.transfers[account]?.[height]) return;
+    if (!this.transfers[account]) {
+      this.transfers[account] = {};
+    }
+    const transfer = new TransferSignatures(CrossChainOp.WRAP, wrap.toChainId as Chain, wrap);
     this.transfers[account][height] = transfer;
     this.syncTransferSignatures(transfer);
   }
@@ -562,7 +574,7 @@ export class ValidatorService implements OnDestroy {
       const recipient = data.to;
       const hash = ZX + data.sourceTxn.toLowerCase();
       const height = `${data.height}`;
-      const value = data.value.toDec();
+      const value = data.value.to0xHex();
       const token = data.address;
       let typedMessage: any;
       if (ChainHelper.isNative(data.chain, data.addressRaw)) {
@@ -582,8 +594,30 @@ export class ValidatorService implements OnDestroy {
         data: typedMessage });
       return recovered.toLowerCase() !== signer;
     } else if (transfer.op === CrossChainOp.WRAP) {
-      return true;
-      // todo
+      const data = transfer.data as WrapInfo;
+      const originalChainId = `${data.chainId}`;
+      const originalContract = data.addressRaw.to0xHex();
+      const sender = data.fromRaw.to0xHex();
+      const recipient = data.toAccountRaw.to0xHex();
+      const hash = ZX + data.sourceTxn.toLowerCase();
+      const height = `${data.height}`;
+      const value = data.value.to0xHex();
+      let typedMessage: any;
+      if (data.type === TokenType._20) {
+        typedMessage = EIP712.wrapERC20Token(chain, originalChainId, originalContract, sender,
+          recipient, hash, height, value);
+      } else if (data.type === TokenType._721) {
+        typedMessage = EIP712.wrapERC721Token(chain, originalChainId, originalContract, sender,
+          recipient, hash, height, value);
+      } else {
+        console.error(`ValidatorService::verifyTransferSignature: unknow token type=${data.type}`);
+        return true;
+      }
+      const recovered = recoverTypedSignature({ 
+        signature: sig.signature, 
+        version: SignTypedDataVersion.V4,
+        data: typedMessage });
+      return recovered.toLowerCase() !== signer;
     }
     else {
       console.error(`ValidatorService::verifyTransferSignature: unknow op=${transfer.op}`);
@@ -703,7 +737,7 @@ export class CrossChainInfo {
     try {
       this.valid = false;
       this.chain = +json.chain_id;
-      this.confirmations = +this.confirmations;
+      this.confirmations = +json.confirmations;
       this.fee = new U256(json.fee);
       this.height = +json.height;
       this.totalWeight = new U256(json.total_weight);
@@ -792,7 +826,7 @@ class CrossChainSignature {
   }
 }
 
-type TransferSignatureData = UnmapInfo;
+type TransferSignatureData = UnmapInfo | WrapInfo;
 
 class TransferSignatures {
   op: CrossChainOp = CrossChainOp.NONE;
@@ -1098,6 +1132,56 @@ export class EIP712 {
         tokenId,
     }
     return data;
+  }
+
+  static wrapERC20Token(chain: string, originalChainId: string, originalContract: string,
+    sender: string, recipient: string, txnHash: string, txnHeight: string, amount: string): any {
+      const data = EIP712.common(chain);
+      data.types.WrapERC20Token = [
+        { name: "originalChainId", type: "uint32" },
+        { name: "originalContract", type: "bytes32" },
+        { name: "sender", type: "bytes32" },
+        { name: "recipient", type: "address" },
+        { name: "txnHash", type: "bytes32" },
+        { name: "txnHeight", type: "uint64" },
+        { name: "amount", type: "uint256" },
+      ];
+      data.primaryType = 'WrapERC20Token';
+      data.message = {
+        originalChainId,
+        originalContract,
+        sender,
+        recipient,
+        txnHash,
+        txnHeight,
+        amount,
+      };
+      return data;
+  }
+
+  static wrapERC721Token(chain: string, originalChainId: string, originalContract: string,
+    sender: string, recipient: string, txnHash: string, txnHeight: string, tokenId: string): any {
+      const data = EIP712.common(chain);
+      data.types.WrapERC721Token = [
+        { name: "originalChainId", type: "uint32" },
+        { name: "originalContract", type: "bytes32" },
+        { name: "sender", type: "bytes32" },
+        { name: "recipient", type: "address" },
+        { name: "txnHash", type: "bytes32" },
+        { name: "txnHeight", type: "uint64" },
+        { name: "tokenId", type: "uint256" },
+      ];
+      data.primaryType = 'WrapERC721Token';
+      data.message = {
+        originalChainId,
+        originalContract,
+        sender,
+        recipient,
+        txnHash,
+        txnHeight,
+        tokenId,
+      };
+      return data;
   }
 
 }

@@ -159,24 +159,24 @@
       </thead>
       <tbody>
         <tr *ngFor="let wrap of wraps()">
-          <td class="uk-text-left uk-text-truncate"><img [src]="unmapItemChainLogo(unmap)" width="20" height="20" style="vertical-align: text-top;" />{{ unmapItemShowChain(unmap) }}</td>
-          <td class="uk-text-left uk-text-truncate">{{ unmap.to }}</td>
-          <td class="uk-text-right">{{ unmapItemAmount(unmap) }}</td>
+          <td class="uk-text-left uk-text-truncate"><img [src]="wrapItemTargetChainLogo(wrap)" width="20" height="20" style="vertical-align: text-top;" />{{ wrapItemShowTargetChain(wrap) }}</td>
+          <td class="uk-text-left uk-text-truncate">{{ wrap.toAccount }}</td>
+          <td class="uk-text-right">{{ wrapItemAmount(wrap) }}</td>
           <td class="uk-text-center">
-            <span *ngIf="unmapItemStatus(unmap) === 'confirmed'" uk-icon="icon: check;" class="uk-text-success" title="{{ unmapShowStatus(unmap) }}" uk-tooltip></span>
-            <span *ngIf="unmapItemStatus(unmap) === 'confirming'" class="uk-text-warning">{{ unmapItemConfirms(unmap) }}</span>
-            <span *ngIf="unmapItemStatus(unmap) === 'collected'" uk-icon="icon: forward;" title="{{ unmapShowStatus(unmap) }}" class="uk-text-warning" (click)="unmapRetry(unmap)"
+            <span *ngIf="wrapItemStatus(wrap) === 'confirmed'" uk-icon="icon: check;" class="uk-text-success" title="{{ wrapShowStatus(wrap) }}" uk-tooltip></span>
+            <span *ngIf="wrapItemStatus(wrap) === 'confirming'" class="uk-text-warning">{{ wrapItemConfirms(wrap) }}</span>
+            <span *ngIf="wrapItemStatus(wrap) === 'collected'" uk-icon="icon: forward;" title="{{ wrapShowStatus(wrap) }}" class="uk-text-warning" (click)="wrapRetry(wrap)"
             uk-tooltip></span>
-            <span *ngIf="unmapShowSpin(unmap)" uk-spinner="ratio: 0.6;" title="{{ unmapShowStatus(unmap) }}"
+            <span *ngIf="wrapShowSpin(wrap)" uk-spinner="ratio: 0.6;" title="{{ wrapShowStatus(wrap) }}"
             uk-tooltip></span>
           </td>
         </tr>
-        <tr *ngIf="noUnmaps()">
-          <td colspan="4" style="text-align: center;">{{ 'No UNMAP history' | translate }}</td>
+        <tr *ngIf="noWraps()">
+          <td colspan="4" style="text-align: center;">{{ 'No WRAP history' | translate }}</td>
         </tr>
-        <tr *ngIf="moreUnmaps()">
+        <tr *ngIf="moreWraps()">
           <td colspan="4" style="text-align: center;">
-            <a (click)="loadMoreUnmaps()" class="uk-link-text">{{ 'Load More Results' | translate }}</a>
+            <a (click)="loadMoreWraps()" class="uk-link-text">{{ 'Load More Results' | translate }}</a>
           </td>
         </tr>
       </tbody>
@@ -437,6 +437,43 @@
     </div>
   </div>
 
+</div>
+
+<div [hidden]="activePanel !== 'unwrap' || selectedUnwrapSourceChain === ''" uk-grid style="margin-top: 25px;">
+  <div class="uk-width-1-1">
+    <h3 class="uk-heading-divider uk-text-center" style="margin-bottom: 0;">{{ 'Your UNWRAP history' | translate }}
+    </h3>
+    <div class="uk-width-1-1 uk-text-center">
+      {{ 'From ' | translate }} {{ unwrapShowSourceChain() }}
+    </div>
+    <table class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
+      <thead>
+        <tr>
+          <th class="uk-width-1-3@m uk-width-1-3 uk-text-left">{{ 'Sender' | translate }}</th>
+          <th class="uk-width-1-3@m uk-width-1-3 uk-text-right">{{ 'Amount' | translate }}</th>
+          <th class="uk-width-1-3@m uk-width-1-3 uk-text-center">{{ 'Status' | translate }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let unwrap of unwraps()">
+          <td class="uk-text-left uk-text-truncate">{{ unwrap.fromAccount }}</td>
+          <td class="uk-text-right">{{ unwrapItemAmount(unwrap) }}</td>
+          <td class="uk-text-center">
+            <span *ngIf="unwrapItemSuccess(unwrap)" uk-icon="icon: check;" class="uk-text-success"></span>
+            <span *ngIf="!unwrapItemSuccess(unwrap)" class="uk-text-warning">{{ unwrapItemConfirms(unwrap) }}</span>
+          </td>
+        </tr>
+        <tr *ngIf="noUnwraps()">
+          <td colspan="3" style="text-align: center;">{{ 'No UNWRAP history' | translate }}</td>
+        </tr>
+        <tr *ngIf="moreUnwraps()">
+          <td colspan="3" style="text-align: center;">
+            <a (click)="loadMoreUnwraps()" class="uk-link-text">{{ 'Load More Results' | translate }}</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 
 
