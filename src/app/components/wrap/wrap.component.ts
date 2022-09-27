@@ -318,6 +318,18 @@ export class WrapComponent implements OnInit {
   }
 
   shortWrapContract(): string {
+    if (!this.wrapWalletConnected()) {
+      let msg = marker(`Connect wallet to show`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      return msg;
+    }
+
+    if (this.wrapContractCreated() === false) {
+      let msg = marker(`Not created`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      return msg;
+    }
+
     const asset = this.wrapSelectedAsset();
     if (!asset) return '';
     const chain = this.selectedWrapTargetChain;
@@ -1007,6 +1019,12 @@ export class WrapComponent implements OnInit {
   }
 
   shortUnwrapContract(): string {
+    if (!this.unwrapWalletConnected()) {
+      let msg = marker(`Connect wallet to show`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      return msg;
+    }
+
     if (this.unwrapContractCreated() === false) {
       let msg = marker(`Not created`);
       this.translate.get(msg).subscribe(res => msg = res);
@@ -1817,7 +1835,7 @@ export class WrapComponent implements OnInit {
     }
 
     let msg = marker(`[2/2] Submitting {wrap} transaction to {chain}, please check and approve it in your web3 wallet`);
-    const param = { 'wrap': 'WRAP', 'chain': ChainHelper.toChain(wrap.toChain) };
+    const param = { 'wrap': 'WRAP', 'chain': ChainHelper.toChainShown(wrap.toChain) };
     this.translate.get(msg, param).subscribe(res => msg = res);    
     this.notification.sendWarning(msg);
     return false;

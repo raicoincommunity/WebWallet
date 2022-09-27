@@ -1006,7 +1006,6 @@ export class EIP712 {
   static hashTypedData(data: any): string {
     const message = data as TypedMessage<MessageTypes>;
     const hash = TypedDataUtils.eip712Hash(message, SignTypedDataVersion.V4).toString('hex');
-    console.log(`[DEBUG] EIP712::hashTypedData, hash=${ZX + hash}`);
     return ZX + hash;
   }
 
