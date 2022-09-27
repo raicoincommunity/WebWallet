@@ -1306,8 +1306,11 @@ export class ChainHelper {
     return '';
   }
 
-  static toChainShown(chain: string): string {
-    const map = chainMaps.find(x => chain === x[1]);
+  static toChainShown(chain: string | number): string {
+    if (typeof chain === 'string') {
+      chain = ChainHelper.toChain(chain);
+    }
+    const map = chainMaps.find(x => chain === x[0]);
     if (map) return map[2];
     return '';
   }

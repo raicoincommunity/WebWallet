@@ -888,10 +888,9 @@ export class MapComponent implements OnInit {
     if (asset.type == TokenTypeStr._20) {
       if (ChainHelper.isNative(asset.chain, asset.addressRaw)) {
         // todo:
-        gasEst = 50000;
+        gasEst = 100000;
       } else {
-        // todo:
-        gasEst = 50000;
+        gasEst = 100000;
       }
     } else if (asset.type == TokenTypeStr._721) {
         // todo:
@@ -1459,7 +1458,7 @@ export class MapComponent implements OnInit {
     }
 
     let msg = marker(`[2/2] Submitting {unmap} transaction to {chain}, please check and approve it in your web3 wallet`);
-    const param = { 'unmap': 'UNMAP', 'chain': ChainHelper.toChain(unmap.chain) };
+    const param = { 'unmap': 'UNMAP', 'chain': ChainHelper.toChainShown(unmap.chain) };
     this.translate.get(msg, param).subscribe(res => msg = res);    
     this.notification.sendWarning(msg);
     return false;

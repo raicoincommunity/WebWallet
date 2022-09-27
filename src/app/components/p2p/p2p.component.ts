@@ -1997,6 +1997,13 @@ export class P2pComponent implements OnInit {
     this.syncSwapToAmount();
   }
 
+  showUnknowTokenError(chain: string, address: string) {
+    let msg = marker(`The order contains unknown token, please import it into your Assets panel first: {address} ({chain})`);
+    const param = { chain, address };
+    this.translate.get(msg, param).subscribe(res => msg = res);
+    this.notification.sendError(msg, { timeout: 20 * 1000 });
+  }
+
   activateSwapPanel(order?: OrderInfo) {
     if (order) {
       this.selectedOrder = order;
@@ -2007,12 +2014,20 @@ export class P2pComponent implements OnInit {
     let token = order.tokenOffer;
     this.swapFromToken = this.swapFromTokenWidget.getToken(token.chain, token.addressRaw,
       token.type);
-    if (!this.swapFromToken) return;
+    if (!this.swapFromToken) {
+      const chainShown = ChainHelper.toChainShown(token.chain);
+      this.showUnknowTokenError(chainShown, token.address);
+      return;
+    }
     this.swapFromTokenWidget.addToken(this.swapFromToken);
 
     token = order.tokenWant;
     this.swapToToken = this.swapToTokenWidget.getToken(token.chain, token.addressRaw, token.type);
-    if (!this.swapToToken) return;
+    if (!this.swapToToken) {
+      const chainShown = ChainHelper.toChainShown(token.chain);
+      this.showUnknowTokenError(chainShown, token.address);
+      return;
+    }
     this.swapToTokenWidget.addToken(this.swapToToken);
 
     if (order.tokenWant.type === TokenTypeStr._721) {
