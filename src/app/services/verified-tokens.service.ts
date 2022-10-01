@@ -16,11 +16,19 @@ export class VerifiedTokensService {
     for (let token of verifiedTokens) {
       const chain = ChainHelper.toChainStr(token.chain);
       this.verifiedTokensDict[chain] = this.verifiedTokensDict[chain] || {};
+      if (this.verifiedTokensDict[chain][token.address]) {
+        console.error(`VerifiedTokensService::constructor: duplicated token `, token);
+        continue;
+      }
       this.verifiedTokensDict[chain][token.address] = token;
     }
     for (let token of testVerifiedTokens) {
       const chain = ChainHelper.toChainStr(token.chain);
       this.testVerifiedTokensDict[chain] = this.testVerifiedTokensDict[chain] || {};
+      if (this.testVerifiedTokensDict[chain][token.address]) {
+        console.error(`VerifiedTokensService::constructor: duplicated token `, token);
+        continue;
+      }
       this.testVerifiedTokensDict[chain][token.address] = token;
     }
    }
@@ -116,7 +124,7 @@ export class VerifiedToken {
 
 // todo:
 const verifiedTokens: VerifiedToken[] = [
-  /* Ethereum */
+  /* Ethereum begin */
   {
     chain: Chain.ETHEREUM,
     address: '',
@@ -733,10 +741,933 @@ const verifiedTokens: VerifiedToken[] = [
     symbol: 'UMA',
     decimals: 18
   },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x3a4f40631a4f906c2BaD353Ed06De7A5D3fCb430',
+    type: TokenType._20,
+    name: 'PlayDapp Token',
+    symbol: 'PLA',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x00c83aeCC790e8a4453e5dD3B0B4b3680501a7A7',
+    type: TokenType._20,
+    name: 'SKALE',
+    symbol: 'SKL',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xCC8Fa225D80b9c7D42F96e9570156c65D6cAAa25',
+    type: TokenType._20,
+    name: 'Smooth Love Potion',
+    symbol: 'SLP',
+    decimals: 0
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x761D38e5ddf6ccf6Cf7c55759d5210750B5D60F3',
+    type: TokenType._20,
+    name: 'Dogelon',
+    symbol: 'ELON',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x198d14F2Ad9CE69E76ea330B374DE4957C3F850a',
+    type: TokenType._20,
+    name: 'APENFT',
+    symbol: 'NFT',
+    decimals: 6
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x0f51bb10119727a7e5eA3538074fb341F56B09Ad',
+    type: TokenType._20,
+    name: 'DAO Maker',
+    symbol: 'DAO',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
+    type: TokenType._20,
+    name: 'SushiToken',
+    symbol: 'SUSHI',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x41e5560054824eA6B0732E656E3Ad64E20e94E45',
+    type: TokenType._20,
+    name: 'Civic',
+    symbol: 'CVC',
+    decimals: 8
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x85Eee30c52B0b379b046Fb0F85F4f3Dc3009aFEC',
+    type: TokenType._20,
+    name: 'KEEP Token',
+    symbol: 'KEEP',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x0FD10b9899882a6f2fcb5c371E17e70FdEe00C38',
+    type: TokenType._20,
+    name: 'Pundi X Token',
+    symbol: 'PUNDIX',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30',
+    type: TokenType._20,
+    name: 'Injective Token',
+    symbol: 'INJ',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x6De037ef9aD2725EB40118Bb1702EBb27e4Aeb24',
+    type: TokenType._20,
+    name: 'Render Token',
+    symbol: 'RNDR',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xDDB3422497E61e13543BeA06989C0789117555c5',
+    type: TokenType._20,
+    name: 'COTI Token',
+    symbol: 'COTI',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x408e41876cCCDC0F92210600ef50372656052a38',
+    type: TokenType._20,
+    name: 'Republic Token',
+    symbol: 'REN',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x7A58c0Be72BE218B41C608b7Fe7C5bB630736C71',
+    type: TokenType._20,
+    name: 'ConstitutionDAO',
+    symbol: 'PEOPLE',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xD13c7342e1ef687C5ad21b27c2b65D772cAb5C8c',
+    type: TokenType._20,
+    name: 'Ultra Token',
+    symbol: 'UOS',
+    decimals: 4
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xFE3E6a25e6b192A42a44ecDDCd13796471735ACf',
+    type: TokenType._20,
+    name: 'Reef.finance',
+    symbol: 'REEF',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x8C543AED163909142695f2d2aCd0D55791a9Edb9',
+    type: TokenType._20,
+    name: 'VLX',
+    symbol: 'VLX',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x4F9254C83EB525f9FCf346490bbb3ed28a81C667',
+    type: TokenType._20,
+    name: 'CelerToken',
+    symbol: 'CELR',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x4fE83213D56308330EC302a8BD641f1d0113A4Cc',
+    type: TokenType._20,
+    name: 'NuCypher',
+    symbol: 'NU',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x090185f2135308BaD17527004364eBcC2D37e5F6',
+    type: TokenType._20,
+    name: 'Spell Token',
+    symbol: 'SPELL',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x8f8221aFbB33998d8584A2B05749bA73c37a938a',
+    type: TokenType._20,
+    name: 'Request Token',
+    symbol: 'REQ',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x8c15Ef5b4B21951d50E53E4fbdA8298FFAD25057',
+    type: TokenType._20,
+    name: 'Function X',
+    symbol: 'FX',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xc7283b66Eb1EB5FB86327f08e1B5816b0720212B',
+    type: TokenType._20,
+    name: 'Tribe',
+    symbol: 'TRIBE',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xff56Cc6b1E6dEd347aA0B7676C85AB0B3D08B0FA',
+    type: TokenType._20,
+    name: 'Orbs',
+    symbol: 'ORBS',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x744d70FDBE2Ba4CF95131626614a1763DF805B9E',
+    type: TokenType._20,
+    name: 'Status Network Token',
+    symbol: 'SNT',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x967da4048cD07aB37855c090aAF366e4ce1b9F48',
+    type: TokenType._20,
+    name: 'Ocean Token',
+    symbol: 'OCEAN',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x607F4C5BB672230e8672085532f7e901544a7375',
+    type: TokenType._20,
+    name: 'iEx.ec Network Token',
+    symbol: 'RLC',
+    decimals: 9
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x11eeF04c884E24d9B7B4760e7476D06ddF797f36',
+    type: TokenType._20,
+    name: 'MX Token',
+    symbol: 'MX',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x595832F8FC6BF59c85C527fEC3740A1b7a361269',
+    type: TokenType._20,
+    name: 'PowerLedger',
+    symbol: 'POWR',
+    decimals: 6
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x3597bfD533a99c9aa083587B074434E61Eb0A258',
+    type: TokenType._20,
+    name: 'DENT',
+    symbol: 'DENT',
+    decimals: 8
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x0b38210ea11411557c13457D4dA7dC6ea731B88a',
+    type: TokenType._20,
+    name: 'API3',
+    symbol: 'API3',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x55296f69f40Ea6d20E478533C15A6B08B654E758',
+    type: TokenType._20,
+    name: 'XY Oracle',
+    symbol: 'XYO',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C',
+    type: TokenType._20,
+    name: 'Bancor Network Token',
+    symbol: 'BNT',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x79C7EF95aD32DcD5ECadB231568Bb03dF7824815',
+    type: TokenType._20,
+    name: 'ARIVA',
+    symbol: 'ARV',
+    decimals: 8
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x888888848B652B3E3a0f34c96E00EEC0F3a23F72',
+    type: TokenType._20,
+    name: 'Alien Worlds Trilium',
+    symbol: 'TLM',
+    decimals: 4
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x389999216860AB8E0175387A0c90E5c52522C945',
+    type: TokenType._20,
+    name: 'FEGtoken',
+    symbol: 'FEG',
+    decimals: 9
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xAE12C5930881c53715B369ceC7606B70d8EB229f',
+    type: TokenType._20,
+    name: 'Coin98',
+    symbol: 'C98',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x2F141Ce366a2462f02cEA3D12CF93E4DCa49e4Fd',
+    type: TokenType._20,
+    name: 'Free Coin',
+    symbol: 'FREE',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xC17c30e98541188614dF99239cABD40280810cA3',
+    type: TokenType._20,
+    name: 'EverRise',
+    symbol: 'RISE',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xAC51066d7bEC65Dc4589368da368b212745d63E8',
+    type: TokenType._20,
+    name: 'ALICE',
+    symbol: 'ALICE',
+    decimals: 6
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x43Dfc4159D86F3A37A5A4B3D4580b888ad7d4DDd',
+    type: TokenType._20,
+    name: 'DODO bird',
+    symbol: 'DODO',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x84FA8f52E437Ac04107EC1768764B2b39287CB3e',
+    type: TokenType._20,
+    name: 'Grove Token',
+    symbol: 'GVR',
+    decimals: 18
+  },
   // todo: 
 
+
+  
   /* Ethereum end */
 
+  /* BSC begin */
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '',
+    type: TokenType._20,
+    name: 'Binance coin',
+    symbol: 'BNB',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',
+    type: TokenType._20,
+    name: 'BTCB Token',
+    symbol: 'BTCB',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x55d398326f99059fF775485246999027B3197955',
+    type: TokenType._20,
+    name: 'Tether USD',
+    symbol: 'USDT',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x2170Ed0880ac9A755fd29B2688956BD959F933F8',
+    type: TokenType._20,
+    name: 'Ethereum Token',
+    symbol: 'ETH',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+    type: TokenType._20,
+    name: 'USD Coin',
+    symbol: 'USDC',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',
+    type: TokenType._20,
+    name: 'BUSD Token',
+    symbol: 'BUSD',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3',
+    type: TokenType._20,
+    name: 'Dai Token',
+    symbol: 'DAI',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82',
+    type: TokenType._20,
+    name: 'PancakeSwap Token',
+    symbol: 'CAKE',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x965F527D9159dCe6288a2219DB51fc6Eef120dD1',
+    type: TokenType._20,
+    name: 'Biswap',
+    symbol: 'BSW',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x2859e4544C4bB03966803b044A93563Bd2D0DD4D',
+    type: TokenType._20,
+    name: 'SHIBA INU',
+    symbol: 'SHIB',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x383094a91Ef2767Eed2B063ea40465670bf1C83f',
+    type: TokenType._20,
+    name: 'LIMOCOIN SWAP',
+    symbol: 'LMCSWAP',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE',
+    type: TokenType._20,
+    name: 'XRP Token',
+    symbol: 'XRP',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xbA2aE424d960c26247Dd6c32edC70B295c744C43',
+    type: TokenType._20,
+    name: 'Dogecoin',
+    symbol: 'DOGE',
+    decimals: 8
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xd32d01A43c869EdcD1117C640fBDcfCFD97d9d65',
+    type: TokenType._20,
+    name: 'Nominex',
+    symbol: 'NMX',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xc748673057861a797275CD8A068AbB95A902e8de',
+    type: TokenType._20,
+    name: 'Baby Doge Coin',
+    symbol: 'BabyDoge',
+    decimals: 9
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x3019BF2a2eF8040C242C9a4c5c4BD4C81678b2A1',
+    type: TokenType._20,
+    name: 'Green Metaverse Token',
+    symbol: 'GMT',
+    decimals: 8
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47',
+    type: TokenType._20,
+    name: 'Cardano Token',
+    symbol: 'ADA',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x4B0F1812e5Df2A09796481Ff14017e6005508003',
+    type: TokenType._20,
+    name: 'Trust Wallet',
+    symbol: 'TWT',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xCC42724C6683B7E57334c4E856f4c9965ED682bD',
+    type: TokenType._20,
+    name: 'Matic Token',
+    symbol: 'MATIC',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x603c7f932ED1fc6575303D8Fb018fDCBb0f39a95',
+    type: TokenType._20,
+    name: 'ApeSwapFinance Banana',
+    symbol: 'BANANA',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x7083609fCE4d1d8Dc0C979AAb8c869Ea2C873402',
+    type: TokenType._20,
+    name: 'Polkadot Token',
+    symbol: 'DOT',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x9131066022B909C65eDD1aaf7fF213dACF4E86d0',
+    type: TokenType._20,
+    name: 'META-UTOPIA LAND',
+    symbol: 'LAND',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x4e3cABD3AD77420FF9031d19899594041C420aeE',
+    type: TokenType._20,
+    name: 'Titano',
+    symbol: 'TITANO',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x6679eB24F59dFe111864AEc72B443d1Da666B360',
+    type: TokenType._20,
+    name: 'ARIVA',
+    symbol: 'ARV',
+    decimals: 8
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD',
+    type: TokenType._20,
+    name: 'ChainLink Token',
+    symbol: 'LINK',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x1CE0c2827e2eF14D5C4f29a091d735A204794041',
+    type: TokenType._20,
+    name: 'Avalanche',
+    symbol: 'AVAX',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x42981d0bfbAf196529376EE702F2a9Eb9092fcB5',
+    type: TokenType._20,
+    name: 'SafeMoon',
+    symbol: 'SFM',
+    decimals: 9
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x154A9F9cbd3449AD22FDaE23044319D6eF2a1Fab',
+    type: TokenType._20,
+    name: 'CryptoBlades Skill Token',
+    symbol: 'SKILL',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x2222227E22102Fe3322098e4CBfE18cFebD57c95',
+    type: TokenType._20,
+    name: 'Alien Worlds Trilium',
+    symbol: 'TLM',
+    decimals: 4
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x5CA42204cDaa70d5c773946e69dE942b85CA6706',
+    type: TokenType._20,
+    name: 'Position Token',
+    symbol: 'POSI',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x8F0528cE5eF7B51152A59745bEfDD91D97091d2F',
+    type: TokenType._20,
+    name: 'AlpacaToken',
+    symbol: 'ALPACA',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xcF6BB5389c92Bdda8a3747Ddb454cB7a64626C63',
+    type: TokenType._20,
+    name: 'Venus',
+    symbol: 'XVS',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xD41FDb03Ba84762dD66a0af1a6C8540FF1ba5dfb',
+    type: TokenType._20,
+    name: 'SafePal Token',
+    symbol: 'SFP',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x4338665CBB7B2485A8855A139b75D5e34AB0DB94',
+    type: TokenType._20,
+    name: 'Litecoin Token',
+    symbol: 'LTC',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xd983AB71a284d6371908420d8Ac6407ca943F810',
+    type: TokenType._20,
+    name: 'Ultron',
+    symbol: 'ULX',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x0Eb3a705fc54725037CC9e008bDede697f62F335',
+    type: TokenType._20,
+    name: 'Cosmos Token',
+    symbol: 'ATOM',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xfb5B838b6cfEEdC2873aB27866079AC55363D37E',
+    type: TokenType._20,
+    name: 'FLOKI',
+    symbol: 'FLOKI',
+    decimals: 9
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xb465f3cb6Aba6eE375E12918387DE1eaC2301B05',
+    type: TokenType._20,
+    name: 'Trivian Token',
+    symbol: 'TRIVIA',
+    decimals: 3
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xBf5140A22578168FD562DCcF235E5D43A02ce9B1',
+    type: TokenType._20,
+    name: 'Uniswap',
+    symbol: 'UNI',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xacFC95585D80Ab62f67A14C566C1b7a49Fe91167',
+    type: TokenType._20,
+    name: 'FEGtoken',
+    symbol: 'FEG',
+    decimals: 9
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x2AA504586d6CaB3C59Fa629f74c586d78b93A025',
+    type: TokenType._20,
+    name: 'ArenaPlay',
+    symbol: 'APC',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x7dDEE176F665cD201F93eEDE625770E2fD911990',
+    type: TokenType._20,
+    name: 'pTokens GALA',
+    symbol: 'GALA',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xAD29AbB318791D579433D831ed122aFeAf29dcfe',
+    type: TokenType._20,
+    name: 'Fantom',
+    symbol: 'FTM',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x9C65AB58d8d978DB963e63f2bfB7121627e3a739',
+    type: TokenType._20,
+    name: 'MDX Token',
+    symbol: 'MDX',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x3d6545b08693daE087E957cb1180ee38B9e3c25E',
+    type: TokenType._20,
+    name: 'Ethereum Classic',
+    symbol: 'ETC',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x8A5d7FCD4c90421d21d30fCC4435948aC3618B2f',
+    type: TokenType._20,
+    name: 'Cake Monster',
+    symbol: 'MONSTA',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xf307910A4c7bbc79691fD374889b36d8531B08e3',
+    type: TokenType._20,
+    name: 'Ankr',
+    symbol: 'ANKR',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x1Fa4a73a3F0133f0025378af00236f3aBDEE5D63',
+    type: TokenType._20,
+    name: 'NEAR Protocol',
+    symbol: 'NEAR',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xF21768cCBC73Ea5B6fd3C687208a7c2def2d966e',
+    type: TokenType._20,
+    name: 'Reef.finance',
+    symbol: 'REEF',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x56b6fB708fC5732DEC1Afc8D8556423A2EDcCbD6',
+    type: TokenType._20,
+    name: 'EOS Token',
+    symbol: 'EOS',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xd9025e25Bb6cF39f8c926A704039D2DD51088063',
+    type: TokenType._20,
+    name: 'Coinary Token',
+    symbol: 'CYT',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xb86AbCb37C3A4B64f74f59301AFF131a1BEcC787',
+    type: TokenType._20,
+    name: 'Zilliqa',
+    symbol: 'ZIL',
+    decimals: 12
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x111111111117dC0aa78b770fA6A738034120C302',
+    type: TokenType._20,
+    name: '1INCH Token',
+    symbol: '1INCH',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xaEC945e04baF28b135Fa7c640f624f8D90F1C3a6',
+    type: TokenType._20,
+    name: 'Coin98',
+    symbol: 'C98',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x352Cb5E19b12FC216548a2677bD0fce83BaE434B',
+    type: TokenType._20,
+    name: 'BitTorrent',
+    symbol: 'BTT',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xA64455a4553C9034236734FadDAddbb64aCE4Cc7',
+    type: TokenType._20,
+    name: 'FC Santos Fan Token',
+    symbol: 'SANTOS',
+    decimals: 8
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xA58950F05FeA2277d2608748412bf9F802eA4901',
+    type: TokenType._20,
+    name: 'Wall Street Games',
+    symbol: 'WSG',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x12e34cDf6A031a10FE241864c32fB03a4FDaD739',
+    type: TokenType._20,
+    name: 'FREE coin BSC',
+    symbol: 'FREE',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xE02dF9e3e622DeBdD69fb838bB799E3F168902c5',
+    type: TokenType._20,
+    name: 'BakeryToken',
+    symbol: 'BAKE',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x4C882ec256823eE773B25b414d36F92ef58a7c0C',
+    type: TokenType._20,
+    name: 'pStake Finance',
+    symbol: 'PSTAKE',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xC17c30e98541188614dF99239cABD40280810cA3',
+    type: TokenType._20,
+    name: 'EverRise',
+    symbol: 'RISE',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x20D39a5130F799b95B55a930E5b7eBC589eA9Ed8',
+    type: TokenType._20,
+    name: 'Heroes&Empires',
+    symbol: 'HE',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x715D400F88C167884bbCc41C5FeA407ed4D2f8A0',
+    type: TokenType._20,
+    name: 'Axie Infinity Shard',
+    symbol: 'AXS',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x606FB7969fC1b5CAd58e64b12Cf827FB65eE4875',
+    type: TokenType._20,
+    name: 'Okse',
+    symbol: 'OKSE',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xAC51066d7bEC65Dc4589368da368b212745d63E8',
+    type: TokenType._20,
+    name: 'ALICE',
+    symbol: 'ALICE',
+    decimals: 6
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x8fF795a6F4D97E7887C79beA79aba5cc76444aDf',
+    type: TokenType._20,
+    name: 'Bitcoin Cash Token',
+    symbol: 'BCH',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xfe56d5892BDffC7BF58f2E84BE1b2C32D21C308b',
+    type: TokenType._20,
+    name: 'Kyber Network Crystal',
+    symbol: 'KNC',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xAe9269f27437f0fcBC232d39Ec814844a51d6b8f',
+    type: TokenType._20,
+    name: 'Burger Swap',
+    symbol: 'BURGER',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xCa3F508B8e4Dd382eE878A314789373D80A5190A',
+    type: TokenType._20,
+    name: 'beefy.finance',
+    symbol: 'BIFI',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x67ee3Cb086F8a16f34beE3ca72FAD36F7Db929e2',
+    type: TokenType._20,
+    name: 'DODO bird',
+    symbol: 'DODO',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xaFb64E73dEf6fAa8B6Ef9a6fb7312d5C4C15ebDB',
+    type: TokenType._20,
+    name: 'Grove Token',
+    symbol: 'GVR',
+    decimals: 18
+  },
+  // todo: 
+
+
+
+
+
+
+  /* BSC end */
 
 ]
 
@@ -823,11 +1754,19 @@ const testVerifiedTokens: VerifiedToken[] = [
 
   {
     chain: Chain.ETHEREUM_TEST_GOERLI,
-    address:'',
-    type:TokenType._20,
-    name:'Goerli',
-    symbol:'ETH',
+    address: '',
+    type: TokenType._20,
+    name: 'Goerli',
+    symbol: 'ETH',
     decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM_TEST_GOERLI,
+    address: '0x07865c6E87B9F70255377e024ace6630C1Eaa37F',
+    type: TokenType._20,
+    name: 'USD Coin',
+    symbol: 'USDC',
+    decimals: 6
   },
   /* end of Goerli Testnet */
 ]

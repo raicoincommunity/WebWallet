@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewChild, HostListener } from '@angular/core';
 import { AssetWidgetComponent, AssetItem } from '../asset-widget/asset-widget.component';
 import { U256, TokenTypeStr, ChainHelper, ChainStr, ExtensionTokenOpStr, ExtensionTypeStr,
-  TokenType, ZX, EVM_ZERO_ADDRESS } from '../../services/util.service';
+  TokenType, ZX, EVM_ZERO_ADDRESS, TokenHelper } from '../../services/util.service';
 import { WalletsService, WalletErrorCode } from '../../services/wallets.service';
 import { ValidatorService } from '../../services/validator.service';
 import { Web3Service } from '../../services/web3.service';
@@ -80,6 +80,11 @@ export class WrapComponent implements OnInit {
       this.wrapTargetChainChanged(this.selectedWrapTargetChain);
       this.onUnwrapTokenChange();
     });
+
+    this.wrapSubscription = this.token.tokenWrap$.subscribe(wrap => {
+      this.validator.signWrap(wrap);
+      this.startChainTimer();
+    });
   }
 
   @HostListener('unloaded')
@@ -107,6 +112,10 @@ export class WrapComponent implements OnInit {
     if (this.chainTimer) {
       clearInterval(this.chainTimer);
       this.chainTimer = null;
+    }
+    if (this.wrapSubscription) {
+      this.wrapSubscription.unsubscribe();
+      this.wrapSubscription = null;
     }
   }
 
@@ -620,10 +629,10 @@ export class WrapComponent implements OnInit {
     return false;
   }
 
-  wrapCheck(): boolean {
+  wrapCheck(autoFocus: boolean = false): boolean {
     if (!this.raiAccount()) return true;
     if (!this.wrapAssetWidget) return true;
-    if (this.wrapAssetWidget.check()) return true;
+    if (this.wrapAssetWidget.check(autoFocus)) return true;
     if (!this.selectedWrapTargetChain) return true;
     if (!this.wrapWalletConnected()) return true;
     if (!this.wrapContractCreated()) return true;
@@ -638,7 +647,7 @@ export class WrapComponent implements OnInit {
       this.notification.sendError(msg);
       return;
     }
-    if (this.wrapCheck()) return;
+    if (this.wrapCheck(true)) return;
     const wallet = this.wallets.selectedWallet();
     if (!wallet) return;
 
@@ -712,6 +721,9 @@ export class WrapComponent implements OnInit {
       this.notification.sendError(msg);
       return;
     }
+
+    const hash = result.block!.hash().toHex();
+    this.freshWraps[hash] = true;
 
     let msg = marker(`[1/2] Sending {wrap} block to {raicoin} network`);
     const param = { 'wrap': 'WRAP', 'raicoin': 'Raicoin' };
@@ -928,7 +940,7 @@ export class WrapComponent implements OnInit {
     const status = this.unwrapContractStatus.get(token.chain, token.address, chain);
     if (!status || !status.created || !status.address) return true;
     if (!this.web3.connected(chain as ChainStr)) return true;
-    const fee = this.getFee(token.chain);
+    const fee = this.getFee(chain);
     if (!fee) return true;
 
     const processResponse = (error: boolean, res?: number) => {
@@ -1011,7 +1023,7 @@ export class WrapComponent implements OnInit {
   unwrapContract(): string {
     const token = this.unwrapSelectedToken();
     if (!token) return '';
-    const chain = this.selectedWrapTargetChain;
+    const chain = this.selectedUnwrapSourceChain;
     if (!chain) return '';
     let status = this.unwrapContractStatus.get(token.chain, token.address, chain);
     if (!status || !status.created) return '';
@@ -1033,7 +1045,7 @@ export class WrapComponent implements OnInit {
 
     const token = this.unwrapSelectedToken();
     if (!token) return '';
-    const chain = this.selectedWrapTargetChain;
+    const chain = this.selectedUnwrapSourceChain;
     if (!chain) return '';
     const contract = this.unwrapContract();
     if (!contract) return '';
@@ -1546,8 +1558,6 @@ export class WrapComponent implements OnInit {
     if (this.unwrapInsufficientFunds) return;
 
     const chain = this.selectedUnwrapSourceChain;
-
-
     if (ChainHelper.isEvmChain(chain)) {
       this.unwrapFromEvmChain();
     } else {
@@ -1577,13 +1587,13 @@ export class WrapComponent implements OnInit {
     const chain = this.selectedUnwrapSourceChain;
     const status = this.unwrapContractStatus.get(token.chain, token.address, chain);
     if (!this.web3.connected(chain as ChainStr)) return;
-    const fee = this.getFee(token.chain);
+    const fee = this.getFee(chain);
     if (!fee) return;
 
     if (token.type == TokenTypeStr._20) {
       try {
         this.web3.evmCoreContract.methods.unwrapERC20Token(status.address!,
-          this.unwrapAmount.to0xHex(), this.raiAccountRaw()!.to0xHex()).estimateGas({
+          this.unwrapAmount.to0xHex(), this.raiAccountRaw()!.to0xHex()).send({
             from: this.web3.account(), value: fee.to0xHex()
           }).then((res: number) => {
             console.log(typeof res);
@@ -1598,7 +1608,7 @@ export class WrapComponent implements OnInit {
     } else if (token.type == TokenTypeStr._721) {
       try {
         this.web3.evmCoreContract.methods.unwrapERC721Token(status.address,
-          this.unwrapTokenId.to0xHex(), this.raiAccountRaw()!.to0xHex()).estimateGas({
+          this.unwrapTokenId.to0xHex(), this.raiAccountRaw()!.to0xHex()).send({
             from: this.web3.account(), value: fee.to0xHex()
           }).then((res: number) => {
             console.log(typeof res);
@@ -1673,6 +1683,10 @@ export class WrapComponent implements OnInit {
     } else {
       return '';
     }
+  }
+
+  wrapItemTokenTypeShown(wrap: WrapInfo): string {
+    return this.tokenTypeShown(wrap.chain, wrap.type);
   }
 
   wrapItemStatus(wrap: WrapInfo): string {
@@ -1860,6 +1874,10 @@ export class WrapComponent implements OnInit {
     }
   }
 
+  unwrapItemTokenTypeShown(unwrap: UnwrapInfo): string {
+    return this.tokenTypeShown(unwrap.chain, unwrap.type)
+  }
+
   unwrapItemSuccess(unwrap: UnwrapInfo): boolean {
     return unwrap.confirmed;
   }
@@ -1887,6 +1905,62 @@ export class WrapComponent implements OnInit {
   loadMoreUnwraps() {
     if (!this.selectedUnwrapSourceChain) return;
     this.token.loadMoreUnwraps(this.selectedUnwrapSourceChain);
+  }
+
+  wrapShowMetaMask(): boolean {
+    const asset = this.wrapSelectedAsset();
+    if (!asset || asset.type != TokenTypeStr._20) return false;
+    const contract = this.wrapContract();
+    if (!contract) return false;
+    if (!ChainHelper.isEvmChain(this.selectedWrapTargetChain)) return false;
+    if (!this.wrapWalletConnected()) return false;
+    return true;
+  }
+
+  wrapAddContractToMetaMask() {
+    const asset = this.wrapSelectedAsset();
+    if (!asset || asset.type != TokenTypeStr._20) return;
+    const contract = this.wrapContract();
+    if (!contract) return;
+    if (!ChainHelper.isEvmChain(this.selectedWrapTargetChain)) return;
+    if (!this.wrapWalletConnected()) return;
+    this.addToMetaMask(contract, `r${asset.symbol}`, asset.decimals.toNumber());
+  }
+
+  unwrapShowMetaMask(): boolean {
+    const token = this.unwrapSelectedToken();
+    if (!token || token.type != TokenTypeStr._20) return false;
+    const contract = this.unwrapContract();
+    if (!contract) return false;
+    if (!ChainHelper.isEvmChain(this.selectedUnwrapSourceChain)) return false;
+    if (!this.unwrapWalletConnected()) return false;
+    return true;
+  }
+
+  unwrapAddContractToMetaMask() {
+    const token = this.unwrapSelectedToken();
+    if (!token || token.type != TokenTypeStr._20) return;
+    const contract = this.unwrapContract();
+    if (!contract) return;
+    if (!ChainHelper.isEvmChain(this.selectedUnwrapSourceChain)) return;
+    if (!this.unwrapWalletConnected()) return;
+    this.addToMetaMask(contract, `r${token.symbol}`, token.decimals);
+  }
+
+  addToMetaMask(address: string, symbol: string, decimals: number) {
+    if (!window.ethereum) {
+      let msg = marker(`MetaMask not detected`);
+      this.translate.get(msg).subscribe(res => msg = res);
+      this.notification.sendError(msg);
+      return;
+    }
+
+    const params = {
+      type: 'ERC20',
+      options: { address, symbol, decimals }
+    };
+
+    window.ethereum.request({ method: 'wallet_watchAsset', params });
   }
 
   private queryTokenSymbol(chain: string, address: string): string {
@@ -1937,6 +2011,15 @@ export class WrapComponent implements OnInit {
       this.token.queryTokenDecimals(chain, address, false);
     }
     return decimals;
+  }
+
+  private tokenTypeShown(chain: string, type: string | TokenType): string {
+    if (typeof type !== 'string') {
+      type = TokenHelper.toTypeStr(type)
+    }
+    let tokenType = ChainHelper.tokenTypeShown(chain, type as TokenTypeStr);
+    tokenType = tokenType.replace('-', '');
+    return `<${tokenType}>`;
   }
 
 }
