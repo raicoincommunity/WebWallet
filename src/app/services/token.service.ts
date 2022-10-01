@@ -55,6 +55,7 @@ export class TokenService implements OnDestroy {
   private swapSubject = new Subject<SwapFullInfo>();
   private accountTokensSubject = new Subject<string>();
   private tokenUnmapSubject = new Subject<UnmapInfo>();
+  private tokenWrapSubject = new Subject<WrapInfo>();
 
   public issuer$ = this.issuerSubject.asObservable();
   public tokenId$ = this.tokenIdSubject.asObservable();
@@ -74,6 +75,7 @@ export class TokenService implements OnDestroy {
   public swap$ = this.swapSubject.asObservable();
   public accountTokens$ = this.accountTokensSubject.asObservable();
   public tokenUnmap$ = this.tokenUnmapSubject.asObservable();
+  public tokenWrap$ = this.tokenWrapSubject.asObservable();
 
   constructor(
     private server: ServerService,
@@ -1785,6 +1787,9 @@ export class TokenService implements OnDestroy {
         case 'pending_token_map_info':
           this.processPendingTokenMapInfoNotify(message);
           break;
+        case 'pending_token_unwrap_info':
+          this.processPendingTokenUnwrapInfoNotify(message);
+          break;
         case 'swap_info':
           this.processSwapInfoNotify(message);
           break;
@@ -1814,6 +1819,12 @@ export class TokenService implements OnDestroy {
           break;
         case 'token_unmap_info':
           this.processTokenUnmapInfoNotify(message);
+          break;
+        case 'token_wrap_info':
+          this.processTokenWrapInfoNotify(message);
+          break;
+        case 'token_unwrap_info':
+          this.processTokenUnwrapInfoNotify(message);
           break;
         case 'take_nack_block_submitted':
           this.processTakeNackBlockSubmittedNotify(message);
@@ -2125,6 +2136,30 @@ export class TokenService implements OnDestroy {
       this.queryPendingTokenMapInfos(account, chain);
     } else {
       maps.insert(map);
+    }
+  }
+
+  processPendingTokenUnwrapInfoNotify(message: any) {
+    const account = message.account;
+    const info = this.accounts[account];
+    if (!info) return;
+    let chain = message.from_chain;
+    if (!chain) {
+      chain = ChainHelper.toChainStr(+message.from_chain_id);
+    }
+
+    const unwraps = info.unwraps[chain];
+    if (!unwraps) return;
+
+    const unwrap = new UnwrapInfo();
+    const error = unwrap.fromJson(message);
+    if (error) return;
+    unwrap.confirmed = false;
+
+    if (message.rollback === 'true') {
+      this.queryPendingTokenUnwrapInfos(account, chain);
+    } else {
+      unwraps.insert(unwrap);
     }
   }
 
@@ -3011,6 +3046,38 @@ export class TokenService implements OnDestroy {
     if (error) return;
     unmaps.insert(unmap);
     this.tokenUnmapSubject.next(unmap);
+  }
+
+  private processTokenWrapInfoNotify(message: any) {
+    const account = message.account;
+    const info = this.accounts[account];
+    if (!info) return;
+    const wraps = info.wraps;
+
+    const wrap = new WrapInfo();
+    const error = wrap.fromJson(message);
+    if (error) return;
+    wraps.insert(wrap);
+    this.tokenWrapSubject.next(wrap);
+  }
+
+  private processTokenUnwrapInfoNotify(message: any) {
+    const account = message.account;
+    const info = this.accounts[account];
+    if (!info) return;
+    let chain = message.from_chain;
+    if (!chain) {
+      chain = ChainHelper.toChainStr(+message.from_chain_id);
+    }
+
+    const unwraps = info.unwraps[chain];
+    if (!unwraps) return;
+
+    const unwrap = new UnwrapInfo();
+    const error = unwrap.fromJson(message);
+    if (error) return;
+    unwrap.confirmed = true;
+    unwraps.insert(unwrap);
   }
 
   private processTakeNackBlockSubmittedNotify(message: any) {

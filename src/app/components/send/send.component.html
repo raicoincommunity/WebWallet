@@ -23,7 +23,7 @@
                 <div class="uk-form-controls">
                   <div class="uk-inline uk-width-1-1">
                     <a *ngIf="selectedDnsValid() && destinationStatus() === 1" class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px;" uk-tooltip title="{{ 'Account verified' | translate }}"><span uk-icon="icon: check;" class="uk-text-success"></span></a>
-                    <input #destinationInput (focus)="destinationFocus()" (blur)="destinationBlur()" (ngModelChange)="destinationChanged()" [(ngModel)]="destination" [ngClass]="{ 'uk-form-success': destinationStatus() === 1, 'uk-form-danger': destinationStatus() === 2 && !destinationFocused && !searchResultShown }" class="uk-input" id="form-horizontal-text1" type="text" placeholder="{{'Account or Alias to send to' | translate}}" autocomplete="off">
+                    <input #destinationInput (focus)="destinationFocus()" (blur)="destinationBlur()" (ngModelChange)="destinationChanged()" [(ngModel)]="destination" [ngClass]="{ 'uk-form-success': destinationStatus() === 1, 'uk-form-danger': destinationStatus() === 2 && !destinationFocused && !searchResultShown }" class="uk-input" id="form-horizontal-text1" type="text" placeholder="{{'Raicoin account or Alias to send to' | translate}}" autocomplete="off">
                     <button type="button" style="display:none"></button>
                     <div uk-dropdown="mode: click" #destinationDropdown class="uk-width-1-1 uk-margin-remove uk-padding-small uk-padding-remove-top uk-padding-remove-bottom">
                       <ul class="uk-nav uk-dropdown-nav uk-text-truncate">

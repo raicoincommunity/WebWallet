@@ -69,7 +69,6 @@ export class AssetWidgetComponent implements OnInit {
 
   onFocus() {
     this.assetFocused = true;
-    this.showSearchResult();
   }
 
   onBlur() {
@@ -244,9 +243,9 @@ export class AssetWidgetComponent implements OnInit {
     return false;
   }
 
-  check(): boolean {
+  check(autoFocus: boolean = true): boolean {
     if (this.checkAsset()) {
-      if (!this.assetInputText) {
+      if (!this.assetInputText && autoFocus) {
         this.assetInput.nativeElement.focus();
       }
       return true;

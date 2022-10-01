@@ -1346,11 +1346,15 @@ export class ChainHelper {
     }
   }
 
-  static rawToAddress(chain: string | number, raw: U256 | string): {error: boolean, address?: string} {
+  static rawToAddress(
+    chain: string | number,
+    raw: U256 | string,
+    convertNative: boolean = false
+  ): {error: boolean, address?: string} {
     if (typeof raw === 'string') {
       raw = new U256(raw, 16);
     }
-    if (raw.isNativeTokenAddress()) {
+    if (!convertNative && raw.isNativeTokenAddress()) {
       return {error: false, address: ''};
     }
 
@@ -1722,7 +1726,7 @@ const tokenSwapExtensionCodecs: {[op: string]: ExtensionTokenSwapCodec} = {
       if (error) throw streamError;
       offset += address.size;
       offer.address_raw = address.toHex();
-      let ret = ChainHelper.rawToAddress(offer.chain, address);
+      let ret = ChainHelper.rawToAddress(offer.chain, address, true);
       if (ret.error || !ret.address) {
         throw new Error(`ExtensionHelper.token.swap.make.decode: invalid address=${offer.address_raw}`);
       }
@@ -1753,7 +1757,7 @@ const tokenSwapExtensionCodecs: {[op: string]: ExtensionTokenSwapCodec} = {
       if (error) throw streamError;
       offset += address.size;
       want.address_raw = address.toHex();
-      ret = ChainHelper.rawToAddress(want.chain, address);
+      ret = ChainHelper.rawToAddress(want.chain, address, true);
       if (ret.error || !ret.address) {
         throw new Error(`ExtensionHelper.token.swap.make.decode: invalid address=${want.address_raw}`);
       }
@@ -2671,7 +2675,7 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
       if (error) throw streamError;
       offset += address.size;
       value.address_raw = address.toHex();
-      let ret = ChainHelper.rawToAddress(value.chain, address);
+      let ret = ChainHelper.rawToAddress(value.chain, address, true);
       if (ret.error || !ret.address) {
         throw new Error(`ExtensionHelper.token.send.decode: invalid address=${value.address_raw}`);
       }
@@ -2782,7 +2786,7 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
       if (error) throw streamError;
       offset += address.size;
       value.address_raw = address.toHex();
-      let ret = ChainHelper.rawToAddress(value.chain, address);
+      let ret = ChainHelper.rawToAddress(value.chain, address, true);
       if (ret.error || !ret.address) {
         throw new Error(`ExtensionHelper.token.receive.decode: invalid address=${value.address_raw}`);
       }
@@ -2963,7 +2967,7 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
       if (error) throw streamError;
       offset += address.size;
       value.address_raw = address.toHex();
-      let ret = ChainHelper.rawToAddress(value.chain, address);
+      let ret = ChainHelper.rawToAddress(value.chain, address, true);
       if (ret.error || !ret.address) {
         throw new Error(`ExtensionHelper.token.unmap.decode: invalid address=${value.address_raw}`);
       }
@@ -3078,7 +3082,7 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
       if (error) throw streamError;
       offset += address.size;
       value.address_raw = address.toHex();
-      let ret = ChainHelper.rawToAddress(value.chain, address);
+      let ret = ChainHelper.rawToAddress(value.chain, address, true);
       if (ret.error || !ret.address) {
         throw new Error(`ExtensionHelper.token.wrap.decode: invalid address=${value.address_raw}`);
       }
