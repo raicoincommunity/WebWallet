@@ -899,6 +899,10 @@ export class U256 extends Uint {
     return this.eq(1);
   }
 
+  roundUp(digits: number): U256 {
+    return new U256(this.toBigNumber().toDigits(digits, BigNumber.ROUND_UP));
+  }
+
 }
 
 export class U512 extends Uint {

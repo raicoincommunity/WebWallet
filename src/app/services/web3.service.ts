@@ -23,15 +23,6 @@ const providerOptions = {
     options: {
       rpc: environment.rpc_options,
       bridge: 'https://pancakeswap.bridge.walletconnect.org/',
-      qrcodeModalOptions: {
-        mobileLinks: [
-          'Trust Wallet',
-          "Metamask",
-          'MathWallet',
-          'SafePal',
-          'TokenPocket'
-        ]
-      }
     },
   }
 };

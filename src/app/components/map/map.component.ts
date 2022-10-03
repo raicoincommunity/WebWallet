@@ -56,6 +56,8 @@ export class MapComponent implements OnInit {
   filterMapToken: any;
   filterUnmapAsset: any;
 
+  private SIGNATURES_PERCENT = 51;
+
   constructor(
     private notification: NotificationService,
     private translate: TranslateService,
@@ -193,12 +195,12 @@ export class MapComponent implements OnInit {
     return token.type;
   }
 
-  mapTokenFormat(): string {
+  mapTokenSymbol(): string {
     if (!this.mapTokenWidget) return '';
 
     const token = this.mapTokenWidget.selectedToken;
     if (!token) return '';
-    return token.shortTextFormat();
+    return token.symbol;
   }
 
   syncMapAmount() {
@@ -779,7 +781,7 @@ export class MapComponent implements OnInit {
 
     if (Object.keys(queried).length === 0) {
       clearInterval(this.chainTimer);
-      this.approveTimer = null;
+      this.chainTimer = null;
     }
   }
 
@@ -993,7 +995,7 @@ export class MapComponent implements OnInit {
   getFee(chain: string): U256 | undefined {
     const info = this.validator.chainInfo(chain as ChainStr);
     if (!info) return undefined;
-    return info.fee;
+    return info.feeRoundUp;
   }
 
   unmapOriginalChain(): string {
@@ -1272,6 +1274,8 @@ export class MapComponent implements OnInit {
         this.startChainTimer();
       } else if (status === UnmapStatus.COLLECTED) {
         this.autoSubmitFreshUnmap(unmap);
+      } else if (status === UnmapStatus.CONFIRMING) {
+        this.validator.addChain(unmap.chain as ChainStr);
       }
     }
     return unmaps;
@@ -1327,7 +1331,7 @@ export class MapComponent implements OnInit {
       }
 
       const percent = this.validator.signedPercent(unmap.account, unmap.height);
-      if (percent > 51) return UnmapStatus.COLLECTED;
+      if (percent > this.SIGNATURES_PERCENT) return UnmapStatus.COLLECTED;
       return UnmapStatus.COLLECTING;
     }
   }
@@ -1388,7 +1392,8 @@ export class MapComponent implements OnInit {
     if (!this.web3.connected(unmap.chain as ChainStr)) return true;
     const fee = this.getFee(unmap.chain);
     if (!fee) return true;
-    let signatures = this.validator.transferSignatures(unmap.account, unmap.height, 51);
+    let signatures = this.validator.transferSignatures(unmap.account, unmap.height,
+      this.SIGNATURES_PERCENT);
     if (!signatures) {
       console.error(`MapComponent::unmapToEvmChain: failed to get signatures`);
       return true;
