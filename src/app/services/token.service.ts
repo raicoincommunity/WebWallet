@@ -1621,12 +1621,22 @@ export class TokenService implements OnDestroy {
   }
 
   private subscribeTopicTokenIdOwner(info: TokenIdOwnerInfo) {
+    const chain = info.chain;
+    const address = info.address;
+    const ret = ChainHelper.addressToRaw(chain, address);
+    if (ret.error || !ret.raw) {
+      console.error(`subscribeTopicTokenIdOwner: failed to convert address to raw`, chain, address);
+      return;
+    }
+    const address_raw = ret.raw.toHex();
+
     const message: any = {
       action: 'service_subscribe',
       service: this.SERVICE,
       topic: 'token_id_owner',
-      chain: info.chain,
-      address: info.address,
+      chain,
+      address,
+      address_raw,
       token_id: info.tokenId,
       filters: [{key:'topic', value:info.topic()}],
     };
@@ -3288,12 +3298,18 @@ export class TokenService implements OnDestroy {
   private queryAccountTokenIds(account: string, chain: string,
                                address: string, count: number, beginId?: U256) {
     if (!beginId) beginId = U256.zero();
+    const ret = ChainHelper.addressToRaw(chain, address);
+    if (ret.error || !ret.raw) {
+      console.error(`queryAccountTokenIds: failed to convert address to raw`, chain, address);
+      return;
+    }
+    const address_raw = ret.raw.toHex();
     const message: any = {
       action: 'account_token_ids',
       service: this.SERVICE,
       account,
       chain,
-      address,
+      address_raw,
       count: `${count}`,
       begin_id: beginId.toDec()
     };
@@ -3301,19 +3317,34 @@ export class TokenService implements OnDestroy {
   }
 
   private queryAccountTokenLink(account: string, height: U64, chain: string, address: string) {
+    const ret = ChainHelper.addressToRaw(chain, address);
+    if (ret.error || !ret.raw) {
+      console.error(`queryAccountTokenLink: failed to convert address to raw`, chain, address);
+      return;
+    }
+    const address_raw = ret.raw.toHex();
+
     const message: any = {
       action: 'account_token_link',
       service: this.SERVICE,
       account,
       height: height.toDec(),
       chain,
-      address
+      address,
+      address_raw
     };
     this.server.send(message);
   }
 
   private queryNextAccountTokenLinks(account: string, height: U64,
     chain: string, address: string, count: number = 10) {
+    const ret = ChainHelper.addressToRaw(chain, address);
+    if (ret.error || !ret.raw) {
+      console.error(`queryNextAccountTokenLinks: failed to convert address to raw`, chain, address);
+      return;
+    }
+    const address_raw = ret.raw.toHex();
+  
     const message: any = {
       action: 'next_account_token_links',
       service: this.SERVICE,
@@ -3321,6 +3352,7 @@ export class TokenService implements OnDestroy {
       height: height.toDec(),
       chain,
       address,
+      address_raw,
       count: `${count}`
     };
     this.server.send(message);
@@ -3328,6 +3360,13 @@ export class TokenService implements OnDestroy {
 
   private queryPreviousAccountTokenLinks(account: string, height: U64,
     chain: string, address: string, count: number = 10) {
+    const ret = ChainHelper.addressToRaw(chain, address);
+    if (ret.error || !ret.raw) {
+      console.error(`queryPreviousAccountTokenLinks: failed to convert address to raw`, chain, address);
+      return;
+    }
+    const address_raw = ret.raw.toHex();
+  
     const message: any = {
       action: 'previous_account_token_links',
       service: this.SERVICE,
@@ -3335,6 +3374,7 @@ export class TokenService implements OnDestroy {
       height: height.toDec(),
       chain,
       address,
+      address_raw,
       count: `${count}`
     };
     this.server.send(message);

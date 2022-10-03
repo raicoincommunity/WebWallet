@@ -146,7 +146,7 @@ export class WrapComponent implements OnInit {
 
     if (Object.keys(queried).length === 0) {
       clearInterval(this.chainTimer);
-      this.approveTimer = null;
+      this.chainTimer = null;
     }
   }
 
@@ -604,8 +604,7 @@ export class WrapComponent implements OnInit {
     } else if (asset.type == TokenTypeStr._721) {
       try {
         this.web3.evmCoreContract.methods.createWrappedERC721Token(params.name, params.symbol,
-          params.chain, originalChainId, originalContract, asset.decimals.to0xHex(),
-          ZX + signatures).send({
+          params.chain, originalChainId, originalContract, ZX + signatures).send({
             from: this.web3.account()
           }).then((res: any) => {
             console.log(typeof res);
@@ -1003,7 +1002,7 @@ export class WrapComponent implements OnInit {
   getFee(chain: string): U256 | undefined {
     const info = this.validator.chainInfo(chain as ChainStr);
     if (!info) return undefined;
-    return info.fee;
+    return info.feeRoundUp;
   }
 
   unwrapSourceChainChanged(selected: string) {
@@ -1126,10 +1125,10 @@ export class WrapComponent implements OnInit {
     return token.type;
   }
 
-  unwrapTokenFormat(): string {
+  unwrapTokenSymbol(): string {
     const token = this.unwrapSelectedToken();
     if (!token) return '';
-    return token.shortTextFormat();
+    return token.symbol;
   }
 
   syncUnwrapAmount() {

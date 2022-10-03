@@ -333,7 +333,7 @@
           <div uk-grid>
             <div class="uk-width-1-1">
               <div class="uk-inline uk-width-1-1">
-                <a class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px; width: auto;">{{ unwrapTokenFormat()
+                <a class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px; width: auto;">{{ unwrapTokenSymbol()
                   }}</a>
                 <input (change)="syncUnwrapAmount()" (keyup)="syncUnwrapAmount()" [(ngModel)]="inputUnwrapAmount"
                   class="uk-input" id="form-input-unwrap-amount" type="text"
@@ -353,7 +353,7 @@
           <div uk-grid>
             <div class="uk-width-1-1">
               <div class="uk-inline uk-width-1-1">
-                <a class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px; width: auto;">{{ unwrapTokenFormat() }}</a>
+                <a class="uk-form-icon uk-form-icon-flip" style="padding-right: 7px; width: auto;">{{ unwrapTokenSymbol() }}</a>
                 <input (change)="syncUnwrapTokenId()" (keyup)="syncUnwrapTokenId()" [(ngModel)]="inputUnwrapTokenId"
                   class="uk-input" id="form-input-unwrap-token-id" type="text"
                   placeholder="{{ 'Token ID to transfer' | translate }}"

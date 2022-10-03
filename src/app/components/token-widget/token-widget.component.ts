@@ -120,7 +120,6 @@ export class TokenWidgetComponent implements OnInit {
 
   onFocus() {
     this.tokenFocused = true;
-    this.showSearchResult();
   }
 
   onBlur() {
@@ -249,8 +248,10 @@ export class TokenWidgetComponent implements OnInit {
 
   private filter(item: TokenItem): boolean {
     if (!this.tokenFilter(item)) return false;
-    if (this.tokenInputText.includes('<')) return true;
-    return item.symbol.toUpperCase().includes(this.tokenInputText.toUpperCase());
+    if (this.tokenInputText.includes('<')) {
+      return item.textFormat().includes(this.tokenInputText)
+    };
+    return item.symbol.toUpperCase().includes(this.tokenInputText.trim().toUpperCase());
   }
 
   private getCustomToken(chain: string, addressRaw: U256, type: string): TokenItem | undefined {
@@ -350,24 +351,31 @@ export class TokenItem {
   name: string = '';
   decimals: number = 0;
 
+  private formatted: string = '';
+  private shortFormatted: string = '';
+
   textFormat(): string {
+    if (this.formatted) return this.formatted;
     if (this.address) {
       let tokenType = ChainHelper.tokenTypeShown(this.chain, this.type as TokenTypeStr);
       tokenType = tokenType.replace('-', '');
-      return `${this.symbol} <${tokenType}: ${this.shortAddress}>`; 
+      this.formatted = `${this.symbol} <${tokenType}: ${this.shortAddress}>`; 
     } else {
-      return `${this.symbol} <${this.shortAddress}>`;
+      this.formatted = `${this.symbol} <${this.shortAddress}>`;
     }
+    return this.formatted;
   }
 
   shortTextFormat(): string {
+    if (this.shortFormatted) return this.shortFormatted;
     if (this.address) {
       let tokenType = ChainHelper.tokenTypeShown(this.chain, this.type as TokenTypeStr);
       tokenType = tokenType.replace('-', '');
-      return `${this.symbol} <${tokenType}>`; 
+      this.shortFormatted = `${this.symbol} <${tokenType}>`; 
     } else {
-      return `${this.symbol} <${this.shortAddress}>`;
+      this.shortFormatted = `${this.symbol} <${this.shortAddress}>`;
     }
+    return this.shortFormatted;
   }
 
   eq(other: TokenItem): boolean {

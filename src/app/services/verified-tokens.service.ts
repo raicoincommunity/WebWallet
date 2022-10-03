@@ -122,7 +122,6 @@ export class VerifiedToken {
   decimals: number = 0;
 }
 
-// todo:
 const verifiedTokens: VerifiedToken[] = [
   /* Ethereum begin */
   {
@@ -1085,10 +1084,184 @@ const verifiedTokens: VerifiedToken[] = [
     symbol: 'GVR',
     decimals: 18
   },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x419D0d8BdD9aF5e606Ae2232ed285Aff190E711b',
+    type: TokenType._20,
+    name: 'FunFair',
+    symbol: 'FUN',
+    decimals: 8
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x1a7e4e63778B4f12a199C062f3eFdD288afCBce8',
+    type: TokenType._20,
+    name: 'agEUR',
+    symbol: 'agEUR',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x9E32b13ce7f2E80A01932B42553652E053D6ed8e',
+    type: TokenType._20,
+    name: 'Metis Token',
+    symbol: 'METIS',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x037A54AaB062628C9Bbae1FDB1583c195585fe41',
+    type: TokenType._20,
+    name: 'LCX',
+    symbol: 'LCX',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x662b67d00A13FAf93254714DD601F5Ed49Ef2F51',
+    type: TokenType._20,
+    name: 'Orbit Chain',
+    symbol: 'ORC',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x1EA48B9965bb5086F3b468E50ED93888a661fc17',
+    type: TokenType._20,
+    name: 'Moneta',
+    symbol: 'MON',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x0ab87046fBb341D058F17CBC4c1133F25a20a52f',
+    type: TokenType._20,
+    name: 'Governance OHM',
+    symbol: 'GOHM',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x467719aD09025FcC6cF6F8311755809d45a5E5f3',
+    type: TokenType._20,
+    name: 'Axelar',
+    symbol: 'AXL',
+    decimals: 6
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x853d955aCEf822Db058eb8505911ED77F175b99e',
+    type: TokenType._20,
+    name: 'Frax',
+    symbol: 'FRAX',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xa23C1194d421F252b4e6D5edcc3205F7650a4eBE',
+    type: TokenType._20,
+    name: 'Launch Block',
+    symbol: 'LBP',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x7Ddc52c4De30e94Be3A6A0A2b259b2850f421989',
+    type: TokenType._20,
+    name: 'GoMining Token',
+    symbol: 'GMT',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x8355DBE8B0e275ABAd27eB843F3eaF3FC855e525',
+    type: TokenType._20,
+    name: 'WOOL',
+    symbol: 'WOOL',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x0d438F3b5175Bebc262bF23753C1E53d03432bDE',
+    type: TokenType._20,
+    name: 'Wrapped NXM',
+    symbol: 'WNXM',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x7D29A64504629172a429e64183D6673b9dAcbFCe',
+    type: TokenType._20,
+    name: 'VectorspaceAI',
+    symbol: 'VXV',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xC08512927D12348F6620a698105e1BAac6EcD911',
+    type: TokenType._20,
+    name: 'GMO JPY',
+    symbol: 'GYEN',
+    decimals: 6
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x24E89bDf2f65326b94E36978A7EDeAc63623DAFA',
+    type: TokenType._20,
+    name: 'Tiger King',
+    symbol: 'TKING',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x7420B4b9a0110cdC71fB720908340C03F9Bc03EC',
+    type: TokenType._20,
+    name: 'JasmyCoin',
+    symbol: 'JASMY',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0',
+    type: TokenType._20,
+    name: 'Frax Share',
+    symbol: 'FXS',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xB4272071eCAdd69d933AdcD19cA99fe80664fc08',
+    type: TokenType._20,
+    name: 'CryptoFranc',
+    symbol: 'XCHF',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x1cEB5cB57C4D4E2b2433641b95Dd330A33185A44',
+    type: TokenType._20,
+    name: 'Keep3rV1',
+    symbol: 'KP3R',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x48C3399719B582dD63eB5AADf12A40B4C3f52FA2',
+    type: TokenType._20,
+    name: 'StakeWise',
+    symbol: 'SWISE',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xeD35af169aF46a02eE13b9d79Eb57d6D68C1749e',
+    type: TokenType._20,
+    name: 'OMI Token',
+    symbol: 'OMI',
+    decimals: 18
+  },
   // todo: 
 
-
-  
   /* Ethereum end */
 
   /* BSC begin */
@@ -1660,11 +1833,23 @@ const verifiedTokens: VerifiedToken[] = [
     symbol: 'GVR',
     decimals: 18
   },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xe552Fb52a4F19e44ef5A967632DBc320B0820639',
+    type: TokenType._20,
+    name: 'Metis Token',
+    symbol: 'METIS',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x7Ddc52c4De30e94Be3A6A0A2b259b2850f421989',
+    type: TokenType._20,
+    name: 'GoMining Token',
+    symbol: 'GMT',
+    decimals: 18
+  },
   // todo: 
-
-
-
-
 
 
   /* BSC end */

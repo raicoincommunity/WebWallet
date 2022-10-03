@@ -11,6 +11,7 @@ import { UnmapInfo, WrapInfo } from './token.service';
 })
 export class ValidatorService implements OnDestroy {
   private SERVICE = 'validator';
+  private MIN_PERCENT = 51;
   private chains: { [chain: number]: CrossChainInfo } = {};
   private transfers: { [account: string]: { [height: number] : TransferSignatures } } = {};
   private creations: { [originalChainContract: string]: { [targetChain: string] : CreationSignatures } } = {};
@@ -277,7 +278,7 @@ export class ValidatorService implements OnDestroy {
     if (!info || !info.valid) return;
 
     let percent = transfer.percent(info.totalWeight, info.validators);
-    if (percent > 51) return;
+    if (percent > this.MIN_PERCENT) return;
 
     percent = this.roundToPercent(transfer.round);
     const weight = info.topWeight(percent);
@@ -321,7 +322,7 @@ export class ValidatorService implements OnDestroy {
       if (!info || !info.valid) return;
   
       let percent = creation.percent(info.totalWeight, info.validators);
-      if (percent > 51) return;
+      if (percent > this.MIN_PERCENT) return;
   
       percent = this.roundToPercent(creation.round);
       const weight = info.topWeight(percent);
@@ -719,7 +720,8 @@ type CrossChainValidators = { [validator: string]: CrossChainValidator };
 export class CrossChainInfo {
   chain: Chain = Chain.INVALID;
   confirmations: number = 0;
-  fee: U256 = new U256(0);
+  fee: U256 = U256.zero();
+  feeRoundUp: U256 = U256.zero();
   height: number = 0;
   valid: boolean = false;
   totalWeight: U256 = U256.zero();
@@ -739,6 +741,7 @@ export class CrossChainInfo {
       this.chain = +json.chain_id;
       this.confirmations = +json.confirmations;
       this.fee = new U256(json.fee);
+      this.feeRoundUp = this.fee.roundUp(3);
       this.height = +json.height;
       this.totalWeight = new U256(json.total_weight);
       this.genesisValidator.validator = json.genesis_validator;
