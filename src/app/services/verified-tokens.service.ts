@@ -1910,6 +1910,14 @@ const testVerifiedTokens: VerifiedToken[] = [
   },
   {
     chain: Chain.BINANCE_SMART_CHAIN_TEST,
+    address:'0xeD24FC36d5Ee211Ea25A80239Fb8C4Cfd80f12Ee',
+    type:TokenType._20,
+    name:'Binance USD',
+    symbol:'BUSD',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN_TEST,
     address:'0xd66c6B4F0be8CE5b39D52E0Fd1344c389929B378',
     type:TokenType._20,
     name:'Ethereum Token',
@@ -1922,6 +1930,30 @@ const testVerifiedTokens: VerifiedToken[] = [
     type:TokenType._20,
     name:'USDT Token',
     symbol:'USDT',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN_TEST,
+    address:'0x64544969ed7EBf5f083679233325356EbE738930',
+    type:TokenType._20,
+    name:'USDC Token',
+    symbol:'USDC',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN_TEST,
+    address:'0xEC5dCb5Dbf4B114C9d0F65BcCAb49EC54F6A0867',
+    type:TokenType._20,
+    name:'DAI Token',
+    symbol:'DAI',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN_TEST,
+    address:'0xa83575490D7df4E2F47b7D38ef351a2722cA45b9',
+    type:TokenType._20,
+    name:'Binance-Peg XRP Token',
+    symbol:'XRP',
     decimals: 18
   },
   {

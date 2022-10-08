@@ -1,7 +1,7 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { ServerService, ServerState } from './server.service';
 import { WalletsService, WalletOpResult, WalletErrorCode, Account, Wallet } from './wallets.service';
-import { U64, U256, TokenType, U8, TokenHelper, U32, ChainHelper, Chain, ChainStr, ExtensionTypeStr, TokenTypeStr, ExtensionTokenOpStr, U16, TokenSwapSubOpStr, U512, AppHelper, AppTopicType } from './util.service';
+import { U64, U256, TokenType, U8, TokenHelper, U32, ChainHelper, Chain, ChainStr, ExtensionTypeStr, TokenTypeStr, ExtensionTokenOpStr, U16, TokenSwapSubOpStr, U512, AppHelper, AppTopicType, Z64, ZX } from './util.service';
 import { environment } from '../../environments/environment';
 import { Subject } from 'rxjs';
 import { SettingsService } from './settings.service';
@@ -36,6 +36,8 @@ export class TokenService implements OnDestroy {
   private tokenDecimalsQueries: {[chainAddress: string]: number} = {};
   private tokenWrappedInfos: {[chain: string]: {[address: string]: boolean}} = {};
   private tokenWrappedQueries: {[chainAddress: string]: number} = {};
+  private txTimestamps: {[chain: string]: {[hash: string]: number}} = {};
+  private txTimestampQueries: {[chainHash:string]: number} = {};
   private issuerSubject = new Subject<{account: string, created: boolean}>();
   private tokenIdSubject = new Subject<{ chain: string, address: string, id: U256, existing: boolean }>();
   private accountSyncedSubject = new Subject<{account: string, synced: boolean}>();
@@ -357,6 +359,14 @@ export class TokenService implements OnDestroy {
       address = ret.address!;
     }
     return this.tokenWrappedInfos[chain]?.[address];
+  }
+
+  txTimestamp(chain: string, hash: string): number | undefined {
+    hash = hash.toLowerCase();
+    if (!hash.startsWith('0x')) {
+      hash = '0x' + hash;
+    }
+    return this.txTimestamps[chain]?.[hash];
   }
 
   tokenIdOwner(token: TokenKey, tokenId: U256): string {
@@ -1864,6 +1874,9 @@ export class TokenService implements OnDestroy {
         case 'token_wrapped':
           this.processTokenWrappedAck(message);
           break;
+        case 'transaction_timestamp':
+          this.processTxTimestamp(message);
+          break;
         default:
           break;
       }
@@ -2530,7 +2543,7 @@ export class TokenService implements OnDestroy {
       return;
     }
 
-    if (inserted) {
+    if (inserted && !previous?.eq(maps.confirmedTail!)) {
       this.queryTokenMapInfos(account, chain, previous);
     } else if (maps.maps.length < maps.expectedRecentMaps) {
       this.queryTokenMapInfos(account, chain, maps.confirmedTail);
@@ -2653,7 +2666,7 @@ export class TokenService implements OnDestroy {
       return;
     }
 
-    if (inserted) {
+    if (inserted && !previous?.eq(unwraps.confirmedTail!)) {
       this.queryTokenUnwrapInfos(account, chain, previous);
     } else if (unwraps.unwraps.length < unwraps.expectedRecentUnwraps) {
       this.queryTokenUnwrapInfos(account, chain, unwraps.confirmedTail);
@@ -3202,6 +3215,16 @@ export class TokenService implements OnDestroy {
     this.tokenWrappedSubject.next({ chain, address, wrapped });
   }
 
+  private processTxTimestamp(message: any) {
+    if (message.error || !message.chain || !message.tx_hash || !message.timestamp) return;
+    const chain = message.chain;
+    const hash = message.tx_hash;
+    if (!this.txTimestamps[chain]) {
+      this.txTimestamps[chain] = {};
+    }
+    this.txTimestamps[chain][message.tx_hash] = +message.timestamp;
+  }
+
   private updateAccountTokensInfo(address: string, json: any) {
     const info = this.accounts[address];
     if (!info) return;
@@ -3707,6 +3730,35 @@ export class TokenService implements OnDestroy {
       chain_id: `${chainId}`,
       address: addressEncoded,
       address_raw: addressRaw,
+    };
+
+    this.server.send(message);
+  }
+
+
+  queryTxTimestamp(chain: string, hash: string, height: number, force: boolean = false) {
+    if (ChainHelper.isRaicoin(chain)) return;
+    hash = hash.toLowerCase();
+    if (!hash.startsWith('0x')) {
+      hash = '0x' + hash;
+    }
+
+    if (!force) {
+      const key = `${chain}_${hash}`;
+      const lastQuery = this.txTimestampQueries[key];
+      const now = window.performance.now();
+      if (lastQuery && lastQuery > (now - 3000000)) return;
+      this.txTimestampQueries[key] = now;
+    }
+
+    const chainId = ChainHelper.toChain(chain)
+    const message: any = {
+      action: 'transaction_timestamp',
+      service: this.VALIDATOR_SERVICE,
+      chain,
+      chain_id: `${chainId}`,
+      height: `${height}`,
+      tx_hash: hash,
     };
 
     this.server.send(message);
@@ -5521,6 +5573,8 @@ export class MapInfo {
   from: string = '';
   to: string = '';
   sourceTxn: string = '';
+  targetTxn: string = '';
+  targetTimestamp?: number;
 
   // local data
   confirmed: boolean = false;
@@ -5554,7 +5608,13 @@ export class MapInfo {
       if (retAddress.error || !retAddress.address) return true;
       this.from = retAddress.address;
       this.to = json.to;
-      this.sourceTxn = json.source_transaction;
+      this.sourceTxn = ZX + json.source_transaction.toLowerCase();
+      if (json.target_transaction !== Z64) {
+        this.targetTxn = json.target_transaction;
+      }
+      if (json.target_block) {
+        this.targetTimestamp = +json.target_block.timestamp;
+      }
       return false;
     }
     catch (e) {
@@ -5640,14 +5700,6 @@ export class AccountTokenMapInfos {
     }
     if (!map.confirmed) return true;
     
-    let count = 0;
-    for (let i = index + 1; i < this.maps.length; ++i) {
-      if (this.maps[i].confirmed) break;
-      ++count;
-    }
-    if (count > 0) {
-      this.maps.splice(index + 1, count);
-    }
     if (!this.confirmedHead || map.gt(this.confirmedHead)) {
       this.confirmedHead = map;
     }
@@ -5673,6 +5725,7 @@ export class UnmapInfo {
   to: string = '';
   toRaw: U256 = U256.zero();
   sourceTxn: string = '';
+  sourceTimestamp: number = 0;
   sourceBlock: any = null;
   extraData: U64 = U64.zero();
   targetConfirmed: boolean = false;
@@ -5716,9 +5769,12 @@ export class UnmapInfo {
         this.to = retAddress.address;  
       }
       this.sourceTxn = json.source_transaction;
+      this.sourceTimestamp = +json.source_block.timestamp;
       this.extraData = new U64(json.extra_data);
       this.targetConfirmed = json.target_confirmed === 'true';
-      this.targetTxn = json.target_transaction;
+      if (json.target_transaction !== Z64) {
+        this.targetTxn = ZX + json.target_transaction.toLowerCase();
+      }
       this.targetHeight = new U64(json.target_height);
       return false;
     }
@@ -5729,7 +5785,7 @@ export class UnmapInfo {
   }
 
   targetValid(): boolean {
-    return this.targetHeight.valid();
+    return !!this.targetTxn;
   }
 
   newerThan(other: UnmapInfo): boolean {
@@ -5814,6 +5870,7 @@ export class WrapInfo {
   toAccount: string = '';
   toAccountRaw: U256 = U256.zero();
   sourceTxn: string = '';
+  sourceTimestamp: number = 0;
   sourceBlock: any = null;
   targetConfirmed: boolean = false;
   targetTxn: string = '';
@@ -5863,8 +5920,11 @@ export class WrapInfo {
         this.toAccount = ret.address;  
       }
       this.sourceTxn = json.source_transaction;
+      this.sourceTimestamp = +json.source_block.timestamp;
       this.targetConfirmed = json.target_confirmed === 'true';
-      this.targetTxn = json.target_transaction;
+      if (json.target_transaction !== Z64) {
+        this.targetTxn = ZX + json.target_transaction.toLowerCase();
+      }
       this.targetHeight = new U64(json.target_height);
       this.wrappedAddress = json.wrapped_address;
       this.wrappedAddressRaw = new U256(json.wrapped_address_raw, 16);
@@ -5885,7 +5945,7 @@ export class WrapInfo {
   }
 
   targetValid(): boolean {
-    return this.targetHeight.valid();
+    return !!this.targetTxn;
   }
 
   newerThan(other: WrapInfo): boolean {
@@ -5972,6 +6032,8 @@ export class UnwrapInfo {
   sourceTxn: string = '';
   wrappedAddress: string = '';
   wrappedAddressRaw: U256 = U256.zero();
+  targetTxn: string = '';
+  targetTimestamp?: number;
 
   // local data
   confirmed: boolean = false;
@@ -5991,7 +6053,7 @@ export class UnwrapInfo {
       if (!this.address) {
         const ret = ChainHelper.rawToAddress(this.chain, this.addressRaw);
         if (ret.error) {
-          console.error(`MapInfo.fromJson: convert raw to address failed, chain: ${this.chain}, raw: ${this.addressRaw.toHex()}`);
+          console.error(`UnwrapInfo.fromJson: convert raw to address failed, chain: ${this.chain}, raw: ${this.addressRaw.toHex()}`);
           return true;
         }
         this.address = ret.address!;
@@ -6018,7 +6080,7 @@ export class UnwrapInfo {
       if (!this.to) {
         this.to = this.toRaw.toAccountAddress();
       }
-      this.sourceTxn = json.source_transaction;
+      this.sourceTxn = ZX + json.source_transaction.toLowerCase();
       this.wrappedAddress = json.wrapped_address;
       this.wrappedAddressRaw = new U256(json.wrapped_address_raw, 16);
       if (!this.wrappedAddress) {
@@ -6028,6 +6090,12 @@ export class UnwrapInfo {
           return true;
         }
         this.wrappedAddress = ret.address!;
+      }
+      if (json.target_transaction !== Z64) {
+        this.targetTxn = json.target_transaction;
+      }
+      if (json.target_block) {
+        this.targetTimestamp = +json.target_block.timestamp;
       }
       return false;
     }
@@ -6114,14 +6182,6 @@ export class AccountTokenUnwrapInfos {
     }
     if (!unwrap.confirmed) return true;
     
-    let count = 0;
-    for (let i = index + 1; i < this.unwraps.length; ++i) {
-      if (this.unwraps[i].confirmed) break;
-      ++count;
-    }
-    if (count > 0) {
-      this.unwraps.splice(index + 1, count);
-    }
     if (!this.confirmedHead || unwrap.gt(this.confirmedHead)) {
       this.confirmedHead = unwrap;
     }

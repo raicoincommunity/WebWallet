@@ -222,16 +222,15 @@ export class AssetWidgetComponent implements OnInit {
   }
 
   amountHint(): string {
-    if (!this.selectedAsset) {
+    const balance = this.showBalance();
+    if (!balance) {
       let msg = this.defualtAmountHint;
       this.translate.get(msg).subscribe(res => msg = res);
       return msg;
     } else {
       let msg = marker(`Balance`);
       this.translate.get(msg).subscribe(res => msg = res);
-      const asset = this.selectedAsset;
-      const balance = asset.balance.toBalanceStr(asset.decimals, false);
-      return `${msg}: ${balance} ${asset.symbol}`;
+      return `${msg}: ${balance}`;
     }
   }
 
