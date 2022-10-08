@@ -61,6 +61,9 @@ export class WrapComponent implements OnInit {
   private unwrapContractStatusTimer: any = null;
   private chainTimer: any = null;
 
+  private selectedWrap?: WrapInfo;
+  private selectedUnwrap?: UnwrapInfo;
+
   constructor(
     private wallets: WalletsService,
     private validator: ValidatorService,
@@ -79,6 +82,15 @@ export class WrapComponent implements OnInit {
     this.web3Subscription = this.web3.accountChanged$.subscribe(e => {
       this.wrapTargetChainChanged(this.selectedWrapTargetChain);
       this.onUnwrapTokenChange();
+      if (this.activePanel == Panel.WRAP_CONFIRM) {
+        this.wrapGasCache = undefined;
+        this.wrapInsufficientFunds = false;
+        this.updateWrapGas();
+      } else if (this.activePanel == Panel.UNWRAP_CONFIRM) {
+        this.unwrapGasCache = undefined;
+        this.unwrapInsufficientFunds = false;
+        this.updateUnwrapGas();
+      }
     });
 
     this.wrapSubscription = this.token.tokenWrap$.subscribe(wrap => {
@@ -885,11 +897,9 @@ export class WrapComponent implements OnInit {
     if (!fee) return true;
     let gasEst = 0;
     if (asset.type == TokenTypeStr._20) {
-        // todo:
-        gasEst = 50000;
+        gasEst = 120000;
     } else if (asset.type == TokenTypeStr._721) {
-        // todo:
-        gasEst = 50000;
+        gasEst = 150000;
     } else {
       return true;
     }
@@ -1329,13 +1339,24 @@ export class WrapComponent implements OnInit {
   unwrap() {
     const error = this.unwrapCheck();
     if (error) return;
+    const wallet = this.wallets.selectedWallet();
+    if (!wallet) return;
 
-    this.activePanel = Panel.UNWRAP_CONFIRM;
-    this.unwrapGasCache = undefined;
-    this.unwrapInsufficientFunds = false;
-    this.updateGas();
-    this.startGasTimer();
     this.validator.addChain(this.selectedUnwrapSourceChain as ChainStr);
+
+    const doWhenUnlocked = () => {
+      this.activePanel = Panel.UNWRAP_CONFIRM;
+      this.unwrapGasCache = undefined;
+      this.unwrapInsufficientFunds = false;
+      this.updateGas();
+      this.startGasTimer();
+    };
+
+    if (wallet.locked()) {
+      this.wallets.tryInputPassword(() => doWhenUnlocked());
+      return;
+    }
+    doWhenUnlocked();
   }
 
   unwraps() {
@@ -1908,7 +1929,7 @@ export class WrapComponent implements OnInit {
 
   wrapShowMetaMask(): boolean {
     const asset = this.wrapSelectedAsset();
-    if (!asset || asset.type != TokenTypeStr._20) return false;
+    if (!asset) return false;
     const contract = this.wrapContract();
     if (!contract) return false;
     if (!ChainHelper.isEvmChain(this.selectedWrapTargetChain)) return false;
@@ -1918,7 +1939,7 @@ export class WrapComponent implements OnInit {
 
   wrapAddContractToMetaMask() {
     const asset = this.wrapSelectedAsset();
-    if (!asset || asset.type != TokenTypeStr._20) return;
+    if (!asset) return;
     const contract = this.wrapContract();
     if (!contract) return;
     if (!ChainHelper.isEvmChain(this.selectedWrapTargetChain)) return;
@@ -1928,7 +1949,7 @@ export class WrapComponent implements OnInit {
 
   unwrapShowMetaMask(): boolean {
     const token = this.unwrapSelectedToken();
-    if (!token || token.type != TokenTypeStr._20) return false;
+    if (!token) return false;
     const contract = this.unwrapContract();
     if (!contract) return false;
     if (!ChainHelper.isEvmChain(this.selectedUnwrapSourceChain)) return false;
@@ -1938,7 +1959,7 @@ export class WrapComponent implements OnInit {
 
   unwrapAddContractToMetaMask() {
     const token = this.unwrapSelectedToken();
-    if (!token || token.type != TokenTypeStr._20) return;
+    if (!token) return;
     const contract = this.unwrapContract();
     if (!contract) return;
     if (!ChainHelper.isEvmChain(this.selectedUnwrapSourceChain)) return;
@@ -1962,6 +1983,223 @@ export class WrapComponent implements OnInit {
     window.ethereum.request({ method: 'wallet_watchAsset', params });
   }
 
+  selectWrap(wrap: WrapInfo) {
+    this.selectedWrap = wrap;
+    this.activePanel = Panel.WRAP_DETAILS;
+  }
+
+  selectedWrapItemOriginalChain(): string {
+    const wrap = this.selectedWrap;
+    if (!wrap) return '';
+    return ChainHelper.toChainShown(wrap.chain);
+  }
+
+  selectedWrapItemTokenAddress(): string {
+    if (!this.selectedWrap) return '';
+    return this.selectedWrap.address;
+  }
+
+  tokenAddressCopied() {
+    let msg = marker(`Token address copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  selectedWrapItemSourceHash(): string {
+    const wrap = this.selectedWrap;
+    if (!wrap) return '';
+    return wrap.sourceTxn;
+  }
+
+  sourceHashCopied() {
+    let msg = marker(`Source hash copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  selectedWrapItemSender(): string {
+    const wrap = this.selectedWrap;
+    if (!wrap) return '';
+    return wrap.from;
+  }
+
+  senderCopied() {
+    let msg = marker(`Sender copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  selectedWrapItemSentAt(): number {
+    const wrap = this.selectedWrap;
+    if (!wrap) return 0;
+    return wrap.sourceTimestamp;
+  }
+
+  selectedWrapItemAmount(): string {
+    const wrap = this.selectedWrap;
+    if (!wrap) return '';
+    const symbol = this.queryTokenSymbol(wrap.chain, wrap.address);
+    if (!symbol) return '';
+    if (wrap.type == TokenType._20) {
+      let decimals = wrap.decimals;
+      if (decimals === undefined) {
+        decimals = this.queryTokenDecimals(wrap.chain, wrap.address);
+        if (decimals === undefined) {
+          return '';
+        }
+      }
+      return `${wrap.value.toBalanceStr(decimals)} ${symbol}`;
+    } else if (wrap.type == TokenType._721) {
+      return `1 ${symbol} (${wrap.value.toDec()})`;
+    } else {
+      return '';
+    }
+  }
+
+  selectedWrapItemTargetChain(): string {
+    const wrap = this.selectedWrap;
+    if (!wrap) return '';
+    return ChainHelper.toChainShown(wrap.toChain);
+  }
+
+  selectedWrapItemWrapContract(): string {
+    const wrap = this.selectedWrap;
+    if (!wrap) return '';
+    return wrap.wrappedAddress;
+  }
+
+  contractCopied() {
+    let msg = marker(`Contract copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  selectedWrapItemRecipient(): string {
+    const wrap = this.selectedWrap;
+    if (!wrap) return '';
+    return wrap.toAccount;
+  }
+
+  recipientCopied() {
+    let msg = marker(`Recipient copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  selectedWrapItemDestHash(): string {
+    const wrap = this.selectedWrap;
+    if (!wrap) return '';
+    return wrap.targetTxn;
+  }
+
+  destHashCopied() {
+    let msg = marker(`Destination hash copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  selectedWrapItemReceivedAt(): number {
+    const wrap = this.selectedWrap;
+    if (!wrap || !wrap.targetValid()) return 0;
+    const timestamp = this.token.txTimestamp(wrap.toChain, wrap.targetTxn);
+    if (!timestamp) {
+      this.token.queryTxTimestamp(wrap.toChain, wrap.targetTxn, wrap.targetHeight.toNumber());
+      return 0;
+    }
+    return timestamp;
+  }
+
+  selectUnwrap(unwrap: UnwrapInfo) {
+    this.selectedUnwrap = unwrap;
+    this.activePanel = Panel.UNWRAP_DETAILS;
+  }
+
+  selectedUnwrapItemOriginalChain(): string {
+    const unwrap = this.selectedUnwrap;
+    if (!unwrap) return '';
+    return ChainHelper.toChainShown(unwrap.chain);
+  }
+
+  selectedUnwrapItemTokenAddress(): string {
+    const unwrap = this.selectedUnwrap;
+    if (!unwrap) return '';
+    return unwrap.address;
+  }
+
+  selectedUnwrapItemWrapContract(): string {
+    const unwrap = this.selectedUnwrap;
+    if (!unwrap) return '';
+    return unwrap.wrappedAddress;
+  }
+
+  selectedUnwrapItemSourceChain(): string {
+    const unwrap = this.selectedUnwrap;
+    if (!unwrap) return '';
+    return ChainHelper.toChainShown(unwrap.fromChain);
+  }
+
+  selectedUnwrapItemSourceHash(): string {
+    const unwrap = this.selectedUnwrap;
+    if (!unwrap) return '';
+    return unwrap.sourceTxn;
+  }
+
+  selectedUnwrapItemSender(): string {
+    const unwrap = this.selectedUnwrap;
+    if (!unwrap) return '';
+    return unwrap.fromAccount;
+  }
+
+  selectedUnwrapItemSentAt(): number {
+    const unwrap = this.selectedUnwrap;
+    if (!unwrap) return 0;
+    const timestamp = this.token.txTimestamp(unwrap.fromChain, unwrap.sourceTxn);
+    if (!timestamp) {
+      this.token.queryTxTimestamp(unwrap.fromChain, unwrap.sourceTxn, unwrap.height);
+      return 0;
+    }
+    return timestamp;
+  }
+
+  selectedUnwrapItemAmount(): string {
+    const unwrap = this.selectedUnwrap;
+    if (!unwrap) return '';
+    const symbol = this.queryTokenSymbol(unwrap.chain, unwrap.address);
+    if (!symbol) return '';
+    if (unwrap.type == TokenType._20) {
+      let decimals = unwrap.decimals;
+      if (decimals === undefined) {
+        decimals = this.queryTokenDecimals(unwrap.chain, unwrap.address);
+        if (decimals === undefined) {
+          return '';
+        }
+      }
+      return `${unwrap.value.toBalanceStr(decimals)} ${symbol}`;
+    } else if (unwrap.type == TokenType._721) {
+      return `1 ${symbol} (${unwrap.value.toDec()})`;
+    } else {
+      return '';
+    }
+  }
+
+  selectedUnwrapItemRecipient(): string {
+    const unwrap = this.selectedUnwrap;
+    if (!unwrap) return '';
+    return unwrap.to;
+  }
+
+  selectedUnwrapItemDestHash(): string {
+    const unwrap = this.selectedUnwrap;
+    if (!unwrap) return '';
+    return unwrap.targetTxn;
+  }
+
+  selectedUnwrapItemReceivedAt(): number {
+    const unwrap = this.selectedUnwrap;
+    if (!unwrap || !unwrap.targetTimestamp) return 0;
+    return unwrap.targetTimestamp;
+  }
+
   private queryTokenSymbol(chain: string, address: string): string {
     const verified = this.verified.token(chain, address);
     if (verified) {
@@ -1972,6 +2210,13 @@ export class WrapComponent implements OnInit {
     const asset = this.settings.getAsset(account, chain, address);
     if (asset !== undefined) {
       return asset.symbol;
+    }
+
+    const tokenInfo = this.token.tokenInfo(address, chain);
+    if (tokenInfo && tokenInfo.symbol) {
+      return tokenInfo.symbol;
+    } else if (ChainHelper.isRaicoin(chain)) {
+      this.token.queryTokenInfo(chain, address);
     }
 
     const symbol = this.token.tokenSymbol(address, chain);
@@ -2003,6 +2248,8 @@ export class WrapComponent implements OnInit {
     const tokenInfo = this.token.tokenInfo(address, chain);
     if (tokenInfo && tokenInfo.type != TokenType.INVALID) {
       return tokenInfo.decimals.toNumber();
+    } else {
+      this.token.queryTokenInfo(chain, address);
     }
     
     const decimals = this.token.tokenDecimals(address, chain);
@@ -2028,6 +2275,8 @@ enum Panel {
   WRAP_CONFIRM = 'wrap_confirm',
   UNWRAP = 'unwrap',
   UNWRAP_CONFIRM = 'unwrap_confirm',
+  WRAP_DETAILS = 'wrap_details',
+  UNWRAP_DETAILS = 'unwrap_details',
 }
 
 enum ApproveStatus {

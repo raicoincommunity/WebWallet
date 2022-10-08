@@ -162,10 +162,10 @@
       </thead>
       <tbody>
         <tr *ngFor="let wrap of wraps()">
-          <td class="uk-text-left uk-text-truncate"><img [src]="wrapItemTargetChainLogo(wrap)" width="20" height="20" style="vertical-align: text-top;" />{{ wrapItemShowTargetChain(wrap) }}</td>
-          <td class="uk-text-left uk-text-truncate">{{ wrap.toAccount }}</td>
-          <td class="uk-text-right">{{ wrapItemAmount(wrap) }}<span style="font-size: 12px;"> {{ wrapItemTokenTypeShown(wrap) }}</span></td>
-          <td class="uk-text-center">
+          <td (click)="selectWrap(wrap)" class="uk-text-left uk-text-truncate"><img [src]="wrapItemTargetChainLogo(wrap)" width="20" height="20" style="vertical-align: text-top;" />{{ wrapItemShowTargetChain(wrap) }}</td>
+          <td (click)="selectWrap(wrap)" class="uk-text-left uk-text-truncate">{{ wrap.toAccount }}</td>
+          <td (click)="selectWrap(wrap)" class="uk-text-right">{{ wrapItemAmount(wrap) }}<span style="font-size: 12px;"> {{ wrapItemTokenTypeShown(wrap) }}</span></td>
+          <td (click)="selectWrap(wrap)" class="uk-text-center">
             <span *ngIf="wrapItemStatus(wrap) === 'confirmed'" uk-icon="icon: check;" class="uk-text-success" title="{{ wrapShowStatus(wrap) }}" uk-tooltip></span>
             <span *ngIf="wrapItemStatus(wrap) === 'confirming'" class="uk-text-warning">{{ wrapItemConfirms(wrap) }}</span>
             <span *ngIf="wrapItemStatus(wrap) === 'collected'" uk-icon="icon: forward;" title="{{ wrapShowStatus(wrap) }}" class="uk-text-warning" (click)="wrapRetry(wrap)"
@@ -272,13 +272,208 @@
         <button (click)="wrapCancel()" class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate }}</button>
       </div>
       <div class="uk-width-1-2@s">
-        <button *ngIf="wrapFeeAndGas() !== '' && !wrapInsufficientFunds" class="uk-button uk-button-primary uk-width-1-1" (click)="wrapConfirm()">{{ 'Confirm' | translate }}</button>
-        <button *ngIf="wrapFeeAndGas() === ''" class="uk-button uk-button-disabled uk-width-1-1" >{{ 'Fetching Fee & Gas ...' | translate }}</button>
-        <button *ngIf="wrapFeeAndGas() !== '' && wrapInsufficientFunds" class="uk-button uk-button-disabled uk-width-1-1" >{{ 'Insufficient Fee & Gas' | translate }}</button>
+        <button *ngIf="wrapFeeAndGas() !== ''" class="uk-button uk-button-primary uk-width-1-1" (click)="wrapConfirm()">{{ 'Confirm' | translate }}</button>
+        <button *ngIf="wrapFeeAndGas() === '' && !wrapInsufficientFunds" class="uk-button uk-button-disabled uk-width-1-1" >{{ 'Fetching Fee & Gas ...' | translate }}</button>
+        <button *ngIf="wrapFeeAndGas() === '' && wrapInsufficientFunds" class="uk-button uk-button-disabled uk-width-1-1" >{{ 'Insufficient Fee & Gas' | translate }}</button>
       </div>
     </div>
 
   </div>
+</div>
+
+<!-- Wrap Details Panel -->
+<div [hidden]="activePanel !== 'wrap_details'" class="uk-card uk-card-default uk-margin">
+  <div class="uk-card-header">
+    <div uk-grid>
+      <h3 class="uk-card-title">WRAP {{ 'Details' | translate }}</h3>
+    </div>
+  </div>
+
+  <div class="uk-card-body uk-padding-remove uk-form-horizontal">
+    <div class="uk-padding-small" uk-grid>
+      <div class="uk-width-1-1">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Original Chain' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            {{ selectedWrapItemOriginalChain() }}
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Token Address' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedWrapItemTokenAddress() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedWrapItemTokenAddress() " (cbOnSuccess)="tokenAddressCopied()" uk-icon="icon: copy" title="{{ 'Copy Token Address' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Source Hash' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedWrapItemSourceHash() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedWrapItemSourceHash()" (cbOnSuccess)="sourceHashCopied()" uk-icon="icon: copy" title="{{ 'Copy Source Hash' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Sender' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedWrapItemSender() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedWrapItemSender() " (cbOnSuccess)="senderCopied()" uk-icon="icon: copy" title="{{ 'Copy Sender' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Sent Time' | translate }}
+          </div>
+          <div *ngIf="selectedWrapItemSentAt() !== 0" class="uk-width-3-5 uk-text-left">
+            {{ selectedWrapItemSentAt() * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}
+          </div>
+          <div *ngIf="selectedWrapItemSentAt() === 0" class="uk-width-3-5 uk-text-left">
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Amount' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left uk-text-break">
+            {{ selectedWrapItemAmount() }}
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Wrap Chain' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            {{ selectedWrapItemTargetChain() }}
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Wrap Contract' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedWrapItemWrapContract() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedWrapItemWrapContract() " (cbOnSuccess)="contractCopied()" uk-icon="icon: copy" title="{{ 'Copy Contract' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Recipient' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedWrapItemRecipient() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedWrapItemRecipient() " (cbOnSuccess)="recipientCopied()" uk-icon="icon: copy" title="{{ 'Copy Recipient' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Dest Hash' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedWrapItemDestHash() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedWrapItemDestHash() " (cbOnSuccess)="destHashCopied()" uk-icon="icon: copy" title="{{ 'Copy Destination Hash' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Received Time' | translate }}
+          </div>
+          <div *ngIf="selectedWrapItemReceivedAt() !== 0" class="uk-width-3-5 uk-text-left">
+            {{ selectedWrapItemReceivedAt() * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}
+          </div>
+          <div *ngIf="selectedWrapItemReceivedAt() === 0" class="uk-width-3-5 uk-text-left">
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="uk-card-footer uk-text-right">
+    <div class="uk-width-1-1">
+      <button class="uk-button uk-button-secondary" (click)="activePanel='wrap'">{{ 'Back'
+        | translate }}</button>
+    </div>
+  </div>
+
 </div>
 
 
@@ -462,9 +657,9 @@
       </thead>
       <tbody>
         <tr *ngFor="let unwrap of unwraps()">
-          <td class="uk-text-left uk-text-truncate">{{ unwrap.fromAccount }}</td>
-          <td class="uk-text-right">{{ unwrapItemAmount(unwrap) }}<span style="font-size: 12px;"> {{ unwrapItemTokenTypeShown(unwrap) }}</span></td>
-          <td class="uk-text-center">
+          <td (click)="selectUnwrap(unwrap)" class="uk-text-left uk-text-truncate">{{ unwrap.fromAccount }}</td>
+          <td (click)="selectUnwrap(unwrap)" class="uk-text-right">{{ unwrapItemAmount(unwrap) }}<span style="font-size: 12px;"> {{ unwrapItemTokenTypeShown(unwrap) }}</span></td>
+          <td (click)="selectUnwrap(unwrap)" class="uk-text-center">
             <span *ngIf="unwrapItemSuccess(unwrap)" uk-icon="icon: check;" class="uk-text-success"></span>
             <span *ngIf="!unwrapItemSuccess(unwrap)" class="uk-text-warning">{{ unwrapItemConfirms(unwrap) }}</span>
           </td>
@@ -567,13 +762,208 @@
         <button (click)="unwrapCancel()" class="uk-button uk-button-danger uk-width-1-1">{{ 'Cancel' | translate }}</button>
       </div>
       <div class="uk-width-1-2@s">
-        <button *ngIf="unwrapFeeAndGas() !== '' && !unwrapInsufficientFunds" class="uk-button uk-button-primary uk-width-1-1" (click)="unwrapConfirm()">{{ 'Confirm' | translate }}</button>
-        <button *ngIf="unwrapFeeAndGas() === ''" class="uk-button uk-button-disabled uk-width-1-1" >{{ 'Fetching Fee & Gas ...' | translate }}</button>
-        <button *ngIf="unwrapFeeAndGas() !== '' && unwrapInsufficientFunds" class="uk-button uk-button-disabled uk-width-1-1" >{{ 'Insufficient Fee & Gas' | translate }}</button>
+        <button *ngIf="unwrapFeeAndGas() !== ''" class="uk-button uk-button-primary uk-width-1-1" (click)="unwrapConfirm()">{{ 'Confirm' | translate }}</button>
+        <button *ngIf="unwrapFeeAndGas() === '' && !unwrapInsufficientFunds" class="uk-button uk-button-disabled uk-width-1-1" >{{ 'Fetching Fee & Gas ...' | translate }}</button>
+        <button *ngIf="unwrapFeeAndGas() === '' && unwrapInsufficientFunds" class="uk-button uk-button-disabled uk-width-1-1" >{{ 'Insufficient Funds' | translate }}</button>
       </div>
     </div>
 
   </div>
+</div>
+
+<!-- Unwrap Details Panel -->
+<div [hidden]="activePanel !== 'unwrap_details'" class="uk-card uk-card-default uk-margin">
+  <div class="uk-card-header">
+    <div uk-grid>
+      <h3 class="uk-card-title">UNWRAP {{ 'Details' | translate }}</h3>
+    </div>
+  </div>
+
+  <div class="uk-card-body uk-padding-remove uk-form-horizontal">
+    <div class="uk-padding-small" uk-grid>
+      <div class="uk-width-1-1">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Original Chain' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            {{ selectedUnwrapItemOriginalChain() }}
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Token Address' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedUnwrapItemTokenAddress() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedUnwrapItemTokenAddress() " (cbOnSuccess)="tokenAddressCopied()" uk-icon="icon: copy" title="{{ 'Copy Token Address' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Wrap Chain' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            {{ selectedUnwrapItemSourceChain() }}
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Wrap Contract' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedUnwrapItemWrapContract() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedUnwrapItemWrapContract() " (cbOnSuccess)="contractCopied()" uk-icon="icon: copy" title="{{ 'Copy Contract' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Source Hash' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedUnwrapItemSourceHash() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedUnwrapItemSourceHash()" (cbOnSuccess)="sourceHashCopied()" uk-icon="icon: copy" title="{{ 'Copy Source Hash' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Sender' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedUnwrapItemSender() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedUnwrapItemSender() " (cbOnSuccess)="senderCopied()" uk-icon="icon: copy" title="{{ 'Copy Sender' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Sent Time' | translate }}
+          </div>
+          <div *ngIf="selectedUnwrapItemSentAt() !== 0" class="uk-width-3-5 uk-text-left">
+            {{ selectedUnwrapItemSentAt() * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}
+          </div>
+          <div *ngIf="selectedUnwrapItemSentAt() === 0" class="uk-width-3-5 uk-text-left">
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Amount' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left uk-text-break">
+            {{ selectedUnwrapItemAmount() }}
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Recipient' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedUnwrapItemRecipient() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedUnwrapItemRecipient() " (cbOnSuccess)="recipientCopied()" uk-icon="icon: copy" title="{{ 'Copy Recipient' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Dest Hash' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedUnwrapItemDestHash() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedUnwrapItemDestHash() " (cbOnSuccess)="destHashCopied()" uk-icon="icon: copy" title="{{ 'Copy Destination Hash' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Received Time' | translate }}
+          </div>
+          <div *ngIf="selectedUnwrapItemReceivedAt() !== 0" class="uk-width-3-5 uk-text-left">
+            {{ selectedUnwrapItemReceivedAt() * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}
+          </div>
+          <div *ngIf="selectedUnwrapItemReceivedAt() === 0" class="uk-width-3-5 uk-text-left">
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="uk-card-footer uk-text-right">
+    <div class="uk-width-1-1">
+      <button class="uk-button uk-button-secondary" (click)="activePanel='unwrap'">{{ 'Back'
+        | translate }}</button>
+    </div>
+  </div>
+
 </div>
 
 

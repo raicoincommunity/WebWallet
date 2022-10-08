@@ -48,6 +48,7 @@ export class MapComponent implements OnInit {
   private waitingUnmaps: { [hash: string]: boolean } = {};
   private submittingUnmaps: { [hash: string]: number } = {};
   private unmapSubscription: any;
+  private web3AccountSubscription: any;
 
   private gasTimer: any = null;
   private approveTimer: any = null;
@@ -55,6 +56,9 @@ export class MapComponent implements OnInit {
 
   filterMapToken: any;
   filterUnmapAsset: any;
+
+  private selectedMap?: MapInfo;
+  private selectedUnmap?: UnmapInfo;
 
   private SIGNATURES_PERCENT = 51;
 
@@ -77,6 +81,23 @@ export class MapComponent implements OnInit {
     this.unmapSubscription = this.token.tokenUnmap$.subscribe(unmap => {
       this.validator.signUnmap(unmap);
       this.startChainTimer();
+    });
+
+    this.web3AccountSubscription = this.web3.accountChanged$.subscribe(e => {
+      this.mapApproveStatus = ApproveStatus.NONE;
+      this.approveCheckingSince = undefined;
+      if (e.to) {
+        this.mapCheckApproved();
+      }
+      if (this.activePanel == Panel.MAP_CONFIRM) {
+        this.mapGasCache = undefined;
+        this.mapInsufficientFunds = false;
+        this.updateMapGas();
+      } else if (this.activePanel == Panel.UNMAP_CONFIRM) {
+        this.unmapGasCache = undefined;
+        this.unmapInsufficientFunds = false;
+        this.updateUnmapGas();
+      }
     });
   }
 
@@ -133,9 +154,13 @@ export class MapComponent implements OnInit {
       clearInterval(this.chainTimer);
       this.chainTimer = null;
     }
-    if (!this.unmapSubscription) {
+    if (this.unmapSubscription) {
       this.unmapSubscription.unsubscribe();
-      this.unmapSubscription = undefined;
+      this.unmapSubscription = null;
+    }
+    if (this.web3AccountSubscription) {
+      this.web3AccountSubscription.unsubscribe();
+      this.web3AccountSubscription = null;
     }
   }
 
@@ -441,12 +466,24 @@ export class MapComponent implements OnInit {
       return;
     }
 
-    this.activePanel = Panel.MAP_CONFIRM;
-    this.mapGasCache = undefined;
-    this.mapInsufficientFunds = false;
-    this.updateGas();
-    this.startGasTimer();
+    const wallet = this.wallets.selectedWallet();
+    if (!wallet) return;
+
     this.validator.addChain(token.chain as ChainStr);
+
+    const doWhenUnlocked = () => {
+      this.activePanel = Panel.MAP_CONFIRM;
+      this.mapGasCache = undefined;
+      this.mapInsufficientFunds = false;
+      this.updateGas();
+      this.startGasTimer();
+    };
+
+    if (wallet.locked()) {
+      this.wallets.tryInputPassword(() => doWhenUnlocked());
+      return;
+    }
+    doWhenUnlocked();
   }
 
   mapCancel() {
@@ -537,8 +574,27 @@ export class MapComponent implements OnInit {
     }
   }
 
+  mapItemStatus(map: MapInfo): MapStatus {
+    if (!map.confirmed) {
+      return MapStatus.CONFIRMING
+    }
+
+    if (map.targetTxn) {
+      return MapStatus.SUCCESS;
+    }
+    return MapStatus.CONFIRMED;
+  }
+
   mapItemSuccess(map: MapInfo): boolean {
-    return map.confirmed;
+    return this.mapItemStatus(map) === MapStatus.SUCCESS;
+  }
+
+  mapItemConfirming(map: MapInfo): boolean {
+    return this.mapItemStatus(map) === MapStatus.CONFIRMING;
+  }
+
+  mapItemConfirmed(map: MapInfo): boolean {
+    return this.mapItemStatus(map) === MapStatus.CONFIRMED;
   }
 
   mapItemConfirms(map: MapInfo): string {
@@ -562,7 +618,11 @@ export class MapComponent implements OnInit {
     if (token.type == TokenTypeStr._20) {
       return `${amount.toBalanceStr(token.decimals)} ${token.symbol}`;
     } else if (token.type == TokenTypeStr._721) {
-      return `1 ${token.symbol}`;
+      let tokenId  = amount.toDec();
+      if (tokenId.length >= 12) {
+        tokenId = `${tokenId.substring(0, 4)}...${tokenId.substring(tokenId.length - 4)}`;
+      }
+      return `1 ${token.symbol}(${tokenId})`;
     } else {
       return '';
     }
@@ -889,14 +949,12 @@ export class MapComponent implements OnInit {
     let gasEst = 0;
     if (asset.type == TokenTypeStr._20) {
       if (ChainHelper.isNative(asset.chain, asset.addressRaw)) {
-        // todo:
         gasEst = 100000;
       } else {
-        gasEst = 100000;
+        gasEst = 120000;
       }
     } else if (asset.type == TokenTypeStr._721) {
-        // todo:
-        gasEst = 50000;
+        gasEst = 150000;
     } else {
       return true;
     }
@@ -1500,6 +1558,192 @@ export class MapComponent implements OnInit {
     this.unmapSubmit(unmap);
   }
 
+  selectMap(map: MapInfo) {
+    this.selectedMap = map;
+    this.activePanel = Panel.MAP_DETAILS;
+  }
+
+  selectedMapItemSourceHash(): string {
+    const map = this.selectedMap;
+    if (!map) return '';
+    return map.sourceTxn;
+  }
+
+  sourceHashCopied() {
+    let msg = marker(`Source hash copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  selectedMapItemSender(): string {
+    const map = this.selectedMap;
+    if (!map) return '';
+    return map.from;
+  }
+
+  senderCopied() {
+    let msg = marker(`Sender copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  selectedMapItemOriginalChain(): string {
+    const map = this.selectedMap;
+    if (!map) return '';
+    return ChainHelper.toChainShown(map.chain);
+  }
+
+  selectedMapItemTokenAddress(): string {
+    if (!this.selectedMap) return '';
+    return this.selectedMap.address;
+  }
+
+  tokenAddressCopied() {
+    let msg = marker(`Token address copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  selectedMapItemSentAt(): number {
+    const map = this.selectedMap;
+    if (!map) return 0;
+    const timestamp = this.token.txTimestamp(map.chain, map.sourceTxn);
+    if (!timestamp) {
+      this.token.queryTxTimestamp(map.chain, map.sourceTxn, map.height);
+      return 0;
+    }
+    return timestamp;
+  }
+
+  selectedMapItemAmount(): string {
+    const map = this.selectedMap;
+    if (!map) return '';
+    const symbol = this.queryTokenSymbol(map.chain, map.address);
+    if (!symbol) return '';
+    if (map.type == TokenType._20) {
+      let decimals = map.decimals;
+      if (decimals === undefined) {
+        decimals = this.queryTokenDecimals(map.chain, map.address);
+        if (decimals === undefined) {
+          return '';
+        }
+      }
+      return `${map.value.toBalanceStr(decimals)} ${symbol}`;
+    } else if (map.type == TokenType._721) {
+      return `1 ${symbol} (${map.value.toDec()})`;
+    } else {
+      return '';
+    }
+  }
+
+  selectedMapItemDestHash(): string {
+    const map = this.selectedMap;
+    if (!map) return '';
+    return map.targetTxn;
+  }
+
+  destHashCopied() {
+    let msg = marker(`Destination hash copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  selectedMapItemRecipient(): string {
+    const map = this.selectedMap;
+    if (!map) return '';
+    return map.to;
+  }
+
+  recipientCopied() {
+    let msg = marker(`Recipient copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  selectedMapItemReceivedAt(): number {
+    const map = this.selectedMap;
+    if (!map || !map.targetTimestamp) return 0;
+    return map.targetTimestamp;
+  }
+
+  selectUnmap(unmap: UnmapInfo) {
+    this.selectedUnmap = unmap;
+    this.activePanel = Panel.UNMAP_DETAILS;
+  }
+
+  selectedUnmapItemOriginalChain(): string {
+    const unmap = this.selectedUnmap;
+    if (!unmap) return '';
+    return ChainHelper.toChainShown(unmap.chain);
+  }
+
+  selectedUnmapItemTokenAddress(): string {
+    if (!this.selectedUnmap) return '';
+    return this.selectedUnmap.address;
+  }
+
+  selectedUnmapItemSourceHash(): string {
+    const unmap = this.selectedUnmap;
+    if (!unmap) return '';
+    return unmap.sourceTxn;
+  }
+
+  selectedUnmapItemSender(): string {
+    const unmap = this.selectedUnmap;
+    if (!unmap) return '';
+    return unmap.from;
+  }
+
+  selectedUnmapItemSentAt(): number {
+    const unmap = this.selectedUnmap;
+    if (!unmap) return 0;
+    return unmap.sourceTimestamp;
+  }
+
+  selectedUnmapItemReceivedAt(): number {
+    const unmap = this.selectedUnmap;
+    if (!unmap || !unmap.targetValid()) return 0;
+    const timestamp = this.token.txTimestamp(unmap.chain, unmap.targetTxn);
+    if (!timestamp) {
+      this.token.queryTxTimestamp(unmap.chain, unmap.targetTxn, unmap.targetHeight.toNumber());
+      return 0;
+    }
+    return timestamp;
+  }
+
+  selectedUnmapItemAmount(): string {
+    const unmap = this.selectedUnmap;
+    if (!unmap) return '';
+    const symbol = this.queryTokenSymbol(unmap.chain, unmap.address);
+    if (!symbol) return '';
+    if (unmap.type == TokenType._20) {
+      let decimals = unmap.decimals;
+      if (decimals === undefined) {
+        decimals = this.queryTokenDecimals(unmap.chain, unmap.address);
+        if (decimals === undefined) {
+          return '';
+        }
+      }
+      return `${unmap.value.toBalanceStr(decimals)} ${symbol}`;
+    } else if (unmap.type == TokenType._721) {
+      return `1 ${symbol} (${unmap.value.toDec()})`;
+    } else {
+      return '';
+    }
+  }
+
+  selectedUnmapItemRecipient(): string {
+    const unmap = this.selectedUnmap;
+    if (!unmap) return '';
+    return unmap.to;
+  }
+
+  selectedUnmapItemDestHash(): string {
+    const unmap = this.selectedUnmap;
+    if (!unmap) return '';
+    return unmap.targetTxn;
+  }
+
   private queryTokenSymbol(chain: string, address: string): string {
     const verified = this.verified.token(chain, address);
     if (verified) {
@@ -1557,6 +1801,8 @@ enum Panel {
   MAP_CONFIRM = 'map_confirm',
   UNMAP = 'unmap',
   UNMAP_CONFIRM = 'unmap_confirm',
+  MAP_DETAILS = 'map_details',
+  UNMAP_DETAILS = 'unmap_details',
 }
 
 enum ApproveStatus {
@@ -1566,6 +1812,13 @@ enum ApproveStatus {
   APPROVED = 'approved',
   REJECTED = 'rejected',
   ERROR = 'error',
+}
+
+enum MapStatus {
+  NONE = '',
+  CONFIRMING = 'confirming',
+  CONFIRMED = 'confirmed',
+  SUCCESS = 'success',
 }
 
 enum UnmapStatus {

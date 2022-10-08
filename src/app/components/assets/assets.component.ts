@@ -219,7 +219,7 @@ export class AssetsComponent implements OnInit {
         item.tokenLogo = this.logo.getTokenLogo(i.chain, i.address);
       }
       custom.push(item);
-      if (ChainHelper.isRaicoin(item.address)) {
+      if (ChainHelper.isRaicoin(item.chain)) {
         this.alias.addAccount(item.address);
       }
     }

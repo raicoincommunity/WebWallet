@@ -1,12 +1,12 @@
-import { Component, OnInit, OnChanges, Input, ViewChild, ElementRef, HostListener, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, Input, ViewChild, ElementRef, HostListener, Output, EventEmitter } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { WalletsService } from '../../services/wallets.service';
 import { LogoService } from '../../services/logo.service';
 import { VerifiedToken, VerifiedTokensService } from '../../services/verified-tokens.service';
 import { environment } from '../../../environments/environment';
-import { ChainHelper, TokenHelper, TokenTypeStr, U256 } from '../../services/util.service';
+import { ChainHelper, TokenHelper, TokenTypeStr, U256, U8 } from '../../services/util.service';
 import { SettingsService } from '../../services/settings.service'
-import { TokenService } from '../../services/token.service';
+import { TokenService, AccountTokenInfo } from '../../services/token.service';
 import { NotificationService } from '../../services/notification.service';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 
@@ -215,6 +215,17 @@ export class TokenWidgetComponent implements OnInit {
       }
     }
 
+    for (let i of this.token.tokens()) {
+      if (result.length >= this.maxShownItems) break;
+      const existing = result.find(x => x.chain === i.chain && x.address == i.address);
+      if (existing) continue;
+      const item = this.makeTokenItem(i);
+      if (!item) continue;
+      if (this.filter(item)) {
+        result.push(item);
+      }
+    }
+
     this.defaultTokens = result
     return this.defaultTokens;
   }
@@ -283,8 +294,9 @@ export class TokenWidgetComponent implements OnInit {
         continue;
       }
       item.addressRaw = ret.raw!;
-      item.symbol = i.symbol;
-      item.name = i.name;
+      const verified = this.verified.token(i.chain, i.address);
+      item.symbol = verified?.symbol || i.symbol;
+      item.name = verified?.name || i.name;
       item.decimals = +i.decimals;
         item.type = i.type || '';
       if (!item.type) {
@@ -308,9 +320,13 @@ export class TokenWidgetComponent implements OnInit {
     }
   }
 
-  private makeTokenItem(info: VerifiedToken): TokenItem | undefined {
+  private makeTokenItem(info: VerifiedToken | AccountTokenInfo): TokenItem | undefined {
     const item = new TokenItem();
-    item.chain = ChainHelper.toChainStr(info.chain);
+    if (typeof info.chain === 'string') {
+      item.chain = info.chain;
+    } else {
+      item.chain = ChainHelper.toChainStr(info.chain);
+    }
     item.address = info.address;
     const ret = ChainHelper.addressToRaw(item.chain, item.address);
     if (ret.error) {
@@ -330,12 +346,63 @@ export class TokenWidgetComponent implements OnInit {
     } else {
       item.tokenLogo = this.logo.getTokenLogo(item.chain, info.address);
     }
-    item.symbol = info.symbol;
-    item.name = info.name;
-    item.decimals = info.decimals;
+    item.symbol = info.symbol || this.queryTokenSymbol(item.chain, item.address);
+    item.name = info.name || this.queryTokenName(item.chain, item.address);
+    if (info.decimals instanceof U8) {
+      item.decimals = info.decimals.toNumber();
+    } else {
+      item.decimals = info.decimals;
+    }
     return item;
   }
 
+  private queryTokenSymbol(chain: string, address: string, fallback: string = ''): string {
+    const verified = this.verified.token(chain, address);
+    if (verified) {
+      return verified.symbol;
+    }
+    
+    const account = this.wallets.selectedAccountAddress();
+    const asset = this.settings.getAsset(account, chain, address);
+    if (asset !== undefined) {
+      return asset.symbol;
+    }
+
+    const tokenInfo = this.token.tokenInfo(address, chain);
+    if (tokenInfo && tokenInfo.symbol) {
+      return tokenInfo.symbol;
+    }
+    
+    const symbol = this.token.tokenSymbol(address, chain);
+    if (symbol) return symbol;
+    this.token.queryTokenSymbol(chain, address, false);
+
+    return fallback;
+  }
+
+  private queryTokenName(chain: string, address: string, fallback: string = ''): string {
+    const verified = this.verified.token(chain, address);
+    if (verified) {
+      return verified.name;
+    }
+    
+    const account = this.wallets.selectedAccountAddress();
+    const asset = this.settings.getAsset(account, chain, address);
+    if (asset !== undefined) {
+      return asset.name;
+    }
+
+    const tokenInfo = this.token.tokenInfo(address, chain);
+    if (tokenInfo && tokenInfo.name) {
+      return tokenInfo.name;
+    }
+    
+    const name = this.token.tokenName(address, chain);
+    if (name) return name;
+    this.token.queryTokenName(chain, address, false);
+
+    return fallback;
+  }
 
 }
 

@@ -179,11 +179,13 @@
       </thead>
       <tbody>
         <tr *ngFor="let map of maps()">
-          <td class="uk-text-left uk-text-truncate">{{ map.from }}</td>
-          <td class="uk-text-right">{{ mapItemAmount(map) }}</td>
-          <td class="uk-text-center">
+          <td (click)="selectMap(map)" class="uk-text-left uk-text-truncate">{{ map.from }}</td>
+          <td (click)="selectMap(map)" class="uk-text-right">{{ mapItemAmount(map) }}</td>
+          <td (click)="selectMap(map)" class="uk-text-center">
             <span *ngIf="mapItemSuccess(map)" uk-icon="icon: check;" class="uk-text-success"></span>
-            <span *ngIf="!mapItemSuccess(map)" class="uk-text-warning">{{ mapItemConfirms(map) }}</span>
+            <span *ngIf="mapItemConfirming(map)" class="uk-text-warning">{{ mapItemConfirms(map) }}</span>
+            <span *ngIf="mapItemConfirmed(map)" uk-icon="icon: forward;" title="{{ 'Click to receive' | translate }}" class="uk-text-warning" routerLink="/receive"
+            uk-tooltip></span>
           </td>
         </tr>
         <tr *ngIf="noMaps()">
@@ -275,6 +277,171 @@
   </div>
 </div>
 
+<!-- Map Details Panel -->
+<div [hidden]="activePanel !== 'map_details'" class="uk-card uk-card-default uk-margin">
+  <div class="uk-card-header">
+    <div uk-grid>
+      <h3 class="uk-card-title">MAP {{ 'Details' | translate }}</h3>
+    </div>
+  </div>
+
+  <div class="uk-card-body uk-padding-remove uk-form-horizontal">
+    <div class="uk-padding-small" uk-grid>
+      <div class="uk-width-1-1">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Original Chain' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            {{ selectedMapItemOriginalChain() }}
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Token Address' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedMapItemTokenAddress() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedMapItemTokenAddress() " (cbOnSuccess)="tokenAddressCopied()" uk-icon="icon: copy" title="{{ 'Copy Token Address' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Source Hash' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedMapItemSourceHash() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedMapItemSourceHash() " (cbOnSuccess)="sourceHashCopied()" uk-icon="icon: copy" title="{{ 'Copy Source Hash' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Sender' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedMapItemSender() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedMapItemSender() " (cbOnSuccess)="senderCopied()" uk-icon="icon: copy" title="{{ 'Copy Sender' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Sent Time' | translate }}
+          </div>
+          <div *ngIf="selectedMapItemSentAt() !== 0" class="uk-width-3-5 uk-text-left">
+            {{ selectedMapItemSentAt() * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}
+          </div>
+          <div *ngIf="selectedMapItemSentAt() === 0" class="uk-width-3-5 uk-text-left">
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Amount' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left uk-text-break">
+            {{ selectedMapItemAmount() }}
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Recipient' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedMapItemRecipient() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedMapItemRecipient() " (cbOnSuccess)="recipientCopied()" uk-icon="icon: copy" title="{{ 'Copy Recipient' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Dest Hash' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedMapItemDestHash() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedMapItemDestHash() " (cbOnSuccess)="destHashCopied()" uk-icon="icon: copy" title="{{ 'Copy Destination Hash' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Received Time' | translate }}
+          </div>
+          <div *ngIf="selectedMapItemReceivedAt() !== 0" class="uk-width-3-5 uk-text-left">
+            {{ selectedMapItemReceivedAt() * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}
+          </div>
+          <div *ngIf="selectedMapItemReceivedAt() === 0" class="uk-width-3-5 uk-text-left">
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="uk-card-footer uk-text-right">
+    <div class="uk-width-1-1">
+      <button class="uk-button uk-button-secondary" (click)="activePanel='map'">{{ 'Back'
+        | translate }}</button>
+    </div>
+  </div>
+
+</div>
+
 
 <!-- Unmap Panel -->
 <div class="uk-card uk-card-default" [hidden]="activePanel != 'unmap'">
@@ -361,10 +528,10 @@
       </thead>
       <tbody>
         <tr *ngFor="let unmap of unmaps()">
-          <td class="uk-text-left uk-text-truncate"><img [src]="unmapItemChainLogo(unmap)" width="20" height="20" style="vertical-align: text-top;" />{{ unmapItemShowChain(unmap) }}</td>
-          <td class="uk-text-left uk-text-truncate">{{ unmap.to }}</td>
-          <td class="uk-text-right">{{ unmapItemAmount(unmap) }}</td>
-          <td class="uk-text-center">
+          <td (click)="selectUnmap(unmap)" class="uk-text-left uk-text-truncate"><img [src]="unmapItemChainLogo(unmap)" width="20" height="20" style="vertical-align: text-top;" />{{ unmapItemShowChain(unmap) }}</td>
+          <td (click)="selectUnmap(unmap)" class="uk-text-left uk-text-truncate">{{ unmap.to }}</td>
+          <td (click)="selectUnmap(unmap)" class="uk-text-right">{{ unmapItemAmount(unmap) }}</td>
+          <td (click)="selectUnmap(unmap)" class="uk-text-center">
             <span *ngIf="unmapItemStatus(unmap) === 'confirmed'" uk-icon="icon: check;" class="uk-text-success" title="{{ unmapShowStatus(unmap) }}" uk-tooltip></span>
             <span *ngIf="unmapItemStatus(unmap) === 'confirming'" class="uk-text-warning">{{ unmapItemConfirms(unmap) }}</span>
             <span *ngIf="unmapItemStatus(unmap) === 'collected'" uk-icon="icon: forward;" title="{{ unmapShowStatus(unmap) }}" class="uk-text-warning" (click)="unmapRetry(unmap)"
@@ -460,6 +627,171 @@
     </div>
 
   </div>
+</div>
+
+<!-- Unmap Details Panel -->
+<div [hidden]="activePanel !== 'unmap_details'" class="uk-card uk-card-default uk-margin">
+  <div class="uk-card-header">
+    <div uk-grid>
+      <h3 class="uk-card-title">UNMAP {{ 'Details' | translate }}</h3>
+    </div>
+  </div>
+
+  <div class="uk-card-body uk-padding-remove uk-form-horizontal">
+    <div class="uk-padding-small" uk-grid>
+      <div class="uk-width-1-1">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Original Chain' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            {{ selectedUnmapItemOriginalChain() }}
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Token Address' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedUnmapItemTokenAddress() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedUnmapItemTokenAddress() " (cbOnSuccess)="tokenAddressCopied()" uk-icon="icon: copy" title="{{ 'Copy Token Address' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Source Hash' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedUnmapItemSourceHash() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedUnmapItemSourceHash() " (cbOnSuccess)="sourceHashCopied()" uk-icon="icon: copy" title="{{ 'Copy Source Hash' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Sender' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedUnmapItemSender() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedUnmapItemSender() " (cbOnSuccess)="senderCopied()" uk-icon="icon: copy" title="{{ 'Copy Sender' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Sent Time' | translate }}
+          </div>
+          <div *ngIf="selectedUnmapItemSentAt() !== 0" class="uk-width-3-5 uk-text-left">
+            {{ selectedUnmapItemSentAt() * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}
+          </div>
+          <div *ngIf="selectedUnmapItemSentAt() === 0" class="uk-width-3-5 uk-text-left">
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Amount' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left uk-text-break">
+            {{ selectedUnmapItemAmount() }}
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Recipient' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedUnmapItemRecipient() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedUnmapItemRecipient() " (cbOnSuccess)="recipientCopied()" uk-icon="icon: copy" title="{{ 'Copy Recipient' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Dest Hash' | translate }}
+          </div>
+          <div class="uk-width-3-5 uk-text-left">
+            <div uk-grid>
+              <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                {{ selectedUnmapItemDestHash() }}
+              </div>
+              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                <a ngxClipboard
+                  [cbContent]="selectedUnmapItemDestHash() " (cbOnSuccess)="destHashCopied()" uk-icon="icon: copy" title="{{ 'Copy Destination Hash' | translate }}" uk-tooltip></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-width-1-1 uk-margin-small-top">
+        <div uk-grid>
+          <div class="uk-width-2-5 uk-text-left">
+            {{ 'Received Time' | translate }}
+          </div>
+          <div *ngIf="selectedUnmapItemReceivedAt() !== 0" class="uk-width-3-5 uk-text-left">
+            {{ selectedUnmapItemReceivedAt() * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}
+          </div>
+          <div *ngIf="selectedUnmapItemReceivedAt() === 0" class="uk-width-3-5 uk-text-left">
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="uk-card-footer uk-text-right">
+    <div class="uk-width-1-1">
+      <button class="uk-button uk-button-secondary" (click)="activePanel='unmap'">{{ 'Back'
+        | translate }}</button>
+    </div>
+  </div>
+
 </div>
 
 
