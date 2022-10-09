@@ -162,7 +162,7 @@
       </thead>
       <tbody>
         <tr *ngFor="let wrap of wraps()">
-          <td (click)="selectWrap(wrap)" class="uk-text-left uk-text-truncate"><img [src]="wrapItemTargetChainLogo(wrap)" width="20" height="20" style="vertical-align: text-top;" />{{ wrapItemShowTargetChain(wrap) }}</td>
+          <td (click)="selectWrap(wrap)" class="uk-text-left uk-text-truncate"><img [src]="wrapItemTargetChainLogo(wrap)" width="20" height="20" style="vertical-align: text-top;" /> {{ wrapItemShowTargetChain(wrap) }}</td>
           <td (click)="selectWrap(wrap)" class="uk-text-left uk-text-truncate">{{ wrap.toAccount }}</td>
           <td (click)="selectWrap(wrap)" class="uk-text-right">{{ wrapItemAmount(wrap) }}<span style="font-size: 12px;"> {{ wrapItemTokenTypeShown(wrap) }}</span></td>
           <td (click)="selectWrap(wrap)" class="uk-text-center">
@@ -580,39 +580,40 @@
 
   <div class="uk-card-footer uk-text-right uk-hidden@m">
     <div uk-grid>
-      <div *ngIf="unwrapApprovable()" class="uk-width-1-2@m">
+      <div *ngIf="unwrapApprovable()" class="uk-width-1-1">
         <button class="uk-button uk-button-primary uk-width-1-1" (click)="unwrapApprove()">
           {{ 'Enable' | translate }}</button>
       </div>
-      <div *ngIf="unwrapFetchingData()" class="uk-width-1-2@m">
+      <div *ngIf="unwrapFetchingData()" class="uk-width-1-1">
         <button class="uk-button uk-button-disabled uk-width-1-1">{{ 'Fetching Data ...' | translate }}</button>
       </div>
-      <div *ngIf="unwrapApproveStatus == 'checking'" class="uk-width-1-2@m">
+      <div *ngIf="unwrapApproveStatus == 'checking'" class="uk-width-1-1">
         <button  class="uk-button uk-button-disabled uk-width-1-1">{{ 'Checking ...' | translate }}</button>
       </div>
-      <div *ngIf="unwrapApproveStatus == 'waiting'" class="uk-width-1-2@m">
+      <div *ngIf="unwrapApproveStatus == 'waiting'" class="uk-width-1-1">
         <button class="uk-button uk-button-disabled uk-width-1-1">{{ 'Waiting ...' | translate }}</button>
       </div>
-      <div *ngIf="unwrapable()" class="uk-width-1-2@m">
+      <div *ngIf="unwrapable()" class="uk-width-1-1">
         <button class="uk-button uk-button-primary uk-width-1-1" (click)="unwrap()">
           Unwrap</button>
       </div>
-      <div *ngIf="!unwrapable()" class="uk-width-1-2@m">
+      <div *ngIf="!unwrapable()" class="uk-width-1-1">
         <button class="uk-button uk-button-disabled uk-width-1-1">
           Unwrap</button>
       </div>
-      <div *ngIf="unwrapShowConnectWallet()" class="uk-width-1-2@m">
+      <div *ngIf="unwrapShowConnectWallet()" class="uk-width-1-1">
         <button class="uk-button uk-button-primary uk-width-1-1" (click)="unwrapConnectWallet()">
           {{ 'Connect Wallet' | translate }}</button>
       </div>
-      <div *ngIf="unwrapShowDisconnectWallet()" class="uk-width-1-2@m">
+      <div *ngIf="unwrapShowDisconnectWallet()" class="uk-width-1-1">
         <button class="uk-button uk-button-danger uk-width-1-1" (click)="unwrapDisconnectWallet()">
           {{ 'Disconnect Wallet' | translate }}</button>
       </div>
-      <div class="uk-width-1-2@m">
-        <button routerLink="/assets" [queryParams]="{ add: 1}" class="uk-button uk-button-secondary uk-width-1-1">+ {{
-          'Custom Token' |
-          translate }}</button>
+      <div *ngIf="unwrapShowConnectWallet() || unwrapShowDisconnectWallet()" class="uk-width-1-1">
+        <button routerLink="/assets" [queryParams]="{ add: 1}" class="uk-button uk-button-secondary uk-width-1-1">+ {{'Custom Token' | translate }}</button>
+      </div>
+      <div *ngIf="!unwrapShowConnectWallet() && !unwrapShowDisconnectWallet()" class="uk-width-1-1 uk-margin-top">
+        <button routerLink="/assets" [queryParams]="{ add: 1}" class="uk-button uk-button-secondary uk-width-1-1">+ {{'Custom Token' | translate }}</button>
       </div>
     </div>
   </div>
@@ -640,14 +641,17 @@
 
 </div>
 
-<div [hidden]="activePanel !== 'unwrap' || selectedUnwrapSourceChain === ''" uk-grid style="margin-top: 25px;">
+<div [hidden]="activePanel !== 'unwrap'" uk-grid style="margin-top: 25px;">
   <div class="uk-width-1-1">
     <h3 class="uk-heading-divider uk-text-center" style="margin-bottom: 0;">{{ 'Your UNWRAP history' | translate }}
     </h3>
-    <div class="uk-width-1-1 uk-text-center">
-      {{ 'From ' | translate }} {{ unwrapShowSourceChain() }}
+    <div *ngIf="selectedUnwrapSourceChain !== ''" class="uk-width-1-1 uk-text-center">
+      <span style="font-size: 12px;">{{ 'from ' | translate }}</span> <img [src]="unwrapSelectedChainLogo()" width="20" height="20" style="vertical-align: text-top;" />{{ unwrapShowSourceChain() }} 
     </div>
-    <table class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
+    <div *ngIf="selectedUnwrapSourceChain === ''" class="uk-width-1-1 uk-text-center">
+      {{ 'Select a wrap chain to show ' | translate }}
+    </div>
+    <table *ngIf="selectedUnwrapSourceChain !== ''" class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
       <thead>
         <tr>
           <th class="uk-width-1-3@m uk-width-1-3 uk-text-left">{{ 'Sender' | translate }}</th>
@@ -661,7 +665,9 @@
           <td (click)="selectUnwrap(unwrap)" class="uk-text-right">{{ unwrapItemAmount(unwrap) }}<span style="font-size: 12px;"> {{ unwrapItemTokenTypeShown(unwrap) }}</span></td>
           <td (click)="selectUnwrap(unwrap)" class="uk-text-center">
             <span *ngIf="unwrapItemSuccess(unwrap)" uk-icon="icon: check;" class="uk-text-success"></span>
-            <span *ngIf="!unwrapItemSuccess(unwrap)" class="uk-text-warning">{{ unwrapItemConfirms(unwrap) }}</span>
+            <span *ngIf="unwrapItemConfirming(unwrap)" class="uk-text-warning">{{ unwrapItemConfirms(unwrap) }}</span>
+            <span *ngIf="unwrapItemConfirmed(unwrap)" uk-icon="icon: forward;" title="{{ 'Click to receive' | translate }}" class="uk-text-warning" routerLink="/receive"
+            uk-tooltip></span>
           </td>
         </tr>
         <tr *ngIf="noUnwraps()">

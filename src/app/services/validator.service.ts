@@ -343,7 +343,7 @@ export class ValidatorService implements OnDestroy {
         chain = ChainHelper.toChain(chain);
       }
 
-      const ret = ChainHelper.rawToAddress(chain, address_raw);
+      const ret = ChainHelper.rawToAddress(chain, address_raw, true);
       if (ret.error) {
         return;
       }

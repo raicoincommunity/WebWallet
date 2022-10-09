@@ -164,7 +164,7 @@
                   <div class="uk-width-3-5 uk-text-left">
                     <div uk-grid>
                       <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">{{ tokenAddress() }} </div>
-                      <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left"><a ngxClipboard [cbContent]="tokenAddress()" (cbOnSuccess)="tokenAddressCopied()" uk-icon="icon: copy" title="{{ 'Copy Token Address' | translate }}" uk-tooltip></a></div>
+                      <div *ngIf="tokenAddress() !== 'N/A'" class="uk-width-auto uk-width-expand@m uk-padding-remove-left"><a ngxClipboard [cbContent]="tokenAddress()" (cbOnSuccess)="tokenAddressCopied()" uk-icon="icon: copy" title="{{ 'Copy Token Address' | translate }}" uk-tooltip></a></div>
                     </div>
                   </div>
                 </div>
