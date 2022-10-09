@@ -634,6 +634,11 @@ export class MapComponent implements OnInit {
     return ChainHelper.toChainShown(token.chain as ChainStr);
   }
 
+  mapSelectedChainLogo(): string {
+    if (!this.selectedMapOriginalChain) return '';
+    return this.logo.getChainLogo(this.selectedMapOriginalChain);
+  }
+
   showMapSelectedChain(): string {
     if (!this.selectedMapOriginalChain) return '';
     return ChainHelper.toChainShown(this.selectedMapOriginalChain as ChainStr);
@@ -1815,7 +1820,6 @@ enum ApproveStatus {
 }
 
 enum MapStatus {
-  NONE = '',
   CONFIRMING = 'confirming',
   CONFIRMED = 'confirmed',
   SUCCESS = 'success',

@@ -5651,9 +5651,13 @@ export class MapInfo {
     return this.height === other.height && this.index === other.index;
   }
 
+  completed(): boolean {
+    return !!this.targetTxn;
+  }
+
   sameWith(other: MapInfo): boolean {
     return this.eq(other) && this.sourceTxn === other.sourceTxn
-      && this.confirmed === other.confirmed;
+      && this.confirmed === other.confirmed && this.targetTxn == other.targetTxn;
   }
 
 }
@@ -5689,7 +5693,7 @@ export class AccountTokenMapInfos {
     let index = this.maps.findIndex(x => x.eq(map));
     if (index >= 0) {
       const existing = this.maps[index];
-      if (existing.sameWith(map) || existing.confirmed) return false;
+      if (existing.sameWith(map) || existing.completed()) return false;
       this.maps.splice(index, 1);
     }
     index = this.maps.findIndex(x => x.lt(map));
@@ -6133,9 +6137,13 @@ export class UnwrapInfo {
     return this.height === other.height && this.index === other.index;
   }
 
+  completed(): boolean {
+    return !!this.targetTxn;
+  }
+
   sameWith(other: UnwrapInfo): boolean {
     return this.eq(other) && this.sourceTxn === other.sourceTxn
-      && this.confirmed === other.confirmed;
+      && this.confirmed === other.confirmed && this.targetTxn === other.targetTxn;
   }
 
 }
@@ -6171,7 +6179,7 @@ export class AccountTokenUnwrapInfos {
     let index = this.unwraps.findIndex(x => x.eq(unwrap));
     if (index >= 0) {
       const existing = this.unwraps[index];
-      if (existing.sameWith(unwrap) || existing.confirmed) return false;
+      if (existing.sameWith(unwrap) || existing.completed()) return false;
       this.unwraps.splice(index, 1);
     }
     index = this.unwraps.findIndex(x => x.lt(unwrap));

@@ -162,14 +162,17 @@
 
 </div>
 
-<div [hidden]="activePanel !== 'map' || selectedMapOriginalChain === ''" uk-grid style="margin-top: 25px;">
+<div [hidden]="activePanel !== 'map'" uk-grid style="margin-top: 25px;">
   <div class="uk-width-1-1">
     <h3 class="uk-heading-divider uk-text-center" style="margin-bottom: 0;">{{ 'Your MAP history' | translate }}
     </h3>
-    <div class="uk-width-1-1 uk-text-center">
-      {{ 'From ' | translate }} {{ showMapSelectedChain() }}
+    <div *ngIf="selectedMapOriginalChain !== ''" class="uk-width-1-1 uk-text-center">
+      <span style="font-size: 12px;">{{ 'from ' | translate }}</span> <img [src]="mapSelectedChainLogo()" width="20" height="20" style="vertical-align: text-top;" />{{ showMapSelectedChain() }}
     </div>
-    <table class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
+    <div *ngIf="selectedMapOriginalChain === ''" class="uk-width-1-1 uk-text-center">
+      {{ 'Select an original chain to show ' | translate }}
+    </div>
+    <table *ngIf="selectedMapOriginalChain !== ''" class="uk-table uk-table-striped uk-table-small" style="margin-top: 0;">
       <thead>
         <tr>
           <th class="uk-width-1-3@m uk-width-1-3 uk-text-left">{{ 'Sender' | translate }}</th>

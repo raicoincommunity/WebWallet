@@ -436,12 +436,10 @@ export class AssetsComponent implements OnInit {
   }
 
   tokenAddress(): string {
-    const address = this.detail?.address;
-    if (!address) return '';
-    if (ChainHelper.isNative(this.chain(), address)) {
-      return 'N/A';
-    }
-    return address;
+    if (!this.detail) return '';
+    const address = this.detail.address;
+    if (address) return address;
+    return 'N/A';
   }
 
   tokenAddressCopied() {

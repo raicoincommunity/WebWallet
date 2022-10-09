@@ -746,7 +746,7 @@ export class WrapComponent implements OnInit {
 
   wrapReset() {
     if (this.wrapAssetWidget) {
-      this.wrapAssetWidget.clear();
+      this.wrapAssetWidget.clearAmount();
     }
     this.wrapGasCache = undefined;
     this.wrapInsufficientFunds = false;
@@ -782,6 +782,9 @@ export class WrapComponent implements OnInit {
   wrapOriginalTokenAddress(): string {
     const asset =  this.wrapSelectedAsset();
     if (!asset) return '';
+    if (!asset.address) {
+      return 'N/A';
+    }
     return asset.address;
   }
 
@@ -1533,6 +1536,11 @@ export class WrapComponent implements OnInit {
     return '';
   }
 
+  unwrapSelectedChainLogo(): string {
+    if (!this.selectedUnwrapSourceChain) return '';
+    return this.logo.getChainLogo(this.selectedUnwrapSourceChain);
+  }
+
   unwrapShowSourceChain(): string {
     if (!this.selectedUnwrapSourceChain) return '';
     return ChainHelper.toChainShown(this.selectedUnwrapSourceChain);
@@ -1557,6 +1565,9 @@ export class WrapComponent implements OnInit {
   unwrapOriginalTokenAddress(): string {
     const token =  this.unwrapSelectedToken();
     if (!token) return '';
+    if (!token.address) {
+      return 'N/A';
+    }
     return token.address;
   }
 
@@ -1898,8 +1909,27 @@ export class WrapComponent implements OnInit {
     return this.tokenTypeShown(unwrap.chain, unwrap.type)
   }
 
+  unwrapItemStatus(unwrap: UnwrapInfo): UnwrapStatus {
+    if (!unwrap.confirmed) {
+      return UnwrapStatus.CONFIRMING
+    }
+
+    if (unwrap.targetTxn) {
+      return UnwrapStatus.SUCCESS;
+    }
+    return UnwrapStatus.CONFIRMED;
+  }
+
   unwrapItemSuccess(unwrap: UnwrapInfo): boolean {
-    return unwrap.confirmed;
+    return this.unwrapItemStatus(unwrap) === UnwrapStatus.SUCCESS;
+  }
+
+  unwrapItemConfirming(unwrap: UnwrapInfo): boolean {
+    return this.unwrapItemStatus(unwrap) === UnwrapStatus.CONFIRMING;
+  }
+
+  unwrapItemConfirmed(unwrap: UnwrapInfo): boolean {
+    return this.unwrapItemStatus(unwrap) === UnwrapStatus.CONFIRMED;
   }
 
   unwrapItemConfirms(unwrap: UnwrapInfo): string {
@@ -2333,4 +2363,10 @@ enum WrapStatus {
   SUBMITING = 'submitting',
   CONFIRMING = 'confirming',
   CONFIRMED = 'confirmed',
+}
+
+enum UnwrapStatus {
+  CONFIRMING = 'confirming',
+  CONFIRMED = 'confirmed',
+  SUCCESS = 'success',
 }
