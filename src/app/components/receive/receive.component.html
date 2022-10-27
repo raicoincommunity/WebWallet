@@ -9,7 +9,7 @@
       <div class="uk-width-1-2 uk-text-right">
         <div uk-grid>
           <div class="uk-width-1-1">
-            <button class="uk-button uk-button-secondary" (click)="receive()">
+            <button *ngIf="activePanel==''" class="uk-button uk-button-secondary" (click)="receive()">
               {{ 'Receive' | translate }}
             </button>
           </div>
@@ -20,7 +20,7 @@
     <app-account-widget raiTitle="{{ 'Your account' | translate }}"></app-account-widget>
 
 
-    <div class="uk-card uk-card-default uk-margin-top">
+    <div [hidden]="activePanel !== ''" class="uk-card uk-card-default uk-margin-top">
       <table class="uk-table uk-table-striped uk-table-small">
         <thead>
         <tr>
@@ -38,13 +38,13 @@
             <input class="uk-checkbox" type="checkbox" [checked]="checked(receivable.hash)"
               (click)="checked(receivable.hash) ? uncheck(receivable.hash) : check(receivable.hash)">
           </td>
-          <td class="uk-text-left uk-text-truncate">
+          <td (click)="selectReceivable(receivable)" class="uk-text-left uk-text-truncate">
             {{ receivable.source.toAccountAddress() }}
           </td>
-          <td class="uk-text-right">
+          <td (click)="selectReceivable(receivable)" class="uk-text-right">
             {{ receivable.amount | balance: 2 }}
           </td>
-          <td class="uk-text-left uk-text-truncate">
+          <td (click)="selectReceivable(receivable)" class="uk-text-left uk-text-truncate">
             {{ receivable.hash.toHex() }}
           </td>
         </tr>
@@ -54,13 +54,13 @@
             <input class="uk-checkbox" type="checkbox" [checked]="tokenChecked(receivable.key())"
               (click)="tokenChecked(receivable.key()) ? tokenUncheck(receivable.key()) : tokenCheck(receivable.key())">
           </td>
-          <td class="uk-text-left uk-text-truncate">
+          <td (click)="selectReceivable(receivable)" class="uk-text-left uk-text-truncate">
             {{ receivable.from }}
           </td>
-          <td class="uk-text-right">
+          <td (click)="selectReceivable(receivable)" class="uk-text-right">
             {{ formatTokenValue(receivable) }}
           </td>
-          <td class="uk-text-left uk-text-truncate">
+          <td (click)="selectReceivable(receivable)" class="uk-text-left uk-text-truncate">
             {{ receivable.txHash.toHex() }}
           </td>
         </tr>
@@ -70,6 +70,171 @@
         </tr>
         </tbody>
       </table>
+    </div>
+
+    <div [hidden]="activePanel !== 'details'" class="uk-card uk-card-default uk-margin">
+      <div class="uk-card-header">
+        <div uk-grid>
+          <h3 class="uk-card-title">{{ 'Receivable Details' | translate }}</h3>
+        </div>
+      </div>
+
+      <div class="uk-card-body uk-padding-remove uk-form-horizontal">
+        <div class="uk-padding-small" uk-grid>
+          <div class="uk-width-1-1">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Source Type' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                {{ selectedReceivableSourceType() }}
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'From Chain' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                {{ selectedReceivableFromChain() }}
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Hash' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                <div uk-grid>
+                  <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                    {{ selectedReceivableHash() }}
+                  </div>
+                  <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                    <a ngxClipboard
+                      [cbContent]="selectedReceivableHash() " (cbOnSuccess)="sourceHashCopied()" uk-icon="icon: copy" title="{{ 'Copy Source Hash' | translate }}" uk-tooltip></a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Sender' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                <div uk-grid>
+                  <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                    {{ selectedReceivableSender() }}
+                  </div>
+                  <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                    <a ngxClipboard
+                      [cbContent]="selectedReceivableSender() " (cbOnSuccess)="senderCopied()" uk-icon="icon: copy" title="{{ 'Copy Sender' | translate }}" uk-tooltip></a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Token Type' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                {{ selectedReceivableTokenType() }}
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Token Original Chain' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                {{ selectedReceivableOriginalChain() }}
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Token Address' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                <div uk-grid>
+                  <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                    {{ selectedReceivableTokenAddress() }}
+                  </div>
+                  <div *ngIf="selectedReceivableTokenAddress() !== 'N/A'" class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                    <a ngxClipboard
+                      [cbContent]="selectedReceivableTokenAddress() " (cbOnSuccess)="tokenAddressCopied()" uk-icon="icon: copy" title="{{ 'Copy Token Address' | translate }}" uk-tooltip></a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'SentTime' | translate }}
+              </div>
+              <div *ngIf="selectedReceivableSentAt() !== 0" class="uk-width-3-5 uk-text-left">
+                {{ selectedReceivableSentAt() * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}
+              </div>
+              <div *ngIf="selectedReceivableSentAt() === 0" class="uk-width-3-5 uk-text-left">
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Amount' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left uk-text-break">
+                {{ selectedReceivableAmount() }}
+              </div>
+            </div>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div uk-grid>
+              <div class="uk-width-2-5 uk-text-left">
+                {{ 'Recipient' | translate }}
+              </div>
+              <div class="uk-width-3-5 uk-text-left">
+                <div uk-grid>
+                  <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
+                    {{ selectedReceivableRecipient() }}
+                  </div>
+                  <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+                    <a ngxClipboard
+                      [cbContent]="selectedReceivableRecipient() " (cbOnSuccess)="recipientCopied()" uk-icon="icon: copy" title="{{ 'Copy Recipient' | translate }}" uk-tooltip></a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="uk-card-footer uk-text-right">
+        <div class="uk-width-1-1">
+          <button class="uk-button uk-button-secondary" (click)="activePanel=''">{{ 'Back'
+            | translate }}</button>
+        </div>
+      </div>
+
     </div>
 
   </div>

@@ -1,5 +1,4 @@
-import { Injectable, OnInit, OnDestroy } from '@angular/core';
-import { Subject} from 'rxjs';
+import { Injectable, OnDestroy } from '@angular/core';
 import { TokenService, SwapProcessResult, SwapReturnCode } from './token.service';
 import { SettingsService } from './settings.service';
 import { ServerService, ServerState } from './server.service';
@@ -11,7 +10,7 @@ import { WalletsService, WalletErrorCode } from './wallets.service';
 @Injectable({
   providedIn: 'root'
 })
-export class AutoSwapService implements OnInit, OnDestroy {
+export class AutoSwapService implements OnDestroy {
   private timerAutoSwap: any = null;
   private notifies: {[account: string]: number} = {};
 
@@ -24,10 +23,9 @@ export class AutoSwapService implements OnInit, OnDestroy {
     private util: UtilService,
     private wallets: WalletsService
   ) {
-    this.timerAutoSwap = setInterval(() => this.autoSwap(), 1000);
-  }
-
-  ngOnInit() {
+    this.timerAutoSwap = setInterval(() => this.autoSwap(), 2000);
+    this.token.accountSwapInfo$.subscribe(() => this.autoSwap());
+    this.token.swap$.subscribe(() => this.autoSwap());
   }
 
   ngOnDestroy() {

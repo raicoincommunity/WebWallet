@@ -2758,6 +2758,12 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
         count += 4;
       }
 
+      if (source === TokenSource.MAP || source === TokenSource.UNWRAP) {
+        const index = new U64(value.index);
+        buffer.set(index.bytes, count);
+        count += index.size;
+      }
+
       return buffer.slice(0, count);
     },
 
@@ -2855,6 +2861,13 @@ const tokenExtensionCodecs: {[op: string]: ExtensionTokenCodec} = {
       }
       value.from = ret.address;
 
+      if (source === TokenSource.MAP || source === TokenSource.UNWRAP) {
+        const index = new U64();
+        error = index.fromArray(array, offset);
+        if (error) throw streamError;
+        offset += index.size;
+        value.index = index.toDec();
+      }
       if (offset !== array.length) throw streamError;
     }
   },

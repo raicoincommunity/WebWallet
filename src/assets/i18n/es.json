@@ -530,6 +530,7 @@
   "Failed": "Ha fallado",
   "Swap ID copied to clipboard!": "¡Intercambio de ID copiado al portapapeles!",
   "The amount to swap": "La cantidad a cambiar",
+  "Exchange For": "Intercambiar por",
   "Please select some items first": "Primero seleccione algunos elementos",
   "Successfully sent { amount } RAI!": "Se envió correctamente { amount } RAI.",
   "Successfully sent { amount }!": "¡Enviado con éxito { amount }!",

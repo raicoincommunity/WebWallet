@@ -311,7 +311,7 @@
               <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
                 {{ selectedMapItemTokenAddress() }}
               </div>
-              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+              <div *ngIf="selectedMapItemTokenAddress() !== 'N/A'" class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
                 <a ngxClipboard
                   [cbContent]="selectedMapItemTokenAddress() " (cbOnSuccess)="tokenAddressCopied()" uk-icon="icon: copy" title="{{ 'Copy Token Address' | translate }}" uk-tooltip></a>
               </div>

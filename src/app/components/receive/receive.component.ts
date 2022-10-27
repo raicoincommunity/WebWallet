@@ -1,13 +1,14 @@
 import { Component, OnInit } from '@angular/core';
 import { WalletsService, WalletErrorCode } from '../../services/wallets.service';
 import { Receivable } from '../../services/blocks.service';
-import { U256, ChainHelper } from '../../services/util.service';
+import { U256, ChainHelper, TokenSourceStr, TokenTypeStr, U128 } from '../../services/util.service';
 import { NotificationService } from '../../services/notification.service';
 import { TranslateService } from '@ngx-translate/core';
 import { marker } from '@biesbjerg/ngx-translate-extract-marker';
 import { TokenService, TokenReceivable } from '../../services/token.service';
 import { SettingsService } from '../../services/settings.service';
 import { VerifiedTokensService } from '../../services/verified-tokens.service';
+import { environment } from 'src/environments/environment';
 
 @Component({
   selector: 'app-receive',
@@ -18,6 +19,8 @@ export class ReceiveComponent implements OnInit {
   checkedHashs: string[] = [];
   checkedKeys: string[] = [];
   checkedAll: boolean = false;
+  activePanel: string = Panel.DEFAULT;
+  selectedReceivable?: Receivable | TokenReceivable;
 
   constructor(
     private translate: TranslateService,
@@ -179,6 +182,157 @@ export class ReceiveComponent implements OnInit {
     return this.wallets.selectedAccountAddress();
   }
 
+  selectedReceivableSourceType(): string {
+    if (!this.selectedReceivable) return '';
+    if (this.selectedReceivable instanceof Receivable) return 'send';
+    return this.selectedReceivable.sourceType;
+  }
+
+  selectedReceivableHash(): string {
+    if (!this.selectedReceivable) return '';
+    if (this.selectedReceivable instanceof Receivable) {
+      return this.selectedReceivable.hash.toHex();
+    }
+    const sourceType = this.selectedReceivable.sourceType;
+    if (sourceType == TokenSourceStr.MAP || sourceType == TokenSourceStr.UNWRAP) {
+      return this.selectedReceivable.txHash.to0xHex();
+    }
+    return this.selectedReceivable.txHash.toHex();
+  }
+
+  sourceHashCopied() {
+    let msg = marker(`Source hash copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  selectedReceivableSender(): string {
+    if (!this.selectedReceivable) return '';
+    if (this.selectedReceivable instanceof Receivable) {
+      return this.selectedReceivable.source.toAccountAddress();
+    }
+    return this.selectedReceivable.from;
+  }
+
+  senderCopied() {
+    let msg = marker(`Sender copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  selectedReceivableFromChain(): string {
+    if (!this.selectedReceivable) return '';
+    let chain;
+    if (this.selectedReceivable instanceof Receivable) {
+      chain = environment.current_chain;
+    } else {
+      chain = this.selectedReceivable.chain;
+    }
+    return ChainHelper.toChainShown(chain);
+  }
+
+  selectedReceivableTokenType(): string {
+    if (!this.selectedReceivable) return '';
+    if (this.selectedReceivable instanceof Receivable) {
+      return 'N/A';
+    } else {
+      const token = this.selectedReceivable.token;
+      if (ChainHelper.isNative(token.chain, token.addressRaw)) {
+        return 'N/A';
+      }
+      return ChainHelper.tokenTypeShown(token.chain, token.type as TokenTypeStr);
+    }
+  }
+
+  selectedReceivableOriginalChain(): string {
+    if (!this.selectedReceivable) return '';
+    let chain;
+    if (this.selectedReceivable instanceof Receivable) {
+      chain = environment.current_chain;
+    } else {
+      chain = this.selectedReceivable.token.chain;
+    }
+    return ChainHelper.toChainShown(chain);
+  }
+
+  selectedReceivableTokenAddress(): string {
+    if (!this.selectedReceivable) return '';
+    if (this.selectedReceivable instanceof Receivable) {
+      return 'N/A';
+    } else {
+      const token = this.selectedReceivable.token;
+      if (ChainHelper.isNative(token.chain, token.addressRaw)) {
+        return 'N/A';
+      }
+      return token.address;
+    }
+  }
+
+  tokenAddressCopied() {
+    let msg = marker(`Token address copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  selectedReceivableSentAt(): number {
+    const receivable = this.selectedReceivable;
+    if (!receivable) return 0;
+    if (receivable instanceof Receivable) {
+      return receivable.timestamp.toNumber();
+    } else {
+      const source = receivable.sourceType;
+      if (source == TokenSourceStr.MAP || source == TokenSourceStr.UNWRAP) {
+        const timestamp = this.token.txTimestamp(receivable.chain, receivable.txHash.to0xHex());
+        if (!timestamp) {
+          this.token.queryTxTimestamp(receivable.chain, receivable.txHash.to0xHex(),
+            receivable.blockHeight.toNumber());
+          return 0;
+        }
+        return timestamp;
+      } else {
+        return +receivable.block!.timestamp;
+      }
+    }
+  }
+
+  selectedReceivableAmount(): string {
+    const receivable = this.selectedReceivable;
+    if (!receivable) return '';
+    if (receivable instanceof Receivable) {
+      return receivable.amount.toBalanceStr(U128.RAI()) + ' RAI';
+    }
+    const token = receivable.token;
+    const symbol = this.queryTokenSymbol(token.chain, token.address);
+    if (!symbol) return '';
+    if (token.type == TokenTypeStr._20) {
+      return `${receivable.value.toBalanceStr(token.decimals)} ${symbol}`;
+    } else if (token.type == TokenTypeStr._721) {
+      return `1 ${symbol} (${receivable.value.toDec()})`;
+    } else {
+      return '';
+    }
+  }
+
+  selectedReceivableRecipient(): string {
+    const receivable = this.selectedReceivable;
+    if (!receivable) return '';
+    if (receivable instanceof Receivable) {
+      return this.wallets.selectedAccountAddress();
+    }
+    return receivable.to;
+  }
+
+  recipientCopied() {
+    let msg = marker(`Recipient copied to clipboard!`);
+    this.translate.get(msg).subscribe(res => msg = res);
+    this.notification.sendSuccess(msg);
+  }
+
+  selectReceivable(receivable: Receivable | TokenReceivable) {
+    this.selectedReceivable = receivable;
+    this.activePanel = Panel.DETAILS;
+  }
+
   private queryTokenSymbol(chain: string, address: string, fallback: string = ''): string {
     const verified = this.verified.token(chain, address);
     if (verified) {
@@ -203,4 +357,9 @@ export class ReceiveComponent implements OnInit {
     return fallback;
   }
 
+}
+
+enum Panel {
+  DEFAULT = '',
+  DETAILS = 'details',
 }
