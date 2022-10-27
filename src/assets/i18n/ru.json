@@ -530,6 +530,7 @@
   "Failed": "Неуспешный",
   "Swap ID copied to clipboard!": "Swap ID скопирован в буфер обмена!",
   "The amount to swap": "Сумма для обмена",
+  "Exchange For": "В обмен на",
   "Please select some items first": "Пожалуйста, сначала выберите несколько товаров",
   "Successfully sent { amount } RAI!": "Успешно отправлено { amount } RAI!",
   "Successfully sent { amount }!": "Успешно отправлено { amount }!",

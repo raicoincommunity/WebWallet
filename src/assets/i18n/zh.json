@@ -530,6 +530,7 @@
   "Failed": "失败的",
   "Swap ID copied to clipboard!": "交换 ID 已复制到剪贴板！",
   "The amount to swap": "兑换金额",
+  "Exchange For": "换",
   "Please select some items first": "请先选择一些项目",
   "Successfully sent { amount } RAI!": "已成功发送{ amount } RAI！",
   "Successfully sent { amount }!": "已成功发送 { amount }！",

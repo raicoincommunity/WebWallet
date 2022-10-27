@@ -516,9 +516,6 @@ export class MapComponent implements OnInit {
   }
 
   mapReset() {
-    if (this.mapTokenWidget) {
-      this.mapTokenWidget.clear();
-    }
     this.inputMapAmount = '';
     this.inputMapTokenId = '';
     this.mapAmountStatus = 0;
@@ -1599,8 +1596,10 @@ export class MapComponent implements OnInit {
   }
 
   selectedMapItemTokenAddress(): string {
-    if (!this.selectedMap) return '';
-    return this.selectedMap.address;
+    const map = this.selectedMap;
+    if (!map) return '';
+    if (map.address) return map.address;
+    return 'N/A';
   }
 
   tokenAddressCopied() {

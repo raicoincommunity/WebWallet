@@ -93,6 +93,18 @@
               {{ blockInfo.block.signature().toHex() }}
             </div>
           </div>
+          <div class="uk-margin">
+            <label class="uk-form-label">{{ 'Block Status' | translate }}</label>
+            <div class="uk-form-controls uk-text-break">
+              {{ blockStatus() }}
+            </div>
+          </div>
+          <div *ngIf="showTokenStatus()" class="uk-margin">
+            <label class="uk-form-label">{{ 'Token Status' | translate }}</label>
+            <div class="uk-form-controls uk-text-break">
+              {{ tokenStatus() }}
+            </div>
+          </div>
   
         </div>
       </div>

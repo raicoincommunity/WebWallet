@@ -165,7 +165,7 @@
           <td (click)="selectWrap(wrap)" class="uk-text-left uk-text-truncate"><img [src]="wrapItemTargetChainLogo(wrap)" width="20" height="20" style="vertical-align: text-top;" /> {{ wrapItemShowTargetChain(wrap) }}</td>
           <td (click)="selectWrap(wrap)" class="uk-text-left uk-text-truncate">{{ wrap.toAccount }}</td>
           <td (click)="selectWrap(wrap)" class="uk-text-right">{{ wrapItemAmount(wrap) }}<span style="font-size: 12px;"> {{ wrapItemTokenTypeShown(wrap) }}</span></td>
-          <td (click)="selectWrap(wrap)" class="uk-text-center">
+          <td class="uk-text-center">
             <span *ngIf="wrapItemStatus(wrap) === 'confirmed'" uk-icon="icon: check;" class="uk-text-success" title="{{ wrapShowStatus(wrap) }}" uk-tooltip></span>
             <span *ngIf="wrapItemStatus(wrap) === 'confirming'" class="uk-text-warning">{{ wrapItemConfirms(wrap) }}</span>
             <span *ngIf="wrapItemStatus(wrap) === 'collected'" uk-icon="icon: forward;" title="{{ wrapShowStatus(wrap) }}" class="uk-text-warning" (click)="wrapRetry(wrap)"
@@ -663,7 +663,7 @@
         <tr *ngFor="let unwrap of unwraps()">
           <td (click)="selectUnwrap(unwrap)" class="uk-text-left uk-text-truncate">{{ unwrap.fromAccount }}</td>
           <td (click)="selectUnwrap(unwrap)" class="uk-text-right">{{ unwrapItemAmount(unwrap) }}<span style="font-size: 12px;"> {{ unwrapItemTokenTypeShown(unwrap) }}</span></td>
-          <td (click)="selectUnwrap(unwrap)" class="uk-text-center">
+          <td class="uk-text-center">
             <span *ngIf="unwrapItemSuccess(unwrap)" uk-icon="icon: check;" class="uk-text-success"></span>
             <span *ngIf="unwrapItemConfirming(unwrap)" class="uk-text-warning">{{ unwrapItemConfirms(unwrap) }}</span>
             <span *ngIf="unwrapItemConfirmed(unwrap)" uk-icon="icon: forward;" title="{{ 'Click to receive' | translate }}" class="uk-text-warning" routerLink="/receive"

@@ -468,7 +468,8 @@ export class TokenService implements OnDestroy {
       block_height: receivable.blockHeight.toDec(),
       tx_hash: receivable.txHash.toHex(),
       value: receivable.value.toDec(),
-      unwrap_chain: receivable.sourceType === 'unwrap' ? receivable.chain : undefined
+      unwrap_chain: receivable.sourceType === 'unwrap' ? receivable.chain : undefined,
+      index: `${receivable.index}`
     };
 
     const extensions = [ { type: ExtensionTypeStr.TOKEN, value } ];
@@ -1225,9 +1226,14 @@ export class TokenService implements OnDestroy {
   }
 
   private swapTakeAck(swap: SwapFullInfo, account: Account, wallet: Wallet): SwapProcessResult {
+    const skipped = { returnCode: SwapReturnCode.SKIPPED };
     const ackValue = swap.ackValue();
     if (ackValue === undefined) {
-      return { returnCode: SwapReturnCode.SKIPPED };
+      return skipped;
+    }
+
+    if (swap.order.fungiblePair() && swap.order.leftOffer.lt(ackValue)) {
+      return skipped;
     }
 
     const value: any = {}
@@ -3115,6 +3121,7 @@ export class TokenService implements OnDestroy {
     if (message.status === 'submitted') {
       swap.takeNackBlockStatus = TakeNackBlockStatus.SUBMITTED;
     }
+    this.swapSubject.next(swap);
   }
 
   private processTokenSymbolAck(message: any) {
@@ -3526,7 +3533,7 @@ export class TokenService implements OnDestroy {
   }
 
   queryTokenSymbol(chain: string, address: string | U256, force: boolean = false) {
-    if (ChainHelper.isRaicoin(chain)) return;
+    if (ChainHelper.isRaicoin(chain) || chain == ChainStr.INVALID || chain === '') return;
     let addressRaw;
     let addressEncoded;
     if (address instanceof U256) {
@@ -3554,7 +3561,11 @@ export class TokenService implements OnDestroy {
       this.tokenSymbolQueries[key] = this.server.getTimestamp();
     }
 
-    const chainId = ChainHelper.toChain(chain)
+    const chainId = ChainHelper.toChain(chain);
+    if (chainId === Chain.INVALID) {
+      console.error(`queryTokenSymbol: invalid chain id `, chainId, `, chain `, chain);
+      return;
+    }
     const message: any = {
       action: 'token_symbol',
       service: this.VALIDATOR_SERVICE,
@@ -4563,7 +4574,7 @@ class AccountTokensInfo {
 }
 
 
-class TokenBlock {
+export class TokenBlock {
   status: string = '';
   statusCode: U32 = new U32();
   hash: U256 = U256.zero();
@@ -4832,6 +4843,7 @@ export class TokenReceivable {
   blockHeight: U64 = U64.zero();
   sourceType: string = '';
   block: any = null;
+  index: number = 0;
 
   fromJson(json: any): boolean {
     try {
@@ -4854,7 +4866,8 @@ export class TokenReceivable {
       this.value = new U256(json.value);
       this.blockHeight = new U64(json.block_height);
       this.sourceType = json.source;
-      this.block = json.block;
+      this.block = json.source_block;
+      this.index = +json.index;
       return false;
     }
     catch (e) {
@@ -5272,7 +5285,6 @@ export class SwapFullInfo {
       const secure = new U512(this.swap.value).mul(this.order.valueOffer);
       if (!secure.mod(this.order.valueWant).eq(0)) return undefined;
       const ack = secure.idiv(this.order.valueWant);
-      if (ack.gt(this.order.leftOffer)) return undefined;
       this._ackValue = new U256(ack.toDec());
       return this._ackValue;
     } else {
@@ -5735,6 +5747,7 @@ export class UnmapInfo {
   targetConfirmed: boolean = false;
   targetTxn: string = '';
   targetHeight: U64 = U64.zero();
+  targetIndex: number = 0;
 
   fromJson(json: any): boolean {
     try {
@@ -5780,6 +5793,7 @@ export class UnmapInfo {
         this.targetTxn = ZX + json.target_transaction.toLowerCase();
       }
       this.targetHeight = new U64(json.target_height);
+      this.targetIndex = +json.target_index;
       return false;
     }
     catch (e) {
@@ -5879,6 +5893,7 @@ export class WrapInfo {
   targetConfirmed: boolean = false;
   targetTxn: string = '';
   targetHeight: U64 = U64.zero();
+  targetIndex: number = 0;
   wrappedAddress: string = '';
   wrappedAddressRaw: U256 = U256.zero();
 
@@ -5930,6 +5945,7 @@ export class WrapInfo {
         this.targetTxn = ZX + json.target_transaction.toLowerCase();
       }
       this.targetHeight = new U64(json.target_height);
+      this.targetIndex = +json.target_index;
       this.wrappedAddress = json.wrapped_address;
       this.wrappedAddressRaw = new U256(json.wrapped_address_raw, 16);
       if (!this.wrappedAddress) {
