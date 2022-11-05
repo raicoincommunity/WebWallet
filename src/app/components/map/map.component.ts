@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewChild, HostListener } from '@angular/core';
 import { TokenWidgetComponent, TokenItem } from '../token-widget/token-widget.component';
 import { U256, TokenTypeStr, ChainHelper, ChainStr, ExtensionTokenOpStr, ExtensionTypeStr,
-  TokenType, ZX } from '../../services/util.service';
+  TokenType, ZX, TokenHelper } from '../../services/util.service';
 import { BigNumber } from 'bignumber.js';
 import { Web3Service } from '../../services/web3.service';
 import { WalletsService, WalletErrorCode } from '../../services/wallets.service';
@@ -569,6 +569,10 @@ export class MapComponent implements OnInit {
     } else {
       return '';
     }
+  }
+
+  mapItemTokenTypeShown(map: MapInfo): string {
+    return this.tokenTypeShown(map.chain, map.type, map.address);
   }
 
   mapItemStatus(map: MapInfo): MapStatus {
@@ -1373,6 +1377,10 @@ export class MapComponent implements OnInit {
     }
   }
 
+  unmapItemTokenTypeShown(unmap: UnmapInfo): string {
+    return this.tokenTypeShown(unmap.chain, unmap.type, unmap.address);
+  }
+
   unmapItemStatus(unmap: UnmapInfo): string {
     if (unmap.targetConfirmed) {
       return UnmapStatus.CONFIRMED;
@@ -1682,8 +1690,12 @@ export class MapComponent implements OnInit {
   }
 
   selectedUnmapItemTokenAddress(): string {
-    if (!this.selectedUnmap) return '';
-    return this.selectedUnmap.address;
+    const unmap = this.selectedUnmap;
+    if (!unmap) return '';
+    if (!unmap.address) {
+      return 'N/A';
+    }
+    return unmap.address;
   }
 
   selectedUnmapItemSourceHash(): string {
@@ -1746,6 +1758,16 @@ export class MapComponent implements OnInit {
     const unmap = this.selectedUnmap;
     if (!unmap) return '';
     return unmap.targetTxn;
+  }
+
+  private tokenTypeShown(chain: string, type: string | TokenType, address: string): string {
+    if (!address) return '';
+    if (typeof type !== 'string') {
+      type = TokenHelper.toTypeStr(type)
+    }
+    let tokenType = ChainHelper.tokenTypeShown(chain, type as TokenTypeStr);
+    tokenType = tokenType.replace('-', '');
+    return `<${tokenType}>`;
   }
 
   private queryTokenSymbol(chain: string, address: string): string {
