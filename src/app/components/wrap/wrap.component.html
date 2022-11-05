@@ -312,7 +312,7 @@
               <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
                 {{ selectedWrapItemTokenAddress() }}
               </div>
-              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+              <div *ngIf="selectedWrapItemTokenAddress() !== 'N/A'" class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
                 <a ngxClipboard
                   [cbContent]="selectedWrapItemTokenAddress() " (cbOnSuccess)="tokenAddressCopied()" uk-icon="icon: copy" title="{{ 'Copy Token Address' | translate }}" uk-tooltip></a>
               </div>
@@ -442,7 +442,7 @@
               <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
                 {{ selectedWrapItemDestHash() }}
               </div>
-              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+              <div *ngIf="selectedWrapItemDestHash() !== ''" class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
                 <a ngxClipboard
                   [cbContent]="selectedWrapItemDestHash() " (cbOnSuccess)="destHashCopied()" uk-icon="icon: copy" title="{{ 'Copy Destination Hash' | translate }}" uk-tooltip></a>
               </div>
@@ -808,7 +808,7 @@
               <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
                 {{ selectedUnwrapItemTokenAddress() }}
               </div>
-              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+              <div *ngIf="selectedUnwrapItemTokenAddress() !== 'N/A'" class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
                 <a ngxClipboard
                   [cbContent]="selectedUnwrapItemTokenAddress() " (cbOnSuccess)="tokenAddressCopied()" uk-icon="icon: copy" title="{{ 'Copy Token Address' | translate }}" uk-tooltip></a>
               </div>
@@ -938,9 +938,9 @@
               <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
                 {{ selectedUnwrapItemDestHash() }}
               </div>
-              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+              <div *ngIf="selectedUnwrapItemDestHash() !== ''" class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
                 <a ngxClipboard
-                  [cbContent]="selectedUnwrapItemDestHash() " (cbOnSuccess)="destHashCopied()" uk-icon="icon: copy" title="{{ 'Copy Destination Hash' | translate }}" uk-tooltip></a>
+                  [cbContent]="selectedUnwrapItemDestHash()" (cbOnSuccess)="destHashCopied()" uk-icon="icon: copy" title="{{ 'Copy Destination Hash' | translate }}" uk-tooltip></a>
               </div>
             </div>
           </div>

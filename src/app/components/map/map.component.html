@@ -183,7 +183,7 @@
       <tbody>
         <tr *ngFor="let map of maps()">
           <td (click)="selectMap(map)" class="uk-text-left uk-text-truncate">{{ map.from }}</td>
-          <td (click)="selectMap(map)" class="uk-text-right">{{ mapItemAmount(map) }}</td>
+          <td (click)="selectMap(map)" class="uk-text-right">{{ mapItemAmount(map) }}<span style="font-size: 12px;"> {{ mapItemTokenTypeShown(map) }}</span></td>
           <td (click)="selectMap(map)" class="uk-text-center">
             <span *ngIf="mapItemSuccess(map)" uk-icon="icon: check;" class="uk-text-success"></span>
             <span *ngIf="mapItemConfirming(map)" class="uk-text-warning">{{ mapItemConfirms(map) }}</span>
@@ -533,7 +533,7 @@
         <tr *ngFor="let unmap of unmaps()">
           <td (click)="selectUnmap(unmap)" class="uk-text-left uk-text-truncate"><img [src]="unmapItemChainLogo(unmap)" width="20" height="20" style="vertical-align: text-top;" />{{ unmapItemShowChain(unmap) }}</td>
           <td (click)="selectUnmap(unmap)" class="uk-text-left uk-text-truncate">{{ unmap.to }}</td>
-          <td (click)="selectUnmap(unmap)" class="uk-text-right">{{ unmapItemAmount(unmap) }}</td>
+          <td (click)="selectUnmap(unmap)" class="uk-text-right">{{ unmapItemAmount(unmap) }}<span style="font-size: 12px;"> {{ unmapItemTokenTypeShown(unmap) }}</span></td>
           <td (click)="selectUnmap(unmap)" class="uk-text-center">
             <span *ngIf="unmapItemStatus(unmap) === 'confirmed'" uk-icon="icon: check;" class="uk-text-success" title="{{ unmapShowStatus(unmap) }}" uk-tooltip></span>
             <span *ngIf="unmapItemStatus(unmap) === 'confirming'" class="uk-text-warning">{{ unmapItemConfirms(unmap) }}</span>
@@ -663,7 +663,7 @@
               <div class="uk-width-expand uk-width-auto@m uk-text-truncate uk-padding-remove-right">
                 {{ selectedUnmapItemTokenAddress() }}
               </div>
-              <div class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
+              <div *ngIf="selectedUnmapItemTokenAddress() !== 'N/A'" class="uk-width-auto uk-width-expand@m uk-padding-remove-left">
                 <a ngxClipboard
                   [cbContent]="selectedUnmapItemTokenAddress() " (cbOnSuccess)="tokenAddressCopied()" uk-icon="icon: copy" title="{{ 'Copy Token Address' | translate }}" uk-tooltip></a>
               </div>

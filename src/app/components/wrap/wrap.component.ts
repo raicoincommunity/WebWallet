@@ -1717,7 +1717,7 @@ export class WrapComponent implements OnInit {
   }
 
   wrapItemTokenTypeShown(wrap: WrapInfo): string {
-    return this.tokenTypeShown(wrap.chain, wrap.type);
+    return this.tokenTypeShown(wrap.chain, wrap.type, wrap.address);
   }
 
   wrapItemStatus(wrap: WrapInfo): string {
@@ -1906,7 +1906,7 @@ export class WrapComponent implements OnInit {
   }
 
   unwrapItemTokenTypeShown(unwrap: UnwrapInfo): string {
-    return this.tokenTypeShown(unwrap.chain, unwrap.type)
+    return this.tokenTypeShown(unwrap.chain, unwrap.type, unwrap.address)
   }
 
   unwrapItemStatus(unwrap: UnwrapInfo): UnwrapStatus {
@@ -2025,8 +2025,12 @@ export class WrapComponent implements OnInit {
   }
 
   selectedWrapItemTokenAddress(): string {
-    if (!this.selectedWrap) return '';
-    return this.selectedWrap.address;
+    const wrap = this.selectedWrap;
+    if (!wrap) return '';
+    if (!wrap.address) {
+      return 'N/A';
+    }
+    return wrap.address;
   }
 
   tokenAddressCopied() {
@@ -2153,6 +2157,9 @@ export class WrapComponent implements OnInit {
   selectedUnwrapItemTokenAddress(): string {
     const unwrap = this.selectedUnwrap;
     if (!unwrap) return '';
+    if (!unwrap.address) {
+      return 'N/A';
+    }
     return unwrap.address;
   }
 
@@ -2289,7 +2296,8 @@ export class WrapComponent implements OnInit {
     return decimals;
   }
 
-  private tokenTypeShown(chain: string, type: string | TokenType): string {
+  private tokenTypeShown(chain: string, type: string | TokenType, address: string): string {
+    if (!address) return '';
     if (typeof type !== 'string') {
       type = TokenHelper.toTypeStr(type)
     }
