@@ -21,7 +21,7 @@
 
 <!-- Wrap Panel -->
 <div *ngIf="activePanel === 'wrap' && wrapContractCreated() === false" class="uk-alert-warning" uk-alert>
-  <p><b>{{ 'Reminder' | translate }}:</b> {{ 'It seems you are the first user trying to wrap the current token, you need to create the wrap contract first. This operation will cost more gas than usual!' | translate }}</p>
+  <p><b>{{ 'Reminder' | translate }}:</b> {{ 'It seems you are the first user trying to wrap the current token, you need to create the wrap contract first.' | translate }}</p>
 </div>
 
 <div class="uk-card uk-card-default" [hidden]="activePanel != 'wrap'">
