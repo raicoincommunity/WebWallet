@@ -1964,6 +1964,14 @@ const testVerifiedTokens: VerifiedToken[] = [
     symbol:'PRB',
     decimals: 0
   },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN_TEST,
+    address:'0x259BECb3C69290b3F9Ff35BBD063fae36580EFE6',
+    type:TokenType._721,
+    name:'Galaxy OAT',
+    symbol:'OAT',
+    decimals: 0
+  },
 
   /* end of Binance Smart Chain Testnet */
 
@@ -1984,6 +1992,14 @@ const testVerifiedTokens: VerifiedToken[] = [
     name: 'USD Coin',
     symbol: 'USDC',
     decimals: 6
+  },
+  {
+    chain: Chain.ETHEREUM_TEST_GOERLI,
+    address: '0x162d69731650cfdac48bffebF2fa8FCd50AC0Db9',
+    type: TokenType._721,
+    name: 'BoredApeYachtClub',
+    symbol: 'BAYC',
+    decimals: 0
   },
   /* end of Goerli Testnet */
 ]
