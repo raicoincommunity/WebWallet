@@ -1030,11 +1030,11 @@ const verifiedTokens: VerifiedToken[] = [
   },
   {
     chain: Chain.ETHEREUM,
-    address: '0x389999216860AB8E0175387A0c90E5c52522C945',
+    address: '0xbededDf2eF49E87037c4fb2cA34d1FF3D3992A11',
     type: TokenType._20,
     name: 'FEGtoken',
     symbol: 'FEG',
-    decimals: 9
+    decimals: 18
   },
   {
     chain: Chain.ETHEREUM,
@@ -1258,6 +1258,214 @@ const verifiedTokens: VerifiedToken[] = [
     type: TokenType._20,
     name: 'OMI Token',
     symbol: 'OMI',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x993864E43Caa7F7F12953AD6fEb1d1Ca635B875F',
+    type: TokenType._20,
+    name: 'Singularity Dao',
+    symbol: 'SDAO',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xF0d33BeDa4d734C72684b5f9abBEbf715D0a7935',
+    type: TokenType._20,
+    name: 'NuNet',
+    symbol: 'NTX',
+    decimals: 6
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xaD22f63404f7305e4713CcBd4F296f34770513f4',
+    type: TokenType._20,
+    name: 'Atomic Wallet Token',
+    symbol: 'AWC',
+    decimals: 8
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xd31695a1d35E489252CE57b129FD4b1B05E6AcaC',
+    type: TokenType._20,
+    name: 'TOKPIE',
+    symbol: 'TKP',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x961C8c0B1aaD0c0b10a51FeF6a867E3091BCef17',
+    type: TokenType._20,
+    name: 'Dypius',
+    symbol: 'DYP',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xCdB37A4fBC2Da5b78aA4E41a432792f9533e85Cc',
+    type: TokenType._20,
+    name: 'CheckDot',
+    symbol: 'CDT',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x0f71B8De197A1C84d31de0F1fA7926c365F052B3',
+    type: TokenType._20,
+    name: 'Arcona',
+    symbol: 'ARCONA',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xC0bA369c8Db6eB3924965e5c4FD0b4C1B91e305F',
+    type: TokenType._20,
+    name: 'DLP Duck Token',
+    symbol: 'DUCK',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x71Fc1F555a39E0B698653AB0b475488EC3c34D57',
+    type: TokenType._20,
+    name: 'Rainmaker Games',
+    symbol: 'RAIN',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xBcCD27062ae1A2BeA5731c904b96EDfb163Aba21',
+    type: TokenType._20,
+    name: 'Dogcoin',
+    symbol: 'DOGS',
+    decimals: 9
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x7DAc25b1A665e1c70F25F1fC37d88C99274984ed',
+    type: TokenType._20,
+    name: 'Shibnobi',
+    symbol: 'SHINJA',
+    decimals: 9
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x4B1E80cAC91e2216EEb63e29B957eB91Ae9C2Be8',
+    type: TokenType._20,
+    name: 'Jupiter',
+    symbol: 'JUP',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x54012cDF4119DE84218F7EB90eEB87e25aE6EBd7',
+    type: TokenType._20,
+    name: 'Luffy',
+    symbol: 'LUFFY',
+    decimals: 9
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x5B8650Cd999B23cF39Ab12e3213fbC8709c7f5CB',
+    type: TokenType._20,
+    name: 'Mazimatic',
+    symbol: 'MAZI',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x173E552Bf97BBD50b455514ac52991Ef639ba703',
+    type: TokenType._20,
+    name: 'Shido Inu',
+    symbol: 'SHIDO',
+    decimals: 9
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x0FF534801E98A4976246D1f418E441783fc9aa15',
+    type: TokenType._20,
+    name: 'Future AI',
+    symbol: 'FUTURE-AI',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x38d9eb07A7b8Df7D86F440A4A5c4a4c1a27E1a08',
+    type: TokenType._20,
+    name: 'bloXmove Token',
+    symbol: 'BLXM',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x5b52bfB8062Ce664D74bbCd4Cd6DC7Df53Fd7233',
+    type: TokenType._20,
+    name: 'Zeniq',
+    symbol: 'ZENIQ',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x9d7107c8E30617CAdc11f9692A19C82ae8bbA938',
+    type: TokenType._20,
+    name: 'Lucky Roo',
+    symbol: 'ROO',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x7a5d3A9Dcd33cb8D527f7b5F96EB4Fef43d55636',
+    type: TokenType._20,
+    name: 'RadioShack',
+    symbol: 'RADIO',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xE1BDA0c3Bfa2bE7f740f0119B6a34F057BD58Eba',
+    type: TokenType._20,
+    name: 'The Winkyverse',
+    symbol: 'WNK',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x6a26ee7755d939b96cdCd8A0370630D48902FD7C',
+    type: TokenType._20,
+    name: 'MAGIKAL.ai',
+    symbol: 'MGKL',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0xAAA9214F675316182Eaa21C85f0Ca99160CC3AAA',
+    type: TokenType._20,
+    name: 'QANplatform',
+    symbol: 'QANX',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x4c584CD339bdDE73B7F5210486dd8bbeEE3fDe6d',
+    type: TokenType._20,
+    name: 'ShibElon',
+    symbol: 'SHIBELON',
+    decimals: 9
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x995C0e3b9AF4da89FC76c5c0784e97C7A36EEc06',
+    type: TokenType._20,
+    name: 'Pige',
+    symbol: 'PIGE',
+    decimals: 18
+  },
+  {
+    chain: Chain.ETHEREUM,
+    address: '0x9776191F4ebBBa7f358C1663bF82C0a0906c77Fa',
+    type: TokenType._20,
+    name: 'Phoenix chain',
+    symbol: 'PHX',
     decimals: 18
   },
   // todo: 
@@ -1583,7 +1791,7 @@ const verifiedTokens: VerifiedToken[] = [
     type: TokenType._20,
     name: 'FEGtoken',
     symbol: 'FEG',
-    decimals: 9
+    decimals: 18
   },
   {
     chain: Chain.BINANCE_SMART_CHAIN,
@@ -1849,6 +2057,214 @@ const verifiedTokens: VerifiedToken[] = [
     symbol: 'GMT',
     decimals: 18
   },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x90Ed8F1dc86388f14b64ba8fb4bbd23099f18240',
+    type: TokenType._20,
+    name: 'Singularity Dao',
+    symbol: 'SDAO',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x5C4Bcc4DbaEAbc7659f6435bCE4E659314ebad87',
+    type: TokenType._20,
+    name: 'NuNet',
+    symbol: 'NTX',
+    decimals: 6
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x798aF7725376765e7F3cA86d5e0Cf1BEaEf19F34',
+    type: TokenType._20,
+    name: 'Atomic Wallet Token',
+    symbol: 'AWC',
+    decimals: 8
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x7849ed1447250d0B896f89b58f3075B127ca29B3',
+    type: TokenType._20,
+    name: 'TOKPIE',
+    symbol: 'TKP',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x961C8c0B1aaD0c0b10a51FeF6a867E3091BCef17',
+    type: TokenType._20,
+    name: 'Dypius',
+    symbol: 'DYP',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x0cBD6fAdcF8096cC9A43d90B45F65826102e3eCE',
+    type: TokenType._20,
+    name: 'CheckDot',
+    symbol: 'CDT',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x8fC4532bE3003fb5A3A2f9afc7e95b3bfbD5fAAb',
+    type: TokenType._20,
+    name: 'Arcona',
+    symbol: 'ARCONA',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x5D186E28934c6B0fF5Fc2feCE15D1F34f78cBd87',
+    type: TokenType._20,
+    name: 'DLP Duck Token',
+    symbol: 'DUCK',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x6Bcd897D4BA5675F860C7418ddc034f6c5610114',
+    type: TokenType._20,
+    name: 'Rainmaker Games',
+    symbol: 'RAIN',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xBcCD27062ae1A2BeA5731c904b96EDfb163Aba21',
+    type: TokenType._20,
+    name: 'Dogcoin',
+    symbol: 'DOGS',
+    decimals: 9
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x7DAc25b1A665e1c70F25F1fC37d88C99274984ed',
+    type: TokenType._20,
+    name: 'Shibnobi',
+    symbol: 'SHINJA',
+    decimals: 9
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x0231f91e02DebD20345Ae8AB7D71A41f8E140cE7',
+    type: TokenType._20,
+    name: 'BSC Wrapped Jupiter',
+    symbol: 'bwJUP',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x54012cDF4119DE84218F7EB90eEB87e25aE6EBd7',
+    type: TokenType._20,
+    name: 'Luffy',
+    symbol: 'LUFFY',
+    decimals: 9
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x3eaeE3319Fe4D930B79cFA21a03714A38d45154A',
+    type: TokenType._20,
+    name: 'Mazimatic',
+    symbol: 'MAZI',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x733Af324146DCfe743515D8D77DC25140a07F9e0',
+    type: TokenType._20,
+    name: 'Shido Inu',
+    symbol: 'SHIDO',
+    decimals: 9
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x0FF534801E98A4976246D1f418E441783fc9aa15',
+    type: TokenType._20,
+    name: 'Future AI',
+    symbol: 'FUTURE-AI',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x40E51e0eC04283e300F12f6bB98DA157Bb22036E',
+    type: TokenType._20,
+    name: 'bloXmove Token',
+    symbol: 'BLXM',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x5b52bfB8062Ce664D74bbCd4Cd6DC7Df53Fd7233',
+    type: TokenType._20,
+    name: 'Zeniq',
+    symbol: 'ZENIQ',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x9d7107c8E30617CAdc11f9692A19C82ae8bbA938',
+    type: TokenType._20,
+    name: 'Lucky Roo',
+    symbol: 'ROO',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x30807D3b851A31d62415B8bb7Af7dCa59390434a',
+    type: TokenType._20,
+    name: 'RadioShack',
+    symbol: 'RADIO',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xb160A5F19ebccd8E0549549327e43DDd1D023526',
+    type: TokenType._20,
+    name: 'The Winkyverse',
+    symbol: 'WNK',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x8aBfa6a4F4B9865b0e7ACfDCe1839A2584636d06',
+    type: TokenType._20,
+    name: 'MAGIKAL.ai',
+    symbol: 'MGKL',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xAAA9214F675316182Eaa21C85f0Ca99160CC3AAA',
+    type: TokenType._20,
+    name: 'QANplatform',
+    symbol: 'QANX',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0xC183062db25FC96325485ea369C979CE881Ac0eA',
+    type: TokenType._20,
+    name: 'ShibElon',
+    symbol: 'SHIBELON',
+    decimals: 4
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x995C0e3b9AF4da89FC76c5c0784e97C7A36EEc06',
+    type: TokenType._20,
+    name: 'Pige',
+    symbol: 'PIGE',
+    decimals: 18
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN,
+    address: '0x9776191F4ebBBa7f358C1663bF82C0a0906c77Fa',
+    type: TokenType._20,
+    name: 'Phoenix chain',
+    symbol: 'PHX',
+    decimals: 18
+  },
   // todo: 
 
 
@@ -1971,6 +2387,14 @@ const testVerifiedTokens: VerifiedToken[] = [
     name:'Galaxy OAT',
     symbol:'OAT',
     decimals: 0
+  },
+  {
+    chain: Chain.BINANCE_SMART_CHAIN_TEST,
+    address:'0xa4F286455277321c84dB11a2B01bc7bE05264E06',
+    type:TokenType._20,
+    name:'Ampleforth',
+    symbol:'AMPL',
+    decimals: 9
   },
 
   /* end of Binance Smart Chain Testnet */
