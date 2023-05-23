@@ -582,7 +582,7 @@
   "The operation is ignored": "该操作被忽略",
   "Invalid timestamp": "时间戳无效",
   "The account's credit is not enough, please increase it in 'Settings -> Account Settings'": "账户信用不足，请在“设置->账户设置”中增加",
-  "The account is restricted": "帐户受限制",
+  "The account is restricted, please increase account's credit in 'Settings -> Account Settings'": "账户被限制，请在“设置->账户设置”增加账户信用",
   "Unsupported account type": "不支持的帐户类型",
   "Unexpected error": "意外的错误",
   "Receivable amount less than credit price": "应收款额小于信用价",

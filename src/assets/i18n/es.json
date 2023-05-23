@@ -582,7 +582,7 @@
   "The operation is ignored": "La operación se ignora",
   "Invalid timestamp": "Marca de tiempo no válida",
   "The account's credit is not enough, please increase it in 'Settings -> Account Settings'": "El crédito de la cuenta no es suficiente, auméntelo en 'Configuración -> Configuración de la cuenta'",
-  "The account is restricted": "La cuenta está restringida",
+  "The account is restricted, please increase account's credit in 'Settings -> Account Settings'": "La cuenta está restringida, aumente el crédito de la cuenta en 'Configuración -> Configuración de la cuenta'",
   "Unsupported account type": "Tipo de cuenta no admitido",
   "Unexpected error": "Error inesperado",
   "Receivable amount less than credit price": "Monto por cobrar menor que el precio del crédito",
