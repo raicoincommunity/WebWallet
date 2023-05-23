@@ -582,7 +582,7 @@
 	"The operation is ignored": "The operation is ignored",
 	"Invalid timestamp": "Invalid timestamp",
 	"The account's credit is not enough, please increase it in 'Settings -> Account Settings'": "The account's credit is not enough, please increase it in 'Settings -> Account Settings'",
-	"The account is restricted": "The account is restricted",
+	"The account is restricted, please increase account's credit in 'Settings -> Account Settings'": "The account is restricted, please increase account's credit in 'Settings -> Account Settings'",
 	"Unsupported account type": "Unsupported account type",
 	"Unexpected error": "Unexpected error",
 	"Receivable amount less than credit price": "Receivable amount less than credit price",

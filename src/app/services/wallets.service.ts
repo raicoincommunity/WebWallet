@@ -3,7 +3,7 @@ import { Subject } from 'rxjs';
 import { v4 as uuid } from 'uuid';
 import * as CryptoJS from 'crypto-js';
 import { LocalStorageService, StorageKey, AppStorageEvent } from './local-storage.service';
-import { UtilService, U8, U64, U256, U128, BlockOpcodeStr, U32, U512, BlockTypeStr, U16, ExtensionTypeStr, ExtensionAliasOpStr } from './util.service';
+import { UtilService, U8, U64, U256, U128, BlockOpcodeStr, U32, U512, BlockTypeStr, U16, ExtensionTypeStr, ExtensionAliasOpStr, BlockOpcode } from './util.service';
 import { ServerService, ServerState } from './server.service';
 import { BlocksService, Receivable, Block, Amount, BlockInfo, TxBlock } from './blocks.service';
 import { environment } from '../../environments/environment';
@@ -434,7 +434,9 @@ export class WalletsService implements OnDestroy {
     }
 
     let errorCode = this.accountActionCheck(account, wallet);
-    if (errorCode !== WalletErrorCode.SUCCESS) return { errorCode };
+    if (errorCode !== WalletErrorCode.SUCCESS && errorCode !== WalletErrorCode.RESTRICTED) {
+      return { errorCode };
+    }
 
     let blockInfo = this.generateCreditBlock(account!, wallet!, credit);
     if (blockInfo.errorCode !== WalletErrorCode.SUCCESS || !blockInfo.block) {
@@ -678,10 +680,10 @@ export class WalletsService implements OnDestroy {
     if (!account || !wallet || wallet.accounts.indexOf(account) === -1) return WalletErrorCode.MISS;
     if (wallet.locked()) return WalletErrorCode.LOCKED;
     if (!account.synced) return WalletErrorCode.UNSYNCED;
-    if (account.restricted) return WalletErrorCode.RESTRICTED;
     if (account.type.toBlockTypeStr() !== BlockTypeStr.TX_BLOCK && account.created()) {
       return WalletErrorCode.ACCOUNT_TYPE;
     }
+    if (account.restricted) return WalletErrorCode.RESTRICTED;
 
     return WalletErrorCode.SUCCESS;
   }
@@ -1381,6 +1383,7 @@ export class WalletsService implements OnDestroy {
       return;
     }
     let block = parsed.block;
+    let accounts = this.findAccounts(block.account().toAccountAddress());
 
     if (block.height().gt(0)) {
       let previousInfo = this.blocks.getBlock(block.previous());
@@ -1396,11 +1399,13 @@ export class WalletsService implements OnDestroy {
           amount.value = block.balance().minus(previous.balance());
         }
         this.receiveBlock(block, amount, true);
+        if (block.opcode().eq(BlockOpcode.CREDIT)) {
+          accounts.forEach(a => this.accountInfoQuery(a));
+        }
         return;
       }
     }
 
-    let accounts = this.findAccounts(block.account().toAccountAddress());
     accounts.forEach(a => this.syncConfirmedBlock(a));
   }
 
@@ -2147,7 +2152,7 @@ export enum WalletErrorCode {
   IGNORED = 'The operation is ignored',
   TIMESTAMP = 'Invalid timestamp',
   CREDIT = 'The account\'s credit is not enough, please increase it in \'Settings -> Account Settings\'',
-  RESTRICTED = 'The account is restricted',
+  RESTRICTED = 'The account is restricted, please increase account\'s credit in \'Settings -> Account Settings\'',
   ACCOUNT_TYPE = 'Unsupported account type',
   UNEXPECTED = 'Unexpected error',
   RECEIVABLE_AMOUNT = 'Receivable amount less than credit price',
@@ -2176,7 +2181,7 @@ marker('The account is synchronizing, please try later');
 marker('The operation is ignored');
 marker('Invalid timestamp');
 marker('The account\'s credit is not enough, please increase it in \'Settings -> Account Settings\'');
-marker('The account is restricted');
+marker('The account is restricted, please increase account\'s credit in \'Settings -> Account Settings\'');
 marker('Unsupported account type');
 marker('Unexpected error');
 marker('Receivable amount less than credit price');

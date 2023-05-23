@@ -582,7 +582,7 @@
   "The operation is ignored": "Операция игнорируется",
   "Invalid timestamp": "Неверная отметка времени",
   "The account's credit is not enough, please increase it in 'Settings -> Account Settings'": "Кредита учетной записи недостаточно, пожалуйста, увеличьте его в «Настройки -> Настройки учетной записи».",
-  "The account is restricted": "Аккаунт ограничен",
+  "The account is restricted, please increase account's credit in 'Settings -> Account Settings'": "Учетная запись ограничена, пожалуйста, увеличьте кредит учетной записи в «Настройки -> Настройки учетной записи».",
   "Unsupported account type": "Неподдерживаемый тип учетной записи",
   "Unexpected error": "Непредвиденная ошибка",
   "Receivable amount less than credit price": "Сумма к получению меньше суммы кредита",

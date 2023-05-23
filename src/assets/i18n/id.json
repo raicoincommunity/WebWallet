@@ -582,7 +582,7 @@
   "The operation is ignored": "Operasi tersebut diabaikan",
   "Invalid timestamp": "Stempel waktu tidak valid",
   "The account's credit is not enough, please increase it in 'Settings -> Account Settings'": "Kredit akun tidak cukup, harap tingkatkan di 'Pengaturan -> Pengaturan Akun'",
-  "The account is restricted": "Akun tersebut dibatasi",
+  "The account is restricted, please increase account's credit in 'Settings -> Account Settings'": "Akun dibatasi, harap tingkatkan kredit akun di 'Pengaturan -> Pengaturan Akun'",
   "Unsupported account type": "Jenis akun tidak didukung",
   "Unexpected error": "Kesalahan yang tidak terduga",
   "Receivable amount less than credit price": "Jumlah yang akan diterima kurang dari harga kredit",

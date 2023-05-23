@@ -582,7 +582,7 @@
   "The operation is ignored": "Thao tác bị bỏ qua",
   "Invalid timestamp": "Dấu thời gian không hợp lệ",
   "The account's credit is not enough, please increase it in 'Settings -> Account Settings'": "Tín dụng của tài khoản không đủ, vui lòng tăng tín dụng trong 'Cài đặt -> Cài đặt tài khoản'",
-  "The account is restricted": "Tài khoản bị hạn chế",
+  "The account is restricted, please increase account's credit in 'Settings -> Account Settings'": "Tài khoản bị hạn chế, vui lòng tăng tín dụng của tài khoản trong 'Cài đặt -> Cài đặt tài khoản'",
   "Unsupported account type": "Loại tài khoản không được hỗ trợ",
   "Unexpected error": "Lỗi không mong đợi",
   "Receivable amount less than credit price": "Số tiền nhận nhỏ hơn giá tín dụng",
